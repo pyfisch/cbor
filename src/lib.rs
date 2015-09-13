@@ -7,7 +7,7 @@ extern crate serde;
 
 pub use value::{Value, ObjectKey};
 pub use ser::{to_vec, to_writer};
-pub use de::from_slice;
+pub use de::{from_slice, from_reader};
 
 pub mod ser;
 pub mod de;
