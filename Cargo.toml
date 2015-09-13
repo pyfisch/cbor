@@ -1,0 +1,8 @@
+[package]
+name = "serde_cbor"
+version = "0.1.0"
+authors = ["Pyfisch <pyfisch@gmail.com>"]
+
+[dependencies]
+serde = "*"
+byteorder = "0.3"
