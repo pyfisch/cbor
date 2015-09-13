@@ -6,3 +6,6 @@ authors = ["Pyfisch <pyfisch@gmail.com>"]
 [dependencies]
 serde = "*"
 byteorder = "0.3"
+
+[features]
+unstable = []
