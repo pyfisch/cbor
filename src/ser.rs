@@ -131,7 +131,7 @@ pub fn to_writer<W: Write, T: ser::Serialize>(writer: &mut W, value: &T) -> Resu
 /// Encodes the specified struct into a writer with a leading self-describe tag.
 #[inline]
 pub fn to_writer_sd<W: Write, T: ser::Serialize>(writer: &mut W, value: &T) -> Result<()> {
-    try!(writer.write_all(&[0xd, 0x9d, 0x9, 0xf7]));
+    try!(writer.write_all(&[0xd9, 0xd9, 0xf7]));
     let mut ser = Serializer::new(writer);
     value.serialize(&mut ser).map_err(From::from)
 }

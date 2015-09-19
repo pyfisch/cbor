@@ -3,7 +3,7 @@ extern crate serde_cbor;
 
 use std::collections::HashMap;
 
-use serde_cbor::{to_vec, from_slice};
+use serde_cbor::{to_vec, to_vec_sd, from_slice};
 
 #[test]
 fn test_string() {
@@ -43,13 +43,38 @@ fn test_infinity() {
 }
 
 #[test]
-fn test_i32() {
-    let vec = to_vec(&-23567997).unwrap();
-    assert_eq!(vec, b"\x3a\x01\x67\x9e\x7c")
+fn test_neg_infinity() {
+    let vec = to_vec(&::std::f64::NEG_INFINITY).unwrap();
+    assert_eq!(vec, b"\xf9\xfc\x00");
 }
 
 #[test]
-fn test_i8() {
+fn test_nan() {
+    let vec = to_vec(&::std::f32::NAN).unwrap();
+    assert_eq!(vec, b"\xf9\x7e\x00");
+}
+
+#[test]
+fn test_integer() {
+    // u8
+    let vec = to_vec(&24).unwrap();
+    assert_eq!(vec, b"\x18\x18");
+    // i8
     let vec = to_vec(&-5).unwrap();
-    assert_eq!(vec, b"\x24")
+    assert_eq!(vec, b"\x24");
+    // i16
+    let vec = to_vec(&-300).unwrap();
+    assert_eq!(vec, b"\x39\x01\x2b");
+    // i32
+    let vec = to_vec(&-23567997).unwrap();
+    assert_eq!(vec, b"\x3a\x01\x67\x9e\x7c");
+    // u64
+    let vec = to_vec(&::std::u64::MAX).unwrap();
+    assert_eq!(vec, b"\x1b\xff\xff\xff\xff\xff\xff\xff\xff");
+}
+
+#[test]
+fn test_self_describing() {
+    let vec = to_vec_sd(&0).unwrap();
+    assert_eq!(vec, b"\xd9\xd9\xf7\x00");
 }
