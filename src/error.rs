@@ -45,6 +45,9 @@ pub enum Error {
     SyntaxError(ErrorCode, usize),
     IoError(io::Error),
     FromUtf8Error(FromUtf8Error),
+    UnexpectedEOF,
+    #[doc(hidden)]
+    __Nonexhaustive,
 }
 
 impl error::Error for Error {
@@ -53,6 +56,8 @@ impl error::Error for Error {
             Error::SyntaxError(..) => "syntax error",
             Error::IoError(ref error) => error::Error::description(error),
             Error::FromUtf8Error(ref error) => error.description(),
+            Error::UnexpectedEOF => "failed to fill whole buffer",
+            _ => "unknown error"
         }
     }
 
@@ -73,6 +78,7 @@ impl fmt::Display for Error {
             }
             Error::IoError(ref error) => fmt::Display::fmt(error, fmt),
             Error::FromUtf8Error(ref error) => fmt::Display::fmt(error, fmt),
+            _ => fmt.write_str("unknown error")
         }
     }
 }

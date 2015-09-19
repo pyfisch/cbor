@@ -1,7 +1,3 @@
-#![feature(append)]
-#![feature(read_exact)]
-#![feature(float_extras)]
-
 //! CBOR and serialization.
 //!
 //! # What is CBOR?
@@ -117,13 +113,16 @@
 //! ```
 
 extern crate byteorder;
+extern crate libc;
 extern crate serde;
 
-pub use value::{Value, ObjectKey};
-pub use ser::{to_vec, to_writer, to_vec_sd, to_writer_sd};
 pub use de::{from_slice, from_reader};
+pub use error::{Error, Result};
+pub use ser::{to_vec, to_writer, to_vec_sd, to_writer_sd};
+pub use value::{Value, ObjectKey};
 
-pub mod ser;
 pub mod de;
 pub mod error;
+pub mod read;
+pub mod ser;
 pub mod value;

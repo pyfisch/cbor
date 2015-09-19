@@ -4,35 +4,47 @@ use byteorder::{BigEndian, ReadBytesExt};
 use serde::de::{self, Visitor, Deserialize};
 use serde::bytes::ByteBuf;
 
+use super::read::PositionReader;
 use super::error::{Error, ErrorCode, Result};
 
 pub struct Deserializer<R: Read> {
-    reader: R,
+    reader: PositionReader<R>,
 }
 
-impl<R: Read> Deserializer<R> {
+impl <R: Read>Deserializer<R> {
     pub fn new(reader: R) -> Deserializer<R> {
-        Deserializer { reader: reader }
+        Deserializer { reader: PositionReader::new(reader) }
     }
 
     fn read_bytes(&mut self, n: usize) -> Result<Vec<u8>> {
-        let mut buffer = vec![0; n];
-        try!(self.reader.read_exact(&mut buffer));
-        Ok(buffer)
+        self.reader.read_bytes(n)
     }
 
     fn error(&mut self, reason: ErrorCode) -> Error {
-        Error::SyntaxError(reason, 0)
+        Error::SyntaxError(reason, self.reader.position())
     }
 
     pub fn parse_value<V: Visitor>(&mut self, mut visitor: V) -> Result<V::Value> {
+        // Workaround to not require the currently unstable `f32::ldexp`:
+        mod ffi {
+            use libc::c_int;
+
+            extern {
+                pub fn ldexpf(x: f32, exp: c_int) -> f32;
+            }
+
+            #[inline]
+            pub fn c_ldexpf(x: f32, exp: isize) -> f32 {
+                unsafe { ldexpf(x, exp as c_int) }
+            }
+        }
         fn decode_f16(half: u16) -> f32 {
             let exp: u16 = half >> 10 & 0x1f;
             let mant: u16 = half & 0x3ff;
             let val: f32 = if exp == 0 {
-                f32::ldexp(mant as f32, -24)
+                ffi::c_ldexpf(mant as f32, -24)
             } else if exp != 31 {
-                f32::ldexp(mant as f32 + 1024f32, exp as isize - 25)
+                ffi::c_ldexpf(mant as f32 + 1024f32, exp as isize - 25)
             } else {
                 if mant == 0 {
                     ::std::f32::INFINITY
