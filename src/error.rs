@@ -15,7 +15,7 @@ pub enum ErrorCode {
     EOFWhileParsingValue,
     // Break stop code outside indefinite length item
     StopCode,
-    UnknownByte,
+    UnknownByte(u8),
     /// Unknown field in struct.
     UnknownField(String),
     /// Struct is missing a field.
@@ -34,7 +34,7 @@ impl fmt::Debug for ErrorCode {
             ErrorCode::UnknownField(ref field) => write!(f, "unknown field \"{}\"", field),
             ErrorCode::MissingField(ref field) => write!(f, "missing field \"{}\"", field),
             ErrorCode::TrailingBytes => "trailing bytes".fmt(f),
-            ErrorCode::UnknownByte => "found unknown start byte".fmt(f),
+            ErrorCode::UnknownByte(byte) => write!(f, "unknown start byte b'\\x{0:x}'", byte),
             ErrorCode::InvalidSyntax(ref msg) => write!(f, "invalid syntax: \"{}\"", msg),
         }
     }

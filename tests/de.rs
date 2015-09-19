@@ -68,7 +68,7 @@ fn test_list2() {
 
 #[test]
 fn test_object() {
-    let value: error::Result<Value> = de::from_slice(b"\xa5\x61\x61\x61\x41\x61\x62\x61\x42\x61\x63\x61\x43\x61\x64\x61\x44\x61\x65\x61\x45");
+    let value: error::Result<Value> = de::from_slice(b"\xa5aaaAabaBacaCadaDaeaE");
     let mut object = HashMap::new();
     object.insert(ObjectKey::String("a".to_owned()), Value::String("A".to_owned()));
     object.insert(ObjectKey::String("b".to_owned()), Value::String("B".to_owned()));
@@ -116,4 +116,17 @@ fn test_float() {
 fn test_self_describing() {
     let value: error::Result<Value> = de::from_slice(&[0xd9, 0xd9, 0xf7, 0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72]);
     assert_eq!(value.unwrap(), Value::String("foobar".to_owned()));
+}
+
+
+#[test]
+fn test_f16() {
+    let mut x: Value = de::from_slice(&[0xf9, 0x41, 0x00]).unwrap();
+    assert_eq!(x, Value::F64(2.5));
+    x = de::from_slice(&[0xf9, 0x41, 0x90]).unwrap();
+    assert_eq!(x, Value::F64(2.78125));
+    x = de::from_slice(&[0xf9, 0x50, 0x90]).unwrap();
+    assert_eq!(x, Value::F64(36.5));
+    x = de::from_slice(&[0xf9, 0xd0, 0x90]).unwrap();
+    assert_eq!(x, Value::F64(-36.5));
 }

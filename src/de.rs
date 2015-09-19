@@ -26,12 +26,10 @@ impl<R: Read> Deserializer<R> {
     }
 
     pub fn parse_value<V: Visitor>(&mut self, mut visitor: V) -> Result<V::Value> {
-        fn decode_f16(v: u8, w: u8) -> f32 {
-            let half: u16 = ((v as u16) << 8u8) + w as u16;
+        fn decode_f16(half: u16) -> f32 {
             let exp: u16 = half >> 10 & 0x1f;
             let mant: u16 = half & 0x3ff;
-            let val: f32;
-            val = if exp == 0 {
+            let val: f32 = if exp == 0 {
                 f32::ldexp(mant as f32, -24)
             } else if exp != 31 {
                 f32::ldexp(mant as f32 + 1024f32, exp as isize - 25)
@@ -187,12 +185,11 @@ impl<R: Read> Deserializer<R> {
             0xf7 => visitor.visit_unit(),
             // 0xf8 => unimplemented!(), // (simple value, one byte follows)
             // Floats
-            0xf9 => visitor.visit_f32(
-                decode_f16(try!(self.reader.read_u8()), try!(self.reader.read_u8()))),
+            0xf9 => visitor.visit_f32(decode_f16(try!(self.reader.read_u16::<BigEndian>()))),
             0xfa => visitor.visit_f32(try!(self.reader.read_f32::<BigEndian>())),
             0xfb => visitor.visit_f64(try!(self.reader.read_f64::<BigEndian>())),
             0xff => Err(self.error(ErrorCode::StopCode)),
-            _ => Err(self.error(ErrorCode::UnknownByte)),
+            n => Err(self.error(ErrorCode::UnknownByte(n))),
         }
     }
 }
