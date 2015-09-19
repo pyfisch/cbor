@@ -58,6 +58,11 @@ impl <R: Read>Deserializer<R> {
                 val
             }
         }
+        fn append(this: &mut Vec<u8>, other: &Vec<u8>) {
+            for v in other {
+                this.push(v.clone())
+            }
+        }
         match try!(self.reader.read_u8()) {
             // Unsigned integers
             b @ 0x00...0x17 => visitor.visit_u8(b & 0b00011111),
@@ -94,7 +99,7 @@ impl <R: Read>Deserializer<R> {
                 let mut bytes = Vec::new();
                 loop {
                     match ByteBuf::deserialize(self) {
-                        Ok(value) => bytes.append(&mut value.to_vec()),
+                        Ok(value) => append(&mut bytes, &mut value.to_vec()),
                         Err(Error::SyntaxError(ErrorCode::StopCode, _)) => break,
                         Err(e) => return Err(e),
                     }
