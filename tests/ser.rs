@@ -37,6 +37,12 @@ fn test_float() {
 }
 
 #[test]
+fn test_f32() {
+    let vec = to_vec(&4000.5f32).unwrap();
+    assert_eq!(vec, b"\xfa\x45\x7a\x08\x00");
+}
+
+#[test]
 fn test_infinity() {
     let vec = to_vec(&::std::f64::INFINITY).unwrap();
     assert_eq!(vec, b"\xf9|\x00");
