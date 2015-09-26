@@ -151,3 +151,15 @@ fn test_crazy_list() {
         Value::F64(23456543.5),
         Value::F64(::std::f64::INFINITY)]);
 }
+
+#[test]
+fn test_nan() {
+    let value: f64 = de::from_slice(b"\xf9\x7e\x00").unwrap();
+    assert!(value.is_nan());
+}
+
+#[test]
+fn test_32f16() {
+    let value: f32 = de::from_slice(b"\xf9\x50\x00").unwrap();
+    assert_eq!(value, 32.0f32);
+}
