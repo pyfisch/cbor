@@ -13,8 +13,9 @@ pub enum ErrorCode {
     TrailingBytes,
     ExpectedSomeValue,
     EOFWhileParsingValue,
-    // Break stop code outside indefinite length item
+    /// Break stop code encountered.
     StopCode,
+    /// Invalid Byte at the beginning of a new value detected.
     UnknownByte(u8),
     /// Unknown field in struct.
     UnknownField(String),

@@ -1,3 +1,5 @@
+//! CBOR deserialization.
+
 use std::io::Read;
 
 use byteorder::{BigEndian, ReadBytesExt};
@@ -7,24 +9,139 @@ use serde::bytes::ByteBuf;
 use super::read::PositionReader;
 use super::error::{Error, ErrorCode, Result};
 
+/// A structure that deserializes CBOR into Rust values.
 pub struct Deserializer<R: Read> {
     reader: PositionReader<R>,
 }
 
 impl <R: Read>Deserializer<R> {
+    /// Creates the CBOR parser from an `std::io::Read`.
     pub fn new(reader: R) -> Deserializer<R> {
         Deserializer { reader: PositionReader::new(reader) }
     }
 
-    fn read_bytes(&mut self, n: usize) -> Result<Vec<u8>> {
-        self.reader.read_bytes(n)
+    /// The `Deserializer::end` method should be called after a value has been fully deserialized.
+    /// This allows the `Deserializer` to validate that the input stream is at the end.
+    #[inline]
+    pub fn end(&mut self) -> Result<()> {
+        if try!(self.reader.read(&mut [0; 1])) == 0 {
+            Ok(())
+        } else {
+            Err(self.error(ErrorCode::TrailingBytes))
+        }
     }
 
     fn error(&mut self, reason: ErrorCode) -> Error {
         Error::SyntaxError(reason, self.reader.position())
     }
 
-    pub fn parse_value<V: Visitor>(&mut self, mut visitor: V) -> Result<V::Value> {
+    fn read_bytes(&mut self, n: usize) -> Result<Vec<u8>> {
+        self.reader.read_bytes(n)
+    }
+
+    fn parse_value<V: Visitor>(&mut self, visitor: V) -> Result<V::Value> {
+        let first = try!(self.reader.read_u8());
+        match (first & 0b111_00000) >> 5 {
+            0 => self.parse_uint(first, visitor),
+            1 => self.parse_int(first, visitor),
+            2 => self.parse_byte_buf(first, visitor),
+            3 => self.parse_string(first, visitor),
+            4 => self.parse_seq(first, visitor),
+            5 => self.parse_map(first, visitor),
+            6 => self.parse_tag(first, visitor),
+            7 => self.parse_simple_value(first, visitor),
+            _ => unreachable!(),
+        }
+    }
+
+    fn parse_additional_information(&mut self, first: u8) -> Result<Option<usize>> {
+        Ok(Some(match first & 0b000_11111 {
+            n @ 0...23 => n as usize,
+            24 => try!(self.reader.read_u8()) as usize,
+            25 => try!(self.reader.read_u16::<BigEndian>()) as usize,
+            26 => try!(self.reader.read_u32::<BigEndian>()) as usize,
+            27 => try!(self.reader.read_u64::<BigEndian>()) as usize,
+            31 => return Ok(None),
+            _ => return Err(self.error(ErrorCode::UnknownByte(first))),
+        }))
+    }
+
+    fn parse_uint<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
+        match first & 0b000_11111 {
+            n @ 0...23 => visitor.visit_u8(n),
+            24 => visitor.visit_u8(try!(self.reader.read_u8())),
+            25 => visitor.visit_u16(try!(self.reader.read_u16::<BigEndian>())),
+            26 => visitor.visit_u32(try!(self.reader.read_u32::<BigEndian>())),
+            27 => visitor.visit_u64(try!(self.reader.read_u64::<BigEndian>())),
+            _ => Err(self.error(ErrorCode::UnknownByte(first))),
+        }
+    }
+
+    fn parse_int<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
+        match first & 0b000_11111 {
+            n @ 0...23 => visitor.visit_i8(-1 - n as i8),
+            24 => visitor.visit_i16(-1 - try!(self.reader.read_u8()) as i16),
+            25 => visitor.visit_i32(-1 - try!(self.reader.read_u16::<BigEndian>()) as i32),
+            26 => visitor.visit_i64(-1 - try!(self.reader.read_u32::<BigEndian>()) as i64),
+            27 => visitor.visit_i64(-1 - try!(self.reader.read_u64::<BigEndian>()) as i64),
+            _ => Err(self.error(ErrorCode::UnknownByte(first))),
+        }
+    }
+
+    fn parse_byte_buf<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
+        // Workaround as long as append is unstable.
+        fn append(this: &mut Vec<u8>, other: &[u8]) {
+            for v in other {
+                this.push(v.clone())
+            }
+        }
+        if let Some(n) = try!(self.parse_additional_information(first)) {
+            visitor.visit_byte_buf(try!(self.read_bytes(n)))
+        } else {
+            let mut bytes = Vec::new();
+            loop {
+                match ByteBuf::deserialize(self) {
+                    Ok(value) => append(&mut bytes, &*value),
+                    Err(Error::SyntaxError(ErrorCode::StopCode, _)) => break,
+                    Err(e) => return Err(e),
+                }
+            }
+            visitor.visit_byte_buf(bytes)
+        }
+    }
+
+    fn parse_string<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
+        if let Some(n) = try!(self.parse_additional_information(first)) {
+            visitor.visit_string(try!(String::from_utf8(try!(self.read_bytes(n)))))
+        } else {
+            let mut string = String::new();
+            loop {
+                match String::deserialize(self) {
+                    Ok(value) => string.push_str(&value[..]),
+                    Err(Error::SyntaxError(ErrorCode::StopCode, _)) => break,
+                    Err(e) => return Err(e),
+                }
+            }
+            return visitor.visit_string(string)
+        }
+    }
+
+    fn parse_seq<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
+        let n = try!(self.parse_additional_information(first));
+        visitor.visit_seq(SeqVisitor::new(self, n))
+    }
+
+    fn parse_map<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
+        let n = try!(self.parse_additional_information(first));
+        visitor.visit_map(MapVisitor::new(self, n))
+    }
+
+    fn parse_tag<V: Visitor>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
+        try!(self.parse_additional_information(first));
+        self.parse_value(visitor)
+    }
+
+    fn parse_simple_value<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
         // Workaround to not require the currently unstable `f32::ldexp`:
         mod ffi {
             use libc::c_int;
@@ -58,155 +175,16 @@ impl <R: Read>Deserializer<R> {
                 val
             }
         }
-        fn append(this: &mut Vec<u8>, other: &Vec<u8>) {
-            for v in other {
-                this.push(v.clone())
-            }
-        }
-        match try!(self.reader.read_u8()) {
-            // Unsigned integers
-            b @ 0x00...0x17 => visitor.visit_u8(b & 0b00011111),
-            0x18 => visitor.visit_u8(try!(self.reader.read_u8())),
-            0x19 => visitor.visit_u16(try!(self.reader.read_u16::<BigEndian>())),
-            0x1a => visitor.visit_u32(try!(self.reader.read_u32::<BigEndian>())),
-            0x1b => visitor.visit_u64(try!(self.reader.read_u64::<BigEndian>())),
-            // Signed integers
-            b @ 0x20...0x37 => visitor.visit_i8(-1 - (b & 0b00011111) as i8),
-            0x38 => visitor.visit_i16(-1 - try!(self.reader.read_u8()) as i16),
-            0x39 => visitor.visit_i32(-1 - try!(self.reader.read_u16::<BigEndian>()) as i32),
-            0x3a => visitor.visit_i64(-1 - try!(self.reader.read_u32::<BigEndian>()) as i64),
-            0x3b => visitor.visit_i64(-1 - try!(self.reader.read_u64::<BigEndian>()) as i64),
-            // Byte strings
-            b @ 0x40...0x57 => visitor.visit_byte_buf(
-                try!(self.read_bytes((b & 0b00011111) as usize))),
-            0x58 => {
-                let n = try!(self.reader.read_u8()) as usize;
-                visitor.visit_byte_buf(try!(self.read_bytes(n)))
-            }
-            0x59 => {
-                let n = try!(self.reader.read_u16::<BigEndian>()) as usize;
-                visitor.visit_byte_buf(try!(self.read_bytes(n)))
-            }
-            0x5a => {
-                let n = try!(self.reader.read_u32::<BigEndian>()) as usize;
-                visitor.visit_byte_buf(try!(self.read_bytes(n)))
-            }
-            0x5b => {
-                let n = try!(self.reader.read_u64::<BigEndian>()) as usize;
-                visitor.visit_byte_buf(try!(self.read_bytes(n)))
-            }
-            0x5f => {
-                let mut bytes = Vec::new();
-                loop {
-                    match ByteBuf::deserialize(self) {
-                        Ok(value) => append(&mut bytes, &mut value.to_vec()),
-                        Err(Error::SyntaxError(ErrorCode::StopCode, _)) => break,
-                        Err(e) => return Err(e),
-                    }
-                }
-                visitor.visit_byte_buf(bytes)
-            }
-            // UTF-8 strings
-            b @ 0x60...0x77 => visitor.visit_string(
-                try!(String::from_utf8(try!(self.read_bytes((b & 0b00011111) as usize))))),
-            0x78 => {
-                let n = try!(self.reader.read_u8()) as usize;
-                visitor.visit_string(try!(String::from_utf8(try!(self.read_bytes(n)))))
-            }
-            0x79 => {
-                let n = try!(self.reader.read_u16::<BigEndian>()) as usize;
-                visitor.visit_string(try!(String::from_utf8(try!(self.read_bytes(n)))))
-            }
-            0x7a => {
-                let n = try!(self.reader.read_u32::<BigEndian>()) as usize;
-                visitor.visit_string(try!(String::from_utf8(try!(self.read_bytes(n)))))
-            }
-            0x7b => {
-                let n = try!(self.reader.read_u64::<BigEndian>()) as usize;
-                visitor.visit_string(try!(String::from_utf8(try!(self.read_bytes(n)))))
-            }
-            0x7f => {
-                let mut string = String::new();
-                loop {
-                    match String::deserialize(self) {
-                        Ok(value) => string.push_str(&value[..]),
-                        Err(Error::SyntaxError(ErrorCode::StopCode, _)) => break,
-                        Err(e) => return Err(e),
-                    }
-                }
-                visitor.visit_string(string)
-            }
-            // Arrays
-            b @ 0x80...0x97 => visitor.visit_seq(
-                SeqVisitor::new(self, Some((b & 0b00011111) as usize))),
-            0x98 => {
-                let n = try!(self.reader.read_u8()) as usize;
-                visitor.visit_seq(SeqVisitor::new(self, Some(n)))
-            }
-            0x99 => {
-                let n = try!(self.reader.read_u16::<BigEndian>()) as usize;
-                visitor.visit_seq(SeqVisitor::new(self, Some(n)))
-            }
-            0x9a => {
-                let n = try!(self.reader.read_u32::<BigEndian>()) as usize;
-                visitor.visit_seq(SeqVisitor::new(self, Some(n)))
-            }
-            0x9b => {
-                let n = try!(self.reader.read_u64::<BigEndian>()) as usize;
-                visitor.visit_seq(SeqVisitor::new(self, Some(n)))
-            }
-            0x9f => visitor.visit_seq(SeqVisitor::new(self, None)),
-            // Maps
-            b @ 0xa0...0xb7 => visitor.visit_map(
-                MapVisitor::new(self, Some((b & 0b00011111) as usize))),
-            0xb8 => {
-                let n = try!(self.reader.read_u8()) as usize;
-                visitor.visit_map(MapVisitor::new(self, Some(n)))
-            }
-            0xb9 => {
-                let n = try!(self.reader.read_u16::<BigEndian>()) as usize;
-                visitor.visit_map(MapVisitor::new(self, Some(n)))
-            }
-            0xba => {
-                let n = try!(self.reader.read_u32::<BigEndian>()) as usize;
-                visitor.visit_map(MapVisitor::new(self, Some(n)))
-            }
-            0xbb => {
-                let n = try!(self.reader.read_u64::<BigEndian>()) as usize;
-                visitor.visit_map(MapVisitor::new(self, Some(n)))
-            }
-            0xbf => visitor.visit_map(MapVisitor::new(self, None)),
-            // Tagged items (tags get ignored)
-            0xc0 ... 0xd7 => self.parse_value(visitor),
-            0xd8 => {
-                try!(self.reader.read_u8());
-                self.parse_value(visitor)
-            }
-            0xd9 => {
-                try!(self.reader.read_u16::<BigEndian>());
-                self.parse_value(visitor)
-            }
-            0xda => {
-                try!(self.reader.read_u32::<BigEndian>());
-                self.parse_value(visitor)
-            }
-            0xdb => {
-                try!(self.reader.read_u64::<BigEndian>());
-                self.parse_value(visitor)
-            }
-            // 0xe0...0xf3 => unimplemented!(), // (simple value)
-            // Boolean, Null, Undefined
-            0xf4 => visitor.visit_bool(false),
-            0xf5 => visitor.visit_bool(true),
-            0xf6 => visitor.visit_unit(),
-            0xf7 => visitor.visit_unit(),
-            // 0xf8 => unimplemented!(), // (simple value, one byte follows)
-            // Floats
-            0xf9 => visitor.visit_f32(decode_f16(try!(self.reader.read_u16::<BigEndian>()))),
-            0xfa => visitor.visit_f32(try!(self.reader.read_f32::<BigEndian>())),
-            0xfb => visitor.visit_f64(try!(self.reader.read_f64::<BigEndian>())),
-            0xff => Err(self.error(ErrorCode::StopCode)),
-            n => Err(self.error(ErrorCode::UnknownByte(n))),
+        match first & 0b000_11111 {
+            20 => visitor.visit_bool(false),
+            21 => visitor.visit_bool(true),
+            22 => visitor.visit_unit(),
+            23 => visitor.visit_unit(),
+            25 => visitor.visit_f32(decode_f16(try!(self.reader.read_u16::<BigEndian>()))),
+            26 => visitor.visit_f32(try!(self.reader.read_f32::<BigEndian>())),
+            27 => visitor.visit_f64(try!(self.reader.read_f64::<BigEndian>())),
+            31 => Err(self.error(ErrorCode::StopCode)),
+            _ => Err(self.error(ErrorCode::UnknownByte(first))),
         }
     }
 }
@@ -317,10 +295,15 @@ impl<'a, R: Read> de::MapVisitor for MapVisitor<'a, R> {
     }
 }
 
+/// Decodes a CBOR value from a `std::io::Read`.
 pub fn from_reader<T: Deserialize, R: Read>(reader: R) -> Result<T> {
-    Deserialize::deserialize(&mut Deserializer::new(reader))
+    let mut de = Deserializer::new(reader);
+    let value = Deserialize::deserialize(&mut de);
+    try!(de.end());
+    value
 }
 
+/// Decodes a CBOR value from a `&[u8]` slice.
 pub fn from_slice<T: Deserialize>(v: &[u8]) -> Result<T> {
-    Deserialize::deserialize(&mut Deserializer::new(v))
+    from_reader(v)
 }

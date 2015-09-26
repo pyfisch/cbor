@@ -1,4 +1,4 @@
-//! This module provides for CBOR serialization with the type `Serializer`.
+//! CBOR serializisation.
 
 use std::io::Write;
 
