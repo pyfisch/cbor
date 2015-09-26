@@ -55,6 +55,12 @@ fn test_bool() {
 }
 
 #[test]
+fn test_trailing_bytes() {
+    let value: error::Result<Value> = de::from_slice(b"\xf4trailing");
+    assert!(value.is_err());
+}
+
+#[test]
 fn test_list1() {
     let value: error::Result<Value> = de::from_slice(b"\x83\x01\x02\x03");
     assert_eq!(value.unwrap(), Value::Array(vec![Value::U64(1), Value::U64(2), Value::U64(3)]));
@@ -129,4 +135,19 @@ fn test_f16() {
     assert_eq!(x, Value::F64(36.5));
     x = de::from_slice(&[0xf9, 0xd0, 0x90]).unwrap();
     assert_eq!(x, Value::F64(-36.5));
+}
+
+#[test]
+fn test_crazy_list() {
+    let slice = b"\x88\x1b\x00\x00\x00\x1c\xbe\x99\x1d\xc7\x3b\x00\x7a\xcf\x51\xdc\x51\x70\xdb\x3a\x1b\x3a\x06\xdd\xf5\xf6\xf7\xfb\x41\x76\x5e\xb1\xf8\x00\x00\x00\xf9\x7c\x00";
+    let value: Vec<Value> = de::from_slice(slice).unwrap();
+    assert_eq!(value, vec![
+        Value::U64(123456789959),
+        Value::I64(-34567897654325468),
+        Value::I64(-456787678),
+        Value::Bool(true),
+        Value::Null,
+        Value::Null,
+        Value::F64(23456543.5),
+        Value::F64(::std::f64::INFINITY)]);
 }
