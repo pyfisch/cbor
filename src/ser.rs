@@ -14,12 +14,14 @@ pub struct Serializer<W: Write> {
 
 impl <W:Write>Serializer<W> {
     /// Creates a new CBOR serializer.
+    #[inline]
     pub fn new(writer: W) -> Serializer<W> {
         Serializer {
             writer: writer,
         }
     }
 
+    #[inline]
     fn compact_type(&mut self, major_type: u8, v: u64) -> Result<()> {
         if v <= 23 {
             self.writer.write_u8(major_type << 5 | v as u8)
@@ -41,6 +43,8 @@ impl <W:Write>Serializer<W> {
 
 impl <W: Write> ser::Serializer for Serializer<W> {
     type Error = Error;
+
+    #[inline]
     fn visit_bool(&mut self, v: bool) -> Result<()> {
         self.writer.write_u8(if v {
             0xf5
@@ -48,6 +52,7 @@ impl <W: Write> ser::Serializer for Serializer<W> {
             0xf4
         }).map_err(From::from)
     }
+    #[inline]
     fn visit_i64(&mut self, v: i64) -> Result<()> {
         if v >= 0 {
             self.visit_u64(v as u64)
@@ -55,9 +60,11 @@ impl <W: Write> ser::Serializer for Serializer<W> {
             self.compact_type(1, (-v) as u64 - 1)
         }
     }
+    #[inline]
     fn visit_u64(&mut self, v: u64) -> Result<()> {
         self.compact_type(0, v)
     }
+    #[inline]
     fn visit_f64(&mut self, v: f64) -> Result<()> {
         // TODO: Encode to f16
         if v.is_infinite() && v.is_sign_positive() {
@@ -74,19 +81,24 @@ impl <W: Write> ser::Serializer for Serializer<W> {
                 .and_then(|()| self.writer.write_f64::<BigEndian>(v)).map_err(From::from)
         }
     }
+    #[inline]
     fn visit_str(&mut self, value: &str) -> Result<()> {
         self.compact_type(3, value.len() as u64)
             .and_then(|()| self.writer.write_all(value.as_bytes()).map_err(From::from))
     }
+    #[inline]
     fn visit_unit(&mut self) -> Result<()> {
         self.writer.write_u8(0xf6).map_err(From::from)
     }
+    #[inline]
     fn visit_none(&mut self) -> Result<()> {
         self.visit_unit()
     }
+    #[inline]
     fn visit_some<V>(&mut self, value: V) -> Result<()> where V: Serialize {
         value.serialize(self)
     }
+    #[inline]
     fn visit_seq<V>(&mut self, mut visitor: V) -> Result<()> where V: SeqVisitor {
         if let Some(len) = visitor.len() {
             try!(self.compact_type(4, len as u64));
@@ -98,9 +110,11 @@ impl <W: Write> ser::Serializer for Serializer<W> {
             self.writer.write_u8(0xff).map_err(From::from)
         }
     }
+    #[inline]
     fn visit_seq_elt<T>(&mut self, value: T) -> Result<()> where T: Serialize {
         value.serialize(self)
     }
+    #[inline]
     fn visit_map<V>(&mut self, mut visitor: V) -> Result<()> where V: MapVisitor {
         if let Some(len) = visitor.len() {
             try!(self.compact_type(5, len as u64));
@@ -112,10 +126,12 @@ impl <W: Write> ser::Serializer for Serializer<W> {
             self.writer.write_u8(0xff).map_err(From::from)
         }
     }
+    #[inline]
     fn visit_map_elt<K, V>(&mut self, key: K, value: V) -> Result<()> where K: Serialize, V: Serialize {
         key.serialize(self).and_then(|()| value.serialize(self))
     }
 
+    #[inline]
     fn format() -> &'static str {
         "cbor"
     }

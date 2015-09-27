@@ -101,6 +101,7 @@ impl de::Deserialize for Value {
 
 
 impl ser::Serialize for Value {
+    #[inline]
     fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: ser::Serializer {
         match *self {
             Value::U64(v) => serializer.visit_u64(v),
@@ -108,7 +109,7 @@ impl ser::Serialize for Value {
             Value::Bytes(ref v) => serializer.visit_bytes(&v),
             Value::String(ref v) => serializer.visit_str(&v),
             Value::Array(ref v) => v.serialize(serializer),
-            Value::Object(_) => unimplemented!(), //.serialize(serializer),
+            Value::Object(ref v) => v.serialize(serializer),
             Value::F64(v) => serializer.visit_f64(v),
             Value::Bool(v) => serializer.visit_bool(v),
             Value::Null => serializer.visit_unit(),
@@ -118,9 +119,9 @@ impl ser::Serialize for Value {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ObjectKey {
-    String(String),
-    Bytes(Vec<u8>),
     Integer(i64),
+    Bytes(Vec<u8>),
+    String(String),
     Bool(bool),
     Null,
 }
@@ -189,6 +190,7 @@ impl de::Deserialize for ObjectKey {
 }
 
 impl ser::Serialize for ObjectKey {
+    #[inline]
     fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: ser::Serializer {
         match *self {
             ObjectKey::String(ref v) => serializer.visit_str(&v),
