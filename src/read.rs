@@ -1,7 +1,7 @@
-//! Module that contains helper readers.
+//! CBOR special reader.
 
 use std::io::{self, Read};
-use super::{Error, Result};
+use super::{Error, ErrorCode, Result};
 
 /// Reader that tracks the current position of the undelying readable object in bytes.
 pub struct PositionReader<R: Read> {
@@ -57,7 +57,7 @@ impl <R: Read>PositionReader<R> {
                 }
             }
             if !buf.is_empty() {
-                return Err(Error::UnexpectedEOF)
+                return Err(Error::SyntaxError(ErrorCode::UnexpectedEOF, self.position()))
             }
         }
         Ok(buffer)

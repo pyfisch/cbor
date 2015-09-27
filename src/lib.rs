@@ -112,12 +112,14 @@
 //! let encoded = to_vec(&programming_languages);
 //! ```
 
+#![deny(missing_docs)]
+
 extern crate byteorder;
 extern crate libc;
 extern crate serde;
 
 pub use de::{from_slice, from_reader};
-pub use error::{Error, Result};
+pub use error::{Error, ErrorCode, Result};
 pub use ser::{to_vec, to_writer, to_vec_sd, to_writer_sd};
 pub use value::{Value, ObjectKey};
 

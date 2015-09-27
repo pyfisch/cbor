@@ -1,3 +1,4 @@
+//! CBOR errors.
 use std::error;
 use std::fmt;
 use std::result;
@@ -7,12 +8,13 @@ use std::string::FromUtf8Error;
 use serde::de;
 use byteorder::Error as ByteorderError;
 
-
+/// The errors that can arise while parsing a CBOR stream.
 #[derive(Clone, PartialEq)]
 pub enum ErrorCode {
+    /// The data source contains trailing bytes after all values were read.
     TrailingBytes,
-    ExpectedSomeValue,
-    EOFWhileParsingValue,
+    /// The data source contains not enough bytes to parse a value.
+    UnexpectedEOF,
     /// Break stop code encountered.
     StopCode,
     /// Invalid Byte at the beginning of a new value detected.
@@ -21,6 +23,7 @@ pub enum ErrorCode {
     UnknownField(String),
     /// Struct is missing a field.
     MissingField(&'static str),
+    /// General error required by serde.
     InvalidSyntax(String),
 }
 
@@ -29,8 +32,7 @@ impl fmt::Debug for ErrorCode {
         use std::fmt::Debug;
 
         match *self {
-            ErrorCode::EOFWhileParsingValue => "EOF while parsing a value".fmt(f),
-            ErrorCode::ExpectedSomeValue => "expected value".fmt(f),
+            ErrorCode::UnexpectedEOF => "EOF while parsing a value".fmt(f),
             ErrorCode::StopCode => "break stop code outside indefinite length item".fmt(f),
             ErrorCode::UnknownField(ref field) => write!(f, "unknown field \"{}\"", field),
             ErrorCode::MissingField(ref field) => write!(f, "missing field \"{}\"", field),
@@ -41,12 +43,15 @@ impl fmt::Debug for ErrorCode {
     }
 }
 
+/// Represents all possible errors that can occur when serializing or deserializing a value.
 #[derive(Debug)]
 pub enum Error {
+    /// The CBOR value had a syntactic error.
     SyntaxError(ErrorCode, usize),
+    /// Some IO error occured when processing a value.
     IoError(io::Error),
+    /// Some error occured while converting a string.
     FromUtf8Error(FromUtf8Error),
-    UnexpectedEOF,
     #[doc(hidden)]
     __Nonexhaustive,
 }
@@ -57,7 +62,6 @@ impl error::Error for Error {
             Error::SyntaxError(..) => "syntax error",
             Error::IoError(ref error) => error::Error::description(error),
             Error::FromUtf8Error(ref error) => error.description(),
-            Error::UnexpectedEOF => "failed to fill whole buffer",
             _ => "unknown error"
         }
     }
@@ -100,7 +104,7 @@ impl From<FromUtf8Error> for Error {
 impl From<ByteorderError> for Error {
     fn from(error: ByteorderError) -> Error {
         match error {
-            ByteorderError::UnexpectedEOF => Error::SyntaxError(ErrorCode::EOFWhileParsingValue, 0),
+            ByteorderError::UnexpectedEOF => Error::SyntaxError(ErrorCode::UnexpectedEOF, 0),
             ByteorderError::Io(e) => Error::IoError(e),
         }
     }
@@ -112,7 +116,7 @@ impl de::Error for Error {
     }
 
     fn end_of_stream() -> Error {
-        Error::SyntaxError(ErrorCode::EOFWhileParsingValue, 0)
+        Error::SyntaxError(ErrorCode::UnexpectedEOF, 0)
     }
 
     fn unknown_field(field: &str) -> Error {
@@ -124,4 +128,5 @@ impl de::Error for Error {
     }
 }
 
+/// Helper alias for Result objects that return a JSON Error.
 pub type Result<T> = result::Result<T, Error>;

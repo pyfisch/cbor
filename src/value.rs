@@ -1,18 +1,30 @@
+//! CBOR values and keys.
+
 use std::collections::HashMap;
 
 use serde::de::{self, SeqVisitor};
 use serde::ser;
 
+/// An enum over all possible CBOR types.
 #[derive(Debug, PartialEq)]
 pub enum Value {
+    /// Represents an unsigned integer.
     U64(u64),
+    /// Represents a signed integer.
     I64(i64),
+    /// Represents a byte string.
     Bytes(Vec<u8>),
+    /// Represents an UTF-8 string.
     String(String),
+    /// Represents a list.
     Array(Vec<Value>),
+    /// Represents a map.
     Object(HashMap<ObjectKey, Value>),
+    /// Represents a floating point value.
     F64(f64),
+    /// Represents a boolean value.
     Bool(bool),
+    /// Represents the absence of a value or the value undefined.
     Null,
 }
 
@@ -117,12 +129,18 @@ impl ser::Serialize for Value {
     }
 }
 
+/// A simplified CBOR value containing only types useful for keys.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ObjectKey {
+    /// An integer.
     Integer(i64),
+    /// A byte string.
     Bytes(Vec<u8>),
+    /// An UTF-8 string.
     String(String),
+    /// A boolean value.
     Bool(bool),
+    /// No value.
     Null,
 }
 
