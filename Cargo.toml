@@ -6,7 +6,6 @@ repository = "https://github.com/pyfisch/cbor"
 documentation = "http://pyfisch.github.io/cbor/serde_cbor/index.html"
 readme = "README.md"
 license = "MIT"
-license-file = "LICENSE"
 description = "CBOR serialization and deserialization using serde."
 keywords = ["serde", "cbor", "serialization"]
 
