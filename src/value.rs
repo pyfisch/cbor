@@ -130,7 +130,7 @@ impl Value {
         }
     }
 
-        /// Returns true if the `Value` is a i64. Returns false otherwise.
+    /// Returns true if the `Value` is a i64. Returns false otherwise.
     pub fn is_i64(&self) -> bool {
         match *self {
             Value::I64(_) => true,
@@ -159,7 +159,7 @@ impl Value {
         match *self {
             Value::I64(n) => Some(n),
             Value::U64(n) => Some(n as i64),
-            _ => None
+            _ => None,
         }
     }
 
@@ -168,7 +168,7 @@ impl Value {
         match *self {
             Value::I64(n) => Some(n as u64),
             Value::U64(n) => Some(n),
-            _ => None
+            _ => None,
         }
     }
 
@@ -178,7 +178,7 @@ impl Value {
             Value::I64(n) => Some(n as f64),
             Value::U64(n) => Some(n as f64),
             Value::F64(n) => Some(n),
-            _ => None
+            _ => None,
         }
     }
 
@@ -214,7 +214,7 @@ impl Value {
 impl de::Deserialize for Value {
     #[inline]
     fn deserialize<D>(deserializer: &mut D) -> Result<Value, D::Error>
-        where D: de::Deserializer,
+        where D: de::Deserializer
     {
         struct ValueVisitor;
 
@@ -223,69 +223,86 @@ impl de::Deserialize for Value {
 
             #[inline]
             fn visit_str<E>(&mut self, value: &str) -> Result<Value, E>
-                    where E: de::Error {
+                where E: de::Error
+            {
                 self.visit_string(String::from(value))
             }
 
             #[inline]
             fn visit_string<E>(&mut self, value: String) -> Result<Value, E>
-                    where E: de::Error {
+                where E: de::Error
+            {
                 Ok(Value::String(value))
             }
             #[inline]
             fn visit_bytes<E>(&mut self, _v: &[u8]) -> Result<Self::Value, E>
-                    where E: de::Error {
+                where E: de::Error
+            {
                 self.visit_byte_buf(_v.to_owned())
             }
 
             #[inline]
             fn visit_byte_buf<E>(&mut self, v: Vec<u8>) -> Result<Self::Value, E>
-                    where E: de::Error {
+                where E: de::Error
+            {
                 Ok(Value::Bytes(v))
             }
 
             #[inline]
-            fn visit_u64<E>(&mut self, v: u64) -> Result<Self::Value, E> where E: de::Error {
+            fn visit_u64<E>(&mut self, v: u64) -> Result<Self::Value, E>
+                where E: de::Error
+            {
                 Ok(Value::U64(v))
             }
 
             #[inline]
-            fn visit_i64<E>(&mut self, v: i64) -> Result<Self::Value, E> where E: de::Error {
+            fn visit_i64<E>(&mut self, v: i64) -> Result<Self::Value, E>
+                where E: de::Error
+            {
                 Ok(Value::I64(v))
             }
 
             #[inline]
-            fn visit_bool<E>(&mut self, _v: bool) -> Result<Self::Value, E> where E: de::Error {
+            fn visit_bool<E>(&mut self, _v: bool) -> Result<Self::Value, E>
+                where E: de::Error
+            {
                 Ok(Value::Bool(_v))
             }
 
             #[inline]
-            fn visit_none<E>(&mut self) -> Result<Self::Value, E> where E: de::Error {
+            fn visit_none<E>(&mut self) -> Result<Self::Value, E>
+                where E: de::Error
+            {
                 self.visit_unit()
             }
 
             #[inline]
-            fn visit_unit<E>(&mut self) -> Result<Self::Value, E> where E: de::Error {
+            fn visit_unit<E>(&mut self) -> Result<Self::Value, E>
+                where E: de::Error
+            {
                 Ok(Value::Null)
             }
 
             #[inline]
             fn visit_seq<V>(&mut self, _visitor: V) -> Result<Self::Value, V::Error>
-                    where V: SeqVisitor {
+                where V: SeqVisitor
+            {
                 let values = try!(de::impls::VecVisitor::new().visit_seq(_visitor));
                 Ok(Value::Array(values))
             }
 
             #[inline]
             fn visit_map<V>(&mut self, _visitor: V) -> Result<Value, V::Error>
-                where V: de::MapVisitor,
+                where V: de::MapVisitor
             {
                 let values = try!(de::impls::HashMapVisitor::new().visit_map(_visitor));
                 Ok(Value::Object(values))
             }
 
             #[inline]
-            fn visit_f64<E>(&mut self, v: f64) -> Result<Self::Value, E> where E: de::Error {
+            fn visit_f64<E>(&mut self, v: f64) -> Result<Self::Value, E>
+                where E: de::Error
+            {
                 Ok(Value::F64(v))
             }
         }
@@ -297,7 +314,9 @@ impl de::Deserialize for Value {
 
 impl ser::Serialize for Value {
     #[inline]
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: ser::Serializer {
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+        where S: ser::Serializer
+    {
         match *self {
             Value::U64(v) => serializer.visit_u64(v),
             Value::I64(v) => serializer.visit_i64(v),
@@ -330,7 +349,7 @@ pub enum ObjectKey {
 impl de::Deserialize for ObjectKey {
     #[inline]
     fn deserialize<D>(deserializer: &mut D) -> Result<ObjectKey, D::Error>
-        where D: de::Deserializer,
+        where D: de::Deserializer
     {
         struct ObjectKeyVisitor;
 
@@ -339,49 +358,63 @@ impl de::Deserialize for ObjectKey {
 
             #[inline]
             fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E>
-                    where E: de::Error {
+                where E: de::Error
+            {
                 self.visit_string(String::from(value))
             }
 
             #[inline]
             fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E>
-                    where E: de::Error {
+                where E: de::Error
+            {
                 Ok(ObjectKey::String(value))
             }
             #[inline]
             fn visit_bytes<E>(&mut self, _v: &[u8]) -> Result<Self::Value, E>
-                    where E: de::Error {
+                where E: de::Error
+            {
                 self.visit_byte_buf(_v.to_owned())
             }
 
             #[inline]
             fn visit_byte_buf<E>(&mut self, v: Vec<u8>) -> Result<Self::Value, E>
-                    where E: de::Error {
+                where E: de::Error
+            {
                 Ok(ObjectKey::Bytes(v))
             }
 
             #[inline]
-            fn visit_u64<E>(&mut self, v: u64) -> Result<Self::Value, E> where E: de::Error {
+            fn visit_u64<E>(&mut self, v: u64) -> Result<Self::Value, E>
+                where E: de::Error
+            {
                 Ok(ObjectKey::Integer(v as i64))
             }
 
             #[inline]
-            fn visit_i64<E>(&mut self, v: i64) -> Result<Self::Value, E> where E: de::Error {
+            fn visit_i64<E>(&mut self, v: i64) -> Result<Self::Value, E>
+                where E: de::Error
+            {
                 Ok(ObjectKey::Integer(v))
             }
 
             #[inline]
-            fn visit_bool<E>(&mut self, _v: bool) -> Result<Self::Value, E> where E: de::Error {
+            fn visit_bool<E>(&mut self, _v: bool) -> Result<Self::Value, E>
+                where E: de::Error
+            {
                 Ok(ObjectKey::Bool(_v))
             }
 
             #[inline]
-            fn visit_none<E>(&mut self) -> Result<Self::Value, E> where E: de::Error {
+            fn visit_none<E>(&mut self) -> Result<Self::Value, E>
+                where E: de::Error
+            {
                 self.visit_unit()
             }
 
             #[inline]
-            fn visit_unit<E>(&mut self) -> Result<Self::Value, E> where E: de::Error {
+            fn visit_unit<E>(&mut self) -> Result<Self::Value, E>
+                where E: de::Error
+            {
                 Ok(ObjectKey::Null)
             }
         }
@@ -392,7 +425,9 @@ impl de::Deserialize for ObjectKey {
 
 impl ser::Serialize for ObjectKey {
     #[inline]
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: ser::Serializer {
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+        where S: ser::Serializer
+    {
         match *self {
             ObjectKey::Integer(v) => serializer.visit_i64(v),
             ObjectKey::Bytes(ref v) => serializer.visit_bytes(&v),
@@ -423,8 +458,8 @@ impl From<Value> for ObjectKey {
             Value::Bytes(v) => ObjectKey::Bytes(v),
             Value::String(v) => ObjectKey::String(v),
             Value::Bool(v) => ObjectKey::Bool(v),
-            Value::Null =>  ObjectKey::Null,
-            _ => panic!("invalid value type for key")
+            Value::Null => ObjectKey::Null,
+            _ => panic!("invalid value type for key"),
         }
     }
 }

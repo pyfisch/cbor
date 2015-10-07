@@ -234,7 +234,10 @@ struct SeqVisitor<'a, R: 'a + Read> {
 impl<'a, R: 'a + Read> SeqVisitor<'a, R> {
     #[inline]
     fn new(de: &'a mut Deserializer<R>, items: Option<usize>) -> Self {
-        SeqVisitor { de: de, items: items }
+        SeqVisitor {
+            de: de,
+            items: items,
+        }
     }
 }
 
@@ -282,7 +285,10 @@ struct MapVisitor<'a, R: 'a + Read> {
 impl<'a, R: Read> MapVisitor<'a, R> {
     #[inline]
     fn new(de: &'a mut Deserializer<R>, items: Option<usize>) -> Self {
-        MapVisitor { de: de, items: items }
+        MapVisitor {
+            de: de,
+            items: items,
+        }
     }
 }
 

@@ -62,7 +62,7 @@ impl error::Error for Error {
             Error::SyntaxError(..) => "syntax error",
             Error::IoError(ref error) => error::Error::description(error),
             Error::FromUtf8Error(ref error) => error.description(),
-            _ => "unknown error"
+            _ => "unknown error",
         }
     }
 
@@ -83,7 +83,7 @@ impl fmt::Display for Error {
             }
             Error::IoError(ref error) => fmt::Display::fmt(error, fmt),
             Error::FromUtf8Error(ref error) => fmt::Display::fmt(error, fmt),
-            _ => fmt.write_str("unknown error")
+            _ => fmt.write_str("unknown error"),
         }
     }
 }
