@@ -6,7 +6,7 @@ use serde::de::{self, SeqVisitor};
 use serde::ser;
 
 /// An enum over all possible CBOR types.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     /// Represents an unsigned integer.
     U64(u64),
@@ -332,7 +332,7 @@ impl ser::Serialize for Value {
 }
 
 /// A simplified CBOR value containing only types useful for keys.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ObjectKey {
     /// An integer.
     Integer(i64),
