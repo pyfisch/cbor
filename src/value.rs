@@ -346,6 +346,106 @@ pub enum ObjectKey {
     Null,
 }
 
+impl ObjectKey {
+    /// Returns true if the ObjectKey is a byte string.
+    pub fn is_bytes(&self) -> bool {
+        self.as_bytes().is_some()
+    }
+
+    /// Returns the associated byte string or `None` if the ObjectKey has a different type.
+    pub fn as_bytes(&self) -> Option<&Vec<u8>> {
+        if let ObjectKey::Bytes(ref v) = *self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the associated mutable byte string or `None` if the ObjectKey has a different type.
+    pub fn as_bytes_mut(&mut self) -> Option<&mut Vec<u8>> {
+        if let ObjectKey::Bytes(ref mut v) = *self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    /// Returns true if the ObjectKey is a string.
+    pub fn is_string(&self) -> bool {
+        self.as_string().is_some()
+    }
+
+    /// Returns the associated string or `None` if the *ObjectKey` has a different type.
+    pub fn as_string(&self) -> Option<&String> {
+        if let ObjectKey::String(ref v) = *self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the associated mutable string or `None` if the `ObjectKey` has a different type.
+    pub fn as_string_mut(&mut self) -> Option<&mut String> {
+        if let ObjectKey::String(ref mut v) = *self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    /// Retrns true if the `ObjectKey` is a number.
+    pub fn is_number(&self) -> bool {
+        match *self {
+            ObjectKey::Integer(_) => true,
+            _ => false,
+        }
+    }
+
+    /// If the `ObjectKey` is a number, return or cast it to a i64. Returns None otherwise.
+    pub fn as_i64(&self) -> Option<i64> {
+        match *self {
+            ObjectKey::Integer(n) => Some(n),
+            _ => None,
+        }
+    }
+
+    /// If the `ObjectKey` is a number, return or cast it to a u64. Returns None otherwise.
+    pub fn as_u64(&self) -> Option<u64> {
+        match *self {
+            ObjectKey::Integer(n) => Some(n as u64),
+            _ => None,
+        }
+    }
+
+    /// Returns true if the ObjectKey is a boolean.
+    pub fn is_boolean(&self) -> bool {
+        self.as_boolean().is_some()
+    }
+
+    /// If the ObjectKey is a Boolean, returns the associated bool. Returns None otherwise.
+    pub fn as_boolean(&self) -> Option<bool> {
+        if let ObjectKey::Bool(v) = *self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    /// Returns true if the ObjectKey is a Null. Returns false otherwise.
+    pub fn is_null(&self) -> bool {
+        self.as_null().is_some()
+    }
+
+    /// If the ObjectKey is a Null, returns (). Returns None otherwise.
+    pub fn as_null(&self) -> Option<()> {
+        if let ObjectKey::Null = *self {
+            Some(())
+        } else {
+            None
+        }
+    }
+}
+
 impl de::Deserialize for ObjectKey {
     #[inline]
     fn deserialize<D>(deserializer: &mut D) -> Result<ObjectKey, D::Error>
