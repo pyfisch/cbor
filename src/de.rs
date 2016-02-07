@@ -14,7 +14,7 @@ pub struct Deserializer<R: Read> {
     reader: PositionReader<R>,
 }
 
-impl <R: Read>Deserializer<R> {
+impl<R: Read> Deserializer<R> {
     /// Creates the CBOR parser from an `std::io::Read`.
     #[inline]
     pub fn new(reader: R) -> Deserializer<R> {
@@ -101,7 +101,7 @@ impl <R: Read>Deserializer<R> {
         #[inline]
         fn append(this: &mut Vec<u8>, other: &[u8]) {
             for v in other {
-                this.push(v.clone())
+                this.push(*v)
             }
         }
         if let Some(n) = try!(self.parse_additional_information(first)) {
@@ -132,7 +132,7 @@ impl <R: Read>Deserializer<R> {
                     Err(e) => return Err(e),
                 }
             }
-            return visitor.visit_string(string)
+            return visitor.visit_string(string);
         }
     }
 
@@ -160,7 +160,7 @@ impl <R: Read>Deserializer<R> {
         mod ffi {
             use libc::c_int;
 
-            extern {
+            extern "C" {
                 pub fn ldexpf(x: f32, exp: c_int) -> f32;
             }
 
@@ -177,12 +177,10 @@ impl <R: Read>Deserializer<R> {
                 ffi::c_ldexpf(mant as f32, -24)
             } else if exp != 31 {
                 ffi::c_ldexpf(mant as f32 + 1024f32, exp as isize - 25)
+            } else if mant == 0 {
+                ::std::f32::INFINITY
             } else {
-                if mant == 0 {
-                    ::std::f32::INFINITY
-                } else {
-                    ::std::f32::NAN
-                }
+                ::std::f32::NAN
             };
             if half & 0x8000 != 0 {
                 -val

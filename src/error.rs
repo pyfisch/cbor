@@ -78,9 +78,7 @@ impl error::Error for Error {
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::SyntaxError(ref code, pos) => {
-                write!(fmt, "{:?} at byte position {}", code, pos)
-            }
+            Error::SyntaxError(ref code, pos) => write!(fmt, "{:?} at byte position {}", code, pos),
             Error::IoError(ref error) => fmt::Display::fmt(error, fmt),
             Error::FromUtf8Error(ref error) => fmt::Display::fmt(error, fmt),
             _ => fmt.write_str("unknown error"),

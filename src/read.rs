@@ -9,7 +9,7 @@ pub struct PositionReader<R: Read> {
     pos: usize,
 }
 
-impl <R: Read>PositionReader<R> {
+impl<R: Read> PositionReader<R> {
     /// Constructs a new `PositionReader<R>`
     pub fn new(reader: R) -> PositionReader<R> {
         PositionReader {
@@ -60,14 +60,14 @@ impl <R: Read>PositionReader<R> {
                 }
             }
             if !buf.is_empty() {
-                return Err(Error::SyntaxError(ErrorCode::UnexpectedEOF, self.position()))
+                return Err(Error::SyntaxError(ErrorCode::UnexpectedEOF, self.position()));
             }
         }
         Ok(buffer)
     }
 }
 
-impl <R: Read>Read for PositionReader<R> {
+impl<R: Read> Read for PositionReader<R> {
     #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match self.inner.read(buf) {

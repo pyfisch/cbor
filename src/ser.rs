@@ -12,7 +12,7 @@ pub struct Serializer<W: Write> {
     writer: W,
 }
 
-impl <W:Write>Serializer<W> {
+impl<W: Write> Serializer<W> {
     /// Creates a new CBOR serializer.
     #[inline]
     pub fn new(writer: W) -> Serializer<W> {
@@ -40,11 +40,11 @@ impl <W:Write>Serializer<W> {
                 .write_u8(major_type << 5 | 0x1b)
                 .and_then(|()| self.writer.write_u64::<BigEndian>(v))
         }
-            .map_err(From::from)
+        .map_err(From::from)
     }
 }
 
-impl <W: Write> ser::Serializer for Serializer<W> {
+impl<W: Write> ser::Serializer for Serializer<W> {
     type Error = Error;
 
     #[inline]

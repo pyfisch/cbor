@@ -235,10 +235,10 @@ impl de::Deserialize for Value {
                 Ok(Value::String(value))
             }
             #[inline]
-            fn visit_bytes<E>(&mut self, _v: &[u8]) -> Result<Self::Value, E>
+            fn visit_bytes<E>(&mut self, v: &[u8]) -> Result<Self::Value, E>
                 where E: de::Error
             {
-                self.visit_byte_buf(_v.to_owned())
+                self.visit_byte_buf(v.to_owned())
             }
 
             #[inline]
@@ -263,10 +263,10 @@ impl de::Deserialize for Value {
             }
 
             #[inline]
-            fn visit_bool<E>(&mut self, _v: bool) -> Result<Self::Value, E>
+            fn visit_bool<E>(&mut self, v: bool) -> Result<Self::Value, E>
                 where E: de::Error
             {
-                Ok(Value::Bool(_v))
+                Ok(Value::Bool(v))
             }
 
             #[inline]
@@ -284,18 +284,18 @@ impl de::Deserialize for Value {
             }
 
             #[inline]
-            fn visit_seq<V>(&mut self, _visitor: V) -> Result<Self::Value, V::Error>
+            fn visit_seq<V>(&mut self, visitor: V) -> Result<Self::Value, V::Error>
                 where V: SeqVisitor
             {
-                let values = try!(de::impls::VecVisitor::new().visit_seq(_visitor));
+                let values = try!(de::impls::VecVisitor::new().visit_seq(visitor));
                 Ok(Value::Array(values))
             }
 
             #[inline]
-            fn visit_map<V>(&mut self, _visitor: V) -> Result<Value, V::Error>
+            fn visit_map<V>(&mut self, visitor: V) -> Result<Value, V::Error>
                 where V: de::MapVisitor
             {
-                let values = try!(de::impls::HashMapVisitor::new().visit_map(_visitor));
+                let values = try!(de::impls::HashMapVisitor::new().visit_map(visitor));
                 Ok(Value::Object(values))
             }
 
@@ -470,10 +470,10 @@ impl de::Deserialize for ObjectKey {
                 Ok(ObjectKey::String(value))
             }
             #[inline]
-            fn visit_bytes<E>(&mut self, _v: &[u8]) -> Result<Self::Value, E>
+            fn visit_bytes<E>(&mut self, v: &[u8]) -> Result<Self::Value, E>
                 where E: de::Error
             {
-                self.visit_byte_buf(_v.to_owned())
+                self.visit_byte_buf(v.to_owned())
             }
 
             #[inline]
@@ -498,10 +498,10 @@ impl de::Deserialize for ObjectKey {
             }
 
             #[inline]
-            fn visit_bool<E>(&mut self, _v: bool) -> Result<Self::Value, E>
+            fn visit_bool<E>(&mut self, v: bool) -> Result<Self::Value, E>
                 where E: de::Error
             {
-                Ok(ObjectKey::Bool(_v))
+                Ok(ObjectKey::Bool(v))
             }
 
             #[inline]

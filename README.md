@@ -2,6 +2,8 @@
 [![Build Status](https://travis-ci.org/pyfisch/cbor.svg?branch=master)](https://travis-ci.org/pyfisch/cbor)
 [![Coverage Status](https://coveralls.io/repos/pyfisch/cbor/badge.svg?branch=master&service=github)](https://coveralls.io/github/pyfisch/cbor?branch=master)
 
+[Documentation](https://pyfisch.github.io/cbor/serde_cbor/)
+
 This crate is a Rust library for parsing and generating the
 [CBOR](http://cbor.io/) (Concise Binary Object Representation)
 file format. It is built upon [Serde](https://github.com/serde-rs/serde),
