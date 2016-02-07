@@ -163,3 +163,12 @@ fn test_32f16() {
     let value: f32 = de::from_slice(b"\xf9\x50\x00").unwrap();
     assert_eq!(value, 32.0f32);
 }
+
+#[test]
+// The file was reported as not working by user kie0tauB
+// but it parses to a cbor value.
+fn test_kietaub_file() {
+    let file = include_bytes!("kietaub.cbor");
+    let value_result: error::Result<Value> = de::from_slice(file);
+    assert!(value_result.is_ok());
+}
