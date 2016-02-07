@@ -17,6 +17,8 @@ pub enum ErrorCode {
     UnexpectedEOF,
     /// Break stop code encountered.
     StopCode,
+    /// Too large sequence or map.
+    TooLarge,
     /// Invalid Byte at the beginning of a new value detected.
     UnknownByte(u8),
     /// Unknown field in struct.
@@ -34,6 +36,7 @@ impl fmt::Debug for ErrorCode {
         match *self {
             ErrorCode::UnexpectedEOF => "EOF while parsing a value".fmt(f),
             ErrorCode::StopCode => "break stop code outside indefinite length item".fmt(f),
+            ErrorCode::TooLarge => "too large array or map found".fmt(f),
             ErrorCode::UnknownField(ref field) => write!(f, "unknown field \"{}\"", field),
             ErrorCode::MissingField(ref field) => write!(f, "missing field \"{}\"", field),
             ErrorCode::TrailingBytes => "trailing bytes".fmt(f),

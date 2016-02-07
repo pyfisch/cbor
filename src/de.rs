@@ -9,6 +9,8 @@ use serde::bytes::ByteBuf;
 use super::read::PositionReader;
 use super::error::{Error, ErrorCode, Result};
 
+const MAX_SEQ_LEN: u64 = 524288;
+
 /// A structure that deserializes CBOR into Rust values.
 pub struct Deserializer<R: Read> {
     reader: PositionReader<R>,
@@ -59,16 +61,25 @@ impl<R: Read> Deserializer<R> {
     }
 
     #[inline]
-    fn parse_additional_information(&mut self, first: u8) -> Result<Option<usize>> {
+    fn parse_additional_information(&mut self, first: u8) -> Result<Option<u64>> {
         Ok(Some(match first & 0b000_11111 {
-            n @ 0...23 => n as usize,
-            24 => try!(self.read_u8()) as usize,
-            25 => try!(self.read_u16::<BigEndian>()) as usize,
-            26 => try!(self.read_u32::<BigEndian>()) as usize,
-            27 => try!(self.read_u64::<BigEndian>()) as usize,
+            n @ 0...23 => n as u64,
+            24 => try!(self.read_u8()) as u64,
+            25 => try!(self.read_u16::<BigEndian>()) as u64,
+            26 => try!(self.read_u32::<BigEndian>()) as u64,
+            27 => try!(self.read_u64::<BigEndian>()) as u64,
             31 => return Ok(None),
             _ => return Err(self.error(ErrorCode::UnknownByte(first))),
         }))
+    }
+
+    fn parse_size_information(&mut self, first: u8) -> Result<Option<usize>> {
+        let n = try!(self.parse_additional_information(first));
+        match n {
+            Some(n) if n > MAX_SEQ_LEN => return Err(self.error(ErrorCode::TooLarge)),
+            _ => (),
+        }
+        Ok(n.map(|x| x as usize))
     }
 
     #[inline]
@@ -104,7 +115,7 @@ impl<R: Read> Deserializer<R> {
                 this.push(*v)
             }
         }
-        if let Some(n) = try!(self.parse_additional_information(first)) {
+        if let Some(n) = try!(self.parse_size_information(first)) {
             visitor.visit_byte_buf(try!(self.read_bytes(n)))
         } else {
             let mut bytes = Vec::new();
@@ -121,7 +132,7 @@ impl<R: Read> Deserializer<R> {
 
     #[inline]
     fn parse_string<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
-        if let Some(n) = try!(self.parse_additional_information(first)) {
+        if let Some(n) = try!(self.parse_size_information(first)) {
             visitor.visit_string(try!(String::from_utf8(try!(self.read_bytes(n)))))
         } else {
             let mut string = String::new();
@@ -138,14 +149,14 @@ impl<R: Read> Deserializer<R> {
 
     #[inline]
     fn parse_seq<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
-        let n = try!(self.parse_additional_information(first));
-        visitor.visit_seq(SeqVisitor::new(self, n))
+        let n = try!(self.parse_size_information(first));
+        visitor.visit_seq(SeqVisitor::new(self, n.map(|x| x as usize)))
     }
 
     #[inline]
     fn parse_map<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
-        let n = try!(self.parse_additional_information(first));
-        visitor.visit_map(MapVisitor::new(self, n))
+        let n = try!(self.parse_size_information(first));
+        visitor.visit_map(MapVisitor::new(self, n.map(|x| x as usize)))
     }
 
     #[inline]
