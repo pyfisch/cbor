@@ -6,21 +6,20 @@ use byteorder::{BigEndian, ReadBytesExt};
 use serde::de::{self, Visitor, Deserialize};
 use serde::bytes::ByteBuf;
 
-use super::read::PositionReader;
-use super::error::{Error, ErrorCode, Result};
+use super::error::{Error, Result};
 
 const MAX_SEQ_LEN: u64 = 524288;
 
 /// A structure that deserializes CBOR into Rust values.
 pub struct Deserializer<R: Read> {
-    reader: PositionReader<R>,
+    reader: R,
 }
 
 impl<R: Read> Deserializer<R> {
     /// Creates the CBOR parser from an `std::io::Read`.
     #[inline]
     pub fn new(reader: R) -> Deserializer<R> {
-        Deserializer { reader: PositionReader::new(reader) }
+        Deserializer { reader: reader }
     }
 
     /// The `Deserializer::end` method should be called after a value has been fully deserialized.
@@ -30,18 +29,8 @@ impl<R: Read> Deserializer<R> {
         if try!(self.read(&mut [0; 1])) == 0 {
             Ok(())
         } else {
-            Err(self.error(ErrorCode::TrailingBytes))
+            Err(Error::TrailingBytes)
         }
-    }
-
-    #[inline]
-    fn error(&mut self, reason: ErrorCode) -> Error {
-        Error::SyntaxError(reason, self.reader.position())
-    }
-
-    #[inline]
-    fn read_bytes(&mut self, n: usize) -> Result<Vec<u8>> {
-        self.reader.read_bytes(n)
     }
 
     #[inline]
@@ -69,14 +58,14 @@ impl<R: Read> Deserializer<R> {
             26 => try!(self.read_u32::<BigEndian>()) as u64,
             27 => try!(self.read_u64::<BigEndian>()) as u64,
             31 => return Ok(None),
-            _ => return Err(self.error(ErrorCode::UnknownByte(first))),
+            _ => return Err(Error::Syntax),
         }))
     }
 
     fn parse_size_information(&mut self, first: u8) -> Result<Option<usize>> {
         let n = try!(self.parse_additional_information(first));
         match n {
-            Some(n) if n > MAX_SEQ_LEN => return Err(self.error(ErrorCode::TooLarge)),
+            Some(n) if n > MAX_SEQ_LEN => return Err(Error::Syntax),
             _ => (),
         }
         Ok(n.map(|x| x as usize))
@@ -90,7 +79,7 @@ impl<R: Read> Deserializer<R> {
             25 => visitor.visit_u16(try!(self.read_u16::<BigEndian>())),
             26 => visitor.visit_u32(try!(self.read_u32::<BigEndian>())),
             27 => visitor.visit_u64(try!(self.read_u64::<BigEndian>())),
-            _ => Err(self.error(ErrorCode::UnknownByte(first))),
+            _ => Err(Error::Syntax),
         }
     }
 
@@ -102,7 +91,7 @@ impl<R: Read> Deserializer<R> {
             25 => visitor.visit_i32(-1 - try!(self.read_u16::<BigEndian>()) as i32),
             26 => visitor.visit_i64(-1 - try!(self.read_u32::<BigEndian>()) as i64),
             27 => visitor.visit_i64(-1 - try!(self.read_u64::<BigEndian>()) as i64),
-            _ => Err(self.error(ErrorCode::UnknownByte(first))),
+            _ => Err(Error::Syntax),
         }
     }
 
@@ -116,13 +105,15 @@ impl<R: Read> Deserializer<R> {
             }
         }
         if let Some(n) = try!(self.parse_size_information(first)) {
-            visitor.visit_byte_buf(try!(self.read_bytes(n)))
+            let mut buf = vec![0; n];
+            try!(self.reader.read_exact(&mut buf));
+            visitor.visit_byte_buf(buf)
         } else {
             let mut bytes = Vec::new();
             loop {
                 match ByteBuf::deserialize(self) {
                     Ok(value) => append(&mut bytes, &*value),
-                    Err(Error::SyntaxError(ErrorCode::StopCode, _)) => break,
+                    Err(Error::StopCode) => break,
                     Err(e) => return Err(e),
                 }
             }
@@ -133,13 +124,15 @@ impl<R: Read> Deserializer<R> {
     #[inline]
     fn parse_string<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
         if let Some(n) = try!(self.parse_size_information(first)) {
-            visitor.visit_string(try!(String::from_utf8(try!(self.read_bytes(n)))))
+            let mut buf = vec![0; n];
+            try!(self.reader.read_exact(&mut buf));
+            visitor.visit_string(try!(String::from_utf8(buf)))
         } else {
             let mut string = String::new();
             loop {
                 match String::deserialize(self) {
                     Ok(value) => string.push_str(&value[..]),
-                    Err(Error::SyntaxError(ErrorCode::StopCode, _)) => break,
+                    Err(Error::StopCode) => break,
                     Err(e) => return Err(e),
                 }
             }
@@ -207,8 +200,8 @@ impl<R: Read> Deserializer<R> {
             25 => visitor.visit_f32(decode_f16(try!(self.read_u16::<BigEndian>()))),
             26 => visitor.visit_f32(try!(self.read_f32::<BigEndian>())),
             27 => visitor.visit_f64(try!(self.read_f64::<BigEndian>())),
-            31 => Err(self.error(ErrorCode::StopCode)),
-            _ => Err(self.error(ErrorCode::UnknownByte(first))),
+            31 => Err(Error::StopCode),
+            _ => Err(Error::Syntax),
         }
     }
 }
@@ -217,13 +210,8 @@ impl<R: Read> de::Deserializer for Deserializer<R> {
     type Error = Error;
 
     #[inline]
-    fn visit<V: Visitor>(&mut self, visitor: V) -> Result<V::Value> {
+    fn deserialize<V: Visitor>(&mut self, visitor: V) -> Result<V::Value> {
         self.parse_value(visitor)
-    }
-
-    #[inline]
-    fn format() -> &'static str {
-        "cbor"
     }
 }
 
@@ -262,7 +250,7 @@ impl<'a, R: Read> de::SeqVisitor for SeqVisitor<'a, R> {
         };
         match Deserialize::deserialize(self.de) {
             Ok(value) => Ok(Some(value)),
-            Err(Error::SyntaxError(ErrorCode::StopCode, _)) => {
+            Err(Error::StopCode) => {
                 self.items = Some(0);
                 Ok(None)
             }
@@ -275,7 +263,7 @@ impl<'a, R: Read> de::SeqVisitor for SeqVisitor<'a, R> {
         if let Some(0) = self.items {
             Ok(())
         } else {
-            Err(self.de.error(ErrorCode::TrailingBytes))
+            Err(Error::TrailingBytes)
         }
     }
 
@@ -313,7 +301,7 @@ impl<'a, R: Read> de::MapVisitor for MapVisitor<'a, R> {
         };
         match Deserialize::deserialize(self.de) {
             Ok(value) => Ok(Some(value)),
-            Err(Error::SyntaxError(ErrorCode::StopCode, _)) => {
+            Err(Error::StopCode) => {
                 self.items = Some(0);
                 Ok(None)
             }
@@ -331,7 +319,7 @@ impl<'a, R: Read> de::MapVisitor for MapVisitor<'a, R> {
         if let Some(0) = self.items {
             Ok(())
         } else {
-            Err(self.de.error(ErrorCode::TrailingBytes))
+            Err(Error::TrailingBytes)
         }
     }
 

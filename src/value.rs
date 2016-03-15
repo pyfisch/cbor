@@ -307,7 +307,7 @@ impl de::Deserialize for Value {
             }
         }
 
-        deserializer.visit(ValueVisitor)
+        deserializer.deserialize(ValueVisitor)
     }
 }
 
@@ -318,15 +318,15 @@ impl ser::Serialize for Value {
         where S: ser::Serializer
     {
         match *self {
-            Value::U64(v) => serializer.visit_u64(v),
-            Value::I64(v) => serializer.visit_i64(v),
-            Value::Bytes(ref v) => serializer.visit_bytes(&v),
-            Value::String(ref v) => serializer.visit_str(&v),
+            Value::U64(v) => serializer.serialize_u64(v),
+            Value::I64(v) => serializer.serialize_i64(v),
+            Value::Bytes(ref v) => serializer.serialize_bytes(&v),
+            Value::String(ref v) => serializer.serialize_str(&v),
             Value::Array(ref v) => v.serialize(serializer),
             Value::Object(ref v) => v.serialize(serializer),
-            Value::F64(v) => serializer.visit_f64(v),
-            Value::Bool(v) => serializer.visit_bool(v),
-            Value::Null => serializer.visit_unit(),
+            Value::F64(v) => serializer.serialize_f64(v),
+            Value::Bool(v) => serializer.serialize_bool(v),
+            Value::Null => serializer.serialize_unit(),
         }
     }
 }
@@ -519,7 +519,7 @@ impl de::Deserialize for ObjectKey {
             }
         }
 
-        deserializer.visit(ObjectKeyVisitor)
+        deserializer.deserialize(ObjectKeyVisitor)
     }
 }
 
@@ -529,11 +529,11 @@ impl ser::Serialize for ObjectKey {
         where S: ser::Serializer
     {
         match *self {
-            ObjectKey::Integer(v) => serializer.visit_i64(v),
-            ObjectKey::Bytes(ref v) => serializer.visit_bytes(&v),
-            ObjectKey::String(ref v) => serializer.visit_str(&v),
-            ObjectKey::Bool(v) => serializer.visit_bool(v),
-            ObjectKey::Null => serializer.visit_unit(),
+            ObjectKey::Integer(v) => serializer.serialize_i64(v),
+            ObjectKey::Bytes(ref v) => serializer.serialize_bytes(&v),
+            ObjectKey::String(ref v) => serializer.serialize_str(&v),
+            ObjectKey::Bool(v) => serializer.serialize_bool(v),
+            ObjectKey::Null => serializer.serialize_unit(),
         }
     }
 }
