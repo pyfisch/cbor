@@ -115,7 +115,6 @@
 #![deny(missing_docs)]
 
 extern crate byteorder;
-extern crate libc;
 extern crate serde;
 
 pub use de::{from_slice, from_reader};
