@@ -13,13 +13,14 @@ const MAX_SEQ_LEN: u64 = 524288;
 /// A structure that deserializes CBOR into Rust values.
 pub struct Deserializer<R: Read> {
     reader: R,
+    first: Option<u8>,
 }
 
 impl<R: Read> Deserializer<R> {
     /// Creates the CBOR parser from an `std::io::Read`.
     #[inline]
     pub fn new(reader: R) -> Deserializer<R> {
-        Deserializer { reader: reader }
+        Deserializer { reader: reader, first: None }
     }
 
     /// The `Deserializer::end` method should be called after a value has been fully deserialized.
@@ -35,7 +36,8 @@ impl<R: Read> Deserializer<R> {
 
     #[inline]
     fn parse_value<V: Visitor>(&mut self, visitor: V) -> Result<V::Value> {
-        let first = try!(self.read_u8());
+        let first = self.first.unwrap();
+        self.first = None;
         match (first & 0b111_00000) >> 5 {
             0 => self.parse_uint(first, visitor),
             1 => self.parse_int(first, visitor),
@@ -155,6 +157,7 @@ impl<R: Read> Deserializer<R> {
     #[inline]
     fn parse_tag<V: Visitor>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
         try!(self.parse_additional_information(first));
+        self.first = Some(try!(self.read_u8()));
         self.parse_value(visitor)
     }
 
@@ -198,7 +201,23 @@ impl<R: Read> de::Deserializer for Deserializer<R> {
 
     #[inline]
     fn deserialize<V: Visitor>(&mut self, visitor: V) -> Result<V::Value> {
-        self.parse_value(visitor)
+        if self.first.is_none() {
+            self.first = Some(try!(self.read_u8()));
+        }
+        let result = self.parse_value(visitor);
+        self.first = None;
+        result
+    }
+
+    #[inline]
+    fn deserialize_option<V: Visitor>(&mut self, mut visitor: V) -> Result<V::Value> {
+        self.first = Some(try!(self.read_u8()));
+        if self.first == Some(0b111_10110) {
+            self.first = None;
+            visitor.visit_none()
+        } else {
+            visitor.visit_some(self)
+        }
     }
 }
 

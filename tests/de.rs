@@ -172,3 +172,28 @@ fn test_kietaub_file() {
     let value_result: error::Result<Value> = de::from_slice(file);
     assert!(value_result.is_ok());
 }
+
+#[test]
+fn test_option_roundtrip() {
+    let obj1 = Some(10u32);
+
+    let mut v = vec![];
+    assert!(serde_cbor::ser::to_writer(&mut v, &obj1).is_ok());
+    println!("{:?}", v);
+    let obj2: Result<Option<u32>, _> = serde_cbor::de::from_reader(&v[..]);
+    println!("{:?}", obj2);
+
+    assert_eq!(obj1, obj2.unwrap());
+}
+
+#[test]
+fn test_option_none_roundtrip() {
+    let obj1 = None;
+
+    let mut v = vec![];
+    assert!(serde_cbor::ser::to_writer(&mut v, &obj1).is_ok());
+    println!("{:?}", v);
+    let obj2: Result<Option<u32>, _> = serde_cbor::de::from_reader(&v[..]);
+
+    assert_eq!(obj1, obj2.unwrap());
+}
