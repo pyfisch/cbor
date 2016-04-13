@@ -10,7 +10,7 @@ description = "CBOR serialization and deserialization using serde."
 keywords = ["serde", "cbor", "serialization"]
 
 [dependencies]
-byteorder = "0.3"
+byteorder = "0.5"
 serde = "0.7.0"
 
 [features]
