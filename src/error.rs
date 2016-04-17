@@ -7,7 +7,6 @@ use std::string::FromUtf8Error;
 
 use serde::de;
 use serde::ser;
-use byteorder::Error as ByteorderError;
 
 /// Represents all possible errors that can occur when serializing or deserializing a value.
 #[derive(Debug)]
@@ -70,15 +69,6 @@ impl From<io::Error> for Error {
 impl From<FromUtf8Error> for Error {
     fn from(error: FromUtf8Error) -> Error {
         Error::FromUtf8(error)
-    }
-}
-
-impl From<ByteorderError> for Error {
-    fn from(error: ByteorderError) -> Error {
-        match error {
-            ByteorderError::UnexpectedEOF => Error::Eof,
-            ByteorderError::Io(e) => Error::Io(e),
-        }
     }
 }
 
