@@ -154,6 +154,54 @@ impl<W: Write> ser::Serializer for Serializer<W> {
     {
         key.serialize(self).and_then(|()| value.serialize(self))
     }
+    #[inline]
+    fn serialize_unit_variant(&mut self, _name: &'static str,
+                              _variant_index: usize, 
+                              variant: &'static str) -> Result<()> {
+        self.serialize_str(variant)
+    }
+    #[inline]
+    fn serialize_newtype_variant<T>(&mut self, _name: &'static str,
+            _variant_index: usize, variant: &'static str, value: T) 
+            -> Result<()> where T: Serialize {
+        try!(self.writer.write_u8(0x82));
+        try!(self.serialize_str(variant));
+        value.serialize(self)
+    }
+    #[inline]
+    fn serialize_tuple_variant<V>(&mut self, _name: &'static str,
+            _variant_index: usize, variant: &'static str, mut visitor: V)
+            -> Result<()> where V: SeqVisitor {
+        if let Some(len) = visitor.len() {
+            try!(self.compact_type(4, len as u64 + 1));
+            try!(self.serialize_str(variant));
+            while let Some(()) = try!(visitor.visit(self)) {
+            }
+            Ok(())
+        } else {
+            try!(self.writer.write_u8(0x9f));
+            try!(self.serialize_str(variant));
+            while let Some(()) = try!(visitor.visit(self)) {
+            }
+            self.writer.write_u8(0xff).map_err(From::from)
+        }
+    }
+    #[inline]
+    fn serialize_tuple_variant_elt<T>(&mut self, value: T) -> Result<()>
+            where T: Serialize {
+        value.serialize(self)
+    }
+    #[inline]
+    fn serialize_struct_variant<V: MapVisitor>(&mut self,
+            _name: &'static str,
+            _variant_index: usize,
+            variant: &'static str,
+            visitor: V)
+             -> Result<()> {
+        try!(self.writer.write_u8(0x82));
+        try!(self.serialize_str(variant));
+        self.serialize_map(visitor)
+    }
 }
 
 /// Encodes the specified struct into a writer.
