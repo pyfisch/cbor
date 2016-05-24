@@ -3,7 +3,7 @@
 use std::io::{self, Read};
 
 use byteorder::{BigEndian, ReadBytesExt};
-use serde::de::{self, Visitor, Deserialize};
+use serde::de::{self, EnumVisitor, Visitor, Deserialize};
 use serde::bytes::ByteBuf;
 
 use super::error::{Error, Result};
@@ -99,13 +99,6 @@ impl<R: Read> Deserializer<R> {
 
     #[inline]
     fn parse_byte_buf<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
-        // Workaround as long as append is unstable.
-        #[inline]
-        fn append(this: &mut Vec<u8>, other: &[u8]) {
-            for v in other {
-                this.push(*v)
-            }
-        }
         if let Some(n) = try!(self.parse_size_information(first)) {
             let mut buf = vec![0; n];
             try!(self.reader.read_exact(&mut buf));
@@ -114,7 +107,7 @@ impl<R: Read> Deserializer<R> {
             let mut bytes = Vec::new();
             loop {
                 match ByteBuf::deserialize(self) {
-                    Ok(value) => append(&mut bytes, &*value),
+                    Ok(value) => bytes.append(&mut value.into()),
                     Err(Error::StopCode) => break,
                     Err(e) => return Err(e),
                 }
@@ -218,6 +211,23 @@ impl<R: Read> de::Deserializer for Deserializer<R> {
         } else {
             visitor.visit_some(self)
         }
+    }
+    
+    #[inline]
+    fn deserialize_enum<V: EnumVisitor>(&mut self,
+            _enum: &'static str, 
+            _variants: &'static [&'static str],
+            mut visitor: V) -> Result<V::Value> {
+        let first = try!(self.read_u8());
+        let items = match (first & 0b111_00000) >> 5 {
+            3 => {
+                self.first = Some(first);
+                Some(0)
+            }
+            4 => try!(self.parse_size_information(first)),
+            _ => return Err(Error::Syntax),
+        };
+        visitor.visit(VariantVisitor::new(self, items))
     }
 }
 
@@ -332,6 +342,57 @@ impl<'a, R: Read> de::MapVisitor for MapVisitor<'a, R> {
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.items.map_or((0, None), |n| (n, Some(n)))
+    }
+}
+
+struct VariantVisitor<'a, R: 'a + Read> {
+    de: &'a mut Deserializer<R>,
+    items: Option<usize>,
+}
+
+impl<'a, R: Read> VariantVisitor<'a, R> {
+    #[inline]
+    fn new(de: &'a mut Deserializer<R>, items: Option<usize>) -> Self {
+        VariantVisitor {
+            de: de,
+            items: items,
+        }
+    }
+}
+
+impl<'a, R: Read> de::VariantVisitor for VariantVisitor<'a, R> {
+    type Error = Error;
+    fn visit_variant<V: Deserialize>(&mut self) -> Result<V> {
+        de::Deserialize::deserialize(self.de)
+    }
+    
+    fn visit_unit(&mut self) -> Result<()> {
+        if self.items == Some(0) {
+            Ok(())
+        } else {
+            Err(Error::Syntax)
+        }
+    }
+    
+    fn visit_newtype<T: Deserialize>(&mut self) -> Result<T> {
+        de::Deserialize::deserialize(self.de)
+    }
+
+    fn visit_tuple<V: Visitor>(&mut self, len: usize, mut visitor: V) -> Result<V::Value> {
+        /*let res = de::Deserializer::deserialize(self.de, visitor);
+        println!("res.is_ok {:?}", res.is_ok());
+        res*/
+        if self.items.is_some() && self.items != Some(len + 1) {
+            return Err(Error::Syntax);
+        }
+        let seq = SeqVisitor::new(self.de, Some(len));
+        visitor.visit_seq(seq)
+    }
+    
+    fn visit_struct<V: Visitor>(&mut self, _fields: &'static [&'static str], visitor: V)
+            -> Result<V::Value> {
+        println!("calling visit_struct");
+        de::Deserializer::deserialize(self.de, visitor)
     }
 }
 
