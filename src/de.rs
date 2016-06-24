@@ -352,9 +352,9 @@ impl<'a, R: Read> de::VariantVisitor for CompositeVisitor<'a, R> {
 #[inline]
 pub fn from_reader<T: Deserialize, R: Read>(reader: R) -> Result<T> {
     let mut de = Deserializer::new(reader);
-    let value = Deserialize::deserialize(&mut de);
+    let value = try!(Deserialize::deserialize(&mut de));
     try!(de.end());
-    value
+    Ok(value)
 }
 
 /// Decodes a CBOR value from a `&[u8]` slice.
