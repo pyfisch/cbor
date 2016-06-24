@@ -138,13 +138,13 @@ impl<R: Read> Deserializer<R> {
     #[inline]
     fn parse_seq<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
         let n = try!(self.parse_size_information(first));
-        visitor.visit_seq(SeqVisitor::new(self, n.map(|x| x as usize)))
+        visitor.visit_seq(CompositeVisitor::new(self, n.map(|x| x as usize)))
     }
 
     #[inline]
     fn parse_map<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
         let n = try!(self.parse_size_information(first));
-        visitor.visit_map(MapVisitor::new(self, n.map(|x| x as usize)))
+        visitor.visit_map(CompositeVisitor::new(self, n.map(|x| x as usize)))
     }
 
     #[inline]
@@ -227,7 +227,7 @@ impl<R: Read> de::Deserializer for Deserializer<R> {
             4 => try!(self.parse_size_information(first)),
             _ => return Err(Error::Syntax),
         };
-        visitor.visit(VariantVisitor::new(self, items))
+        visitor.visit(CompositeVisitor::new(self, items))
     }
 }
 
@@ -238,23 +238,34 @@ impl<R: Read> Read for Deserializer<R> {
     }
 }
 
-
-struct SeqVisitor<'a, R: 'a + Read> {
+struct CompositeVisitor<'a, R: 'a + Read> {
     de: &'a mut Deserializer<R>,
     items: Option<usize>,
 }
 
-impl<'a, R: 'a + Read> SeqVisitor<'a, R> {
+impl<'a, R: 'a + Read> CompositeVisitor<'a, R> {
     #[inline]
     fn new(de: &'a mut Deserializer<R>, items: Option<usize>) -> Self {
-        SeqVisitor {
+        CompositeVisitor {
             de: de,
             items: items,
         }
     }
+
+    fn _end(&mut self) -> Result<()> {
+        if let Some(0) = self.items {
+            Ok(())
+        } else {
+            Err(Error::TrailingBytes)
+        }
+    }
+
+    fn _size_hint(&self) -> (usize, Option<usize>) {
+        self.items.map_or((0, None), |n| (n, Some(n)))
+    }
 }
 
-impl<'a, R: Read> de::SeqVisitor for SeqVisitor<'a, R> {
+impl<'a, R: Read> de::SeqVisitor for CompositeVisitor<'a, R> {
     type Error = Error;
 
     #[inline]
@@ -273,39 +284,11 @@ impl<'a, R: Read> de::SeqVisitor for SeqVisitor<'a, R> {
             Err(e) => Err(e),
         }
     }
-
-    #[inline]
-    fn end(&mut self) -> Result<()> {
-        if let Some(0) = self.items {
-            Ok(())
-        } else {
-            Err(Error::TrailingBytes)
-        }
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.items.map_or((0, None), |n| (n, Some(n)))
-    }
+    fn end(&mut self) -> Result<()> { self._end() }
+    fn size_hint(&self) -> (usize, Option<usize>) { self._size_hint() }
 }
 
-
-struct MapVisitor<'a, R: 'a + Read> {
-    de: &'a mut Deserializer<R>,
-    items: Option<usize>,
-}
-
-impl<'a, R: Read> MapVisitor<'a, R> {
-    #[inline]
-    fn new(de: &'a mut Deserializer<R>, items: Option<usize>) -> Self {
-        MapVisitor {
-            de: de,
-            items: items,
-        }
-    }
-}
-
-impl<'a, R: Read> de::MapVisitor for MapVisitor<'a, R> {
+impl<'a, R: Read> de::MapVisitor for CompositeVisitor<'a, R> {
     type Error = Error;
 
     #[inline]
@@ -329,38 +312,11 @@ impl<'a, R: Read> de::MapVisitor for MapVisitor<'a, R> {
     fn visit_value<V: Deserialize>(&mut self) -> Result<V> {
         Deserialize::deserialize(self.de)
     }
-
-    #[inline]
-    fn end(&mut self) -> Result<()> {
-        if let Some(0) = self.items {
-            Ok(())
-        } else {
-            Err(Error::TrailingBytes)
-        }
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.items.map_or((0, None), |n| (n, Some(n)))
-    }
+    fn end(&mut self) -> Result<()> { self._end() }
+    fn size_hint(&self) -> (usize, Option<usize>) { self._size_hint() }
 }
 
-struct VariantVisitor<'a, R: 'a + Read> {
-    de: &'a mut Deserializer<R>,
-    items: Option<usize>,
-}
-
-impl<'a, R: Read> VariantVisitor<'a, R> {
-    #[inline]
-    fn new(de: &'a mut Deserializer<R>, items: Option<usize>) -> Self {
-        VariantVisitor {
-            de: de,
-            items: items,
-        }
-    }
-}
-
-impl<'a, R: Read> de::VariantVisitor for VariantVisitor<'a, R> {
+impl<'a, R: Read> de::VariantVisitor for CompositeVisitor<'a, R> {
     type Error = Error;
     fn visit_variant<V: Deserialize>(&mut self) -> Result<V> {
         de::Deserialize::deserialize(self.de)
@@ -379,19 +335,15 @@ impl<'a, R: Read> de::VariantVisitor for VariantVisitor<'a, R> {
     }
 
     fn visit_tuple<V: Visitor>(&mut self, len: usize, mut visitor: V) -> Result<V::Value> {
-        /*let res = de::Deserializer::deserialize(self.de, visitor);
-        println!("res.is_ok {:?}", res.is_ok());
-        res*/
         if self.items.is_some() && self.items != Some(len + 1) {
             return Err(Error::Syntax);
         }
-        let seq = SeqVisitor::new(self.de, Some(len));
+        let seq = CompositeVisitor::new(self.de, Some(len));
         visitor.visit_seq(seq)
     }
     
     fn visit_struct<V: Visitor>(&mut self, _fields: &'static [&'static str], visitor: V)
             -> Result<V::Value> {
-        println!("calling visit_struct");
         de::Deserializer::deserialize(self.de, visitor)
     }
 }
