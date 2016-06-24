@@ -251,6 +251,22 @@ impl<'a, R: 'a + Read> CompositeVisitor<'a, R> {
             items: items,
         }
     }
+    
+    fn _visit<T: Deserialize>(&mut self) -> Result<Option<T>> {
+        match self.items {
+            Some(0) => return Ok(None),
+            Some(ref mut n) => *n -= 1,
+            _ => {}
+        };
+        match Deserialize::deserialize(self.de) {
+            Ok(value) => Ok(Some(value)),
+            Err(Error::StopCode) if self.items.is_none() => {
+                self.items = Some(0);
+                Ok(None)
+            }
+            Err(e) => Err(e),
+        }
+    }
 
     fn _end(&mut self) -> Result<()> {
         if let Some(0) = self.items {
@@ -267,48 +283,14 @@ impl<'a, R: 'a + Read> CompositeVisitor<'a, R> {
 
 impl<'a, R: Read> de::SeqVisitor for CompositeVisitor<'a, R> {
     type Error = Error;
-
-    #[inline]
-    fn visit<T: Deserialize>(&mut self) -> Result<Option<T>> {
-        match self.items {
-            Some(0) => return Ok(None),
-            Some(ref mut n) => *n -= 1,
-            _ => {}
-        };
-        match Deserialize::deserialize(self.de) {
-            Ok(value) => Ok(Some(value)),
-            Err(Error::StopCode) => {
-                self.items = Some(0);
-                Ok(None)
-            }
-            Err(e) => Err(e),
-        }
-    }
+    fn visit<T: Deserialize>(&mut self) -> Result<Option<T>> { self._visit() }
     fn end(&mut self) -> Result<()> { self._end() }
     fn size_hint(&self) -> (usize, Option<usize>) { self._size_hint() }
 }
 
 impl<'a, R: Read> de::MapVisitor for CompositeVisitor<'a, R> {
     type Error = Error;
-
-    #[inline]
-    fn visit_key<K: Deserialize>(&mut self) -> Result<Option<K>> {
-        match self.items {
-            Some(0) => return Ok(None),
-            Some(ref mut n) => *n -= 1,
-            _ => {}
-        };
-        match Deserialize::deserialize(self.de) {
-            Ok(value) => Ok(Some(value)),
-            Err(Error::StopCode) => {
-                self.items = Some(0);
-                Ok(None)
-            }
-            Err(e) => Err(e),
-        }
-    }
-
-    #[inline]
+    fn visit_key<K: Deserialize>(&mut self) -> Result<Option<K>> { self._visit() }
     fn visit_value<V: Deserialize>(&mut self) -> Result<V> {
         Deserialize::deserialize(self.de)
     }
@@ -319,7 +301,7 @@ impl<'a, R: Read> de::MapVisitor for CompositeVisitor<'a, R> {
 impl<'a, R: Read> de::VariantVisitor for CompositeVisitor<'a, R> {
     type Error = Error;
     fn visit_variant<V: Deserialize>(&mut self) -> Result<V> {
-        de::Deserialize::deserialize(self.de)
+        Deserialize::deserialize(self.de)
     }
     
     fn visit_unit(&mut self) -> Result<()> {
@@ -331,7 +313,7 @@ impl<'a, R: Read> de::VariantVisitor for CompositeVisitor<'a, R> {
     }
     
     fn visit_newtype<T: Deserialize>(&mut self) -> Result<T> {
-        de::Deserialize::deserialize(self.de)
+        Deserialize::deserialize(self.de)
     }
 
     fn visit_tuple<V: Visitor>(&mut self, len: usize, mut visitor: V) -> Result<V::Value> {
