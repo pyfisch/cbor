@@ -212,7 +212,17 @@ impl<R: Read> de::Deserializer for Deserializer<R> {
             visitor.visit_some(self)
         }
     }
-    
+    #[inline]
+    fn deserialize_newtype_struct<V>(
+        &mut self,
+        _name: &'static str,
+        mut visitor: V
+    ) -> Result<V::Value>
+        where V: de::Visitor,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
     #[inline]
     fn deserialize_enum<V: EnumVisitor>(&mut self,
             _enum: &'static str, 
