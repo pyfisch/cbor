@@ -161,6 +161,14 @@ impl<W: Write> ser::Serializer for Serializer<W> {
         self.serialize_str(variant)
     }
     #[inline]
+    fn serialize_newtype_struct<T>(&mut self,
+                                   _name: &'static str,
+                                   value: T) -> Result<()>
+        where T: ser::Serialize,
+    {
+        value.serialize(self)
+    }
+    #[inline]
     fn serialize_newtype_variant<T>(&mut self, _name: &'static str,
             _variant_index: usize, variant: &'static str, value: T) 
             -> Result<()> where T: Serialize {
