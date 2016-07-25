@@ -76,3 +76,11 @@ fn test_serialize() {
     assert_eq!(to_vec(&DataEnum::B(true, 9)).unwrap(),
                &[131, 97, 66, 245, 9]);
 }
+
+#[test]
+fn test_newtype_struct() {
+    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+    pub struct Newtype(u8);
+    assert_eq!(to_vec(&142u8).unwrap(), to_vec(&Newtype(142u8)).unwrap());
+    assert_eq!(from_slice::<Newtype>(&[24, 142]).unwrap(), Newtype(142));
+}
