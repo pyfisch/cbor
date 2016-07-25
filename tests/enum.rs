@@ -1,6 +1,9 @@
+// All tests are only run if `unstable` is enabled.
 #![cfg(feature="unstable")]
-#![feature(custom_derive, plugin)]
-#![plugin(serde_macros)]
+// Do not try to use features on stable.
+#![cfg_attr(feature="unstable", feature(custom_derive, plugin))]
+// Do not try to load the plugin if run on stable.
+#![cfg_attr(feature="unstable", plugin(serde_macros))]
 
 extern crate serde_cbor;
 use serde_cbor::{from_slice, to_vec};
