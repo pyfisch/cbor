@@ -35,7 +35,11 @@ impl error::Error for Error {
             Error::Syntax => "syntax error",
             Error::Io(ref error) => error::Error::description(error),
             Error::FromUtf8(ref error) => error.description(),
-            _ => "unknown error",
+            Error::Custom(ref s) => s,
+            Error::Eof => "unexpected end file",
+            Error::StopCode => "unexpected stop code",
+            Error::TrailingBytes => "unexpected trailing bytes",
+            Error::__Nonexhaustive => unreachable!(),
         }
     }
 
@@ -54,7 +58,11 @@ impl fmt::Display for Error {
             Error::Syntax => f.write_str("syntax error"),
             Error::Io(ref error) => fmt::Display::fmt(error, f),
             Error::FromUtf8(ref error) => fmt::Display::fmt(error, f),
-            _ => f.write_str("unknown error"),
+            Error::Custom(ref s) => write!(f, "custom error: {}", s),
+            Error::Eof => f.write_str("unexpected end file"),
+            Error::StopCode => f.write_str("unexpected stop code"),
+            Error::TrailingBytes => f.write_str("unexpected trailing bytes"),
+            Error::__Nonexhaustive => unreachable!(),
         }
     }
 }
