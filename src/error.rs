@@ -1,5 +1,6 @@
 //! CBOR errors.
 use std::error;
+use std::error::Error as StdError;
 use std::fmt;
 use std::result;
 use std::io;
@@ -29,14 +30,14 @@ pub enum Error {
     __Nonexhaustive,
 }
 
-impl error::Error for Error {
+impl StdError for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Syntax => "syntax error",
-            Error::Io(ref error) => error::Error::description(error),
+            Error::Io(ref error) => StdError::description(error),
             Error::FromUtf8(ref error) => error.description(),
             Error::Custom(ref s) => s,
-            Error::Eof => "unexpected end file",
+            Error::Eof => "unexpected end of file",
             Error::StopCode => "unexpected stop code",
             Error::TrailingBytes => "unexpected trailing bytes",
             Error::__Nonexhaustive => unreachable!(),
@@ -55,14 +56,8 @@ impl error::Error for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::Syntax => f.write_str("syntax error"),
-            Error::Io(ref error) => fmt::Display::fmt(error, f),
-            Error::FromUtf8(ref error) => fmt::Display::fmt(error, f),
             Error::Custom(ref s) => write!(f, "custom error: {}", s),
-            Error::Eof => f.write_str("unexpected end file"),
-            Error::StopCode => f.write_str("unexpected stop code"),
-            Error::TrailingBytes => f.write_str("unexpected trailing bytes"),
-            Error::__Nonexhaustive => unreachable!(),
+            _ => f.write_str(self.description())
         }
     }
 }
