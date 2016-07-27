@@ -119,7 +119,7 @@ extern crate serde;
 
 pub use de::{from_slice, from_reader};
 pub use error::{Error, Result};
-pub use ser::{to_vec, to_writer, to_vec_sd, to_writer_sd};
+pub use ser::{to_vec};
 pub use value::{Value, ObjectKey};
 
 pub mod de;
