@@ -2,7 +2,7 @@ extern crate serde_cbor;
 
 use std::collections::HashMap;
 
-use serde_cbor::{Value, ObjectKey, error, de};
+use serde_cbor::{to_vec, Value, ObjectKey, error, de};
 
 #[test]
 fn test_string1() {
@@ -177,9 +177,7 @@ fn test_kietaub_file() {
 fn test_option_roundtrip() {
     let obj1 = Some(10u32);
 
-    let mut v = vec![];
-    assert!(serde_cbor::ser::to_writer(&mut v, &obj1).is_ok());
-    println!("{:?}", v);
+    let v = to_vec(&obj1).unwrap();
     let obj2: Result<Option<u32>, _> = serde_cbor::de::from_reader(&v[..]);
     println!("{:?}", obj2);
 
@@ -190,8 +188,7 @@ fn test_option_roundtrip() {
 fn test_option_none_roundtrip() {
     let obj1 = None;
 
-    let mut v = vec![];
-    assert!(serde_cbor::ser::to_writer(&mut v, &obj1).is_ok());
+    let v = to_vec(&obj1).unwrap();
     println!("{:?}", v);
     let obj2: Result<Option<u32>, _> = serde_cbor::de::from_reader(&v[..]);
 

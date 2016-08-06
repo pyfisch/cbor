@@ -3,7 +3,9 @@ extern crate serde_cbor;
 
 use std::collections::HashMap;
 
-use serde_cbor::{to_vec, to_vec_sd, from_slice};
+use serde::Serializer;
+use serde_cbor::{to_vec, from_slice};
+use serde_cbor::ser;
 
 #[test]
 fn test_string() {
@@ -81,6 +83,11 @@ fn test_integer() {
 
 #[test]
 fn test_self_describing() {
-    let vec = to_vec_sd(&0).unwrap();
-    assert_eq!(vec, b"\xd9\xd9\xf7\x00");
+    let mut vec = Vec::new();
+    {
+        let mut serializer = ser::Serializer::new(&mut vec);
+        serializer.self_describe().unwrap();
+        serializer.serialize_u64(9).unwrap();
+    }
+    assert_eq!(vec, b"\xd9\xd9\xf7\x09");
 }

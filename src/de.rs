@@ -10,6 +10,15 @@ use super::error::{Error, Result};
 
 const MAX_SEQ_LEN: u64 = 524288;
 
+macro_rules! forward_deserialize {
+    ($($name:ident;)*) => {
+        $(#[inline]
+        fn $name<V: Visitor>(&mut self, visitor: V) -> Result<V::Value> {
+            self.deserialize(visitor)
+        })*
+    }
+}
+
 /// A structure that deserializes CBOR into Rust values.
 pub struct Deserializer<R: Read> {
     reader: R,
@@ -191,7 +200,30 @@ impl<R: Read> Deserializer<R> {
 
 impl<R: Read> de::Deserializer for Deserializer<R> {
     type Error = Error;
-
+    forward_deserialize!(
+        deserialize_bool;
+        deserialize_isize;
+        deserialize_i8;
+        deserialize_i16;
+        deserialize_i32;
+        deserialize_i64;
+        deserialize_usize;
+        deserialize_u8;
+        deserialize_u16;
+        deserialize_u32;
+        deserialize_u64;
+        deserialize_f32;
+        deserialize_f64;
+        deserialize_char;
+        deserialize_str;
+        deserialize_string;
+        deserialize_unit;
+        deserialize_seq;
+        deserialize_bytes;
+        deserialize_map;
+        deserialize_struct_field;
+        deserialize_ignored_any;
+    );
     #[inline]
     fn deserialize<V: Visitor>(&mut self, visitor: V) -> Result<V::Value> {
         if self.first.is_none() {
@@ -238,6 +270,26 @@ impl<R: Read> de::Deserializer for Deserializer<R> {
             _ => return Err(Error::Syntax),
         };
         visitor.visit(CompositeVisitor::new(self, items))
+    }
+    fn deserialize_seq_fixed_size<V>(&mut self, _len: usize, visitor: V) -> Result<V::Value>
+            where V: Visitor {
+        self.deserialize(visitor)
+    }
+    fn deserialize_unit_struct<V>(&mut self, _name: &'static str, visitor: V) -> Result<V::Value>
+            where V: Visitor {
+        self.deserialize(visitor)
+    }
+    fn deserialize_struct<V>(&mut self, _name: &'static str, _fields: &'static [&'static str],
+            visitor: V) -> Result<V::Value> where V: Visitor {
+        self.deserialize(visitor)
+    }
+    fn deserialize_tuple_struct<V>(&mut self, _name: &'static str, _len: usize, visitor: V)
+            -> Result<V::Value> where V: Visitor {
+        self.deserialize(visitor)
+    }
+    fn deserialize_tuple<V>(&mut self, _len: usize, visitor: V)
+            -> Result<V::Value> where V: Visitor {
+        self.deserialize(visitor)
     }
 }
 
