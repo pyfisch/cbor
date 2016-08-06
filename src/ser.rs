@@ -397,15 +397,21 @@ impl<W: Write> ser::Serializer for Serializer<W> {
     fn serialize_map(&mut self, len: Option<usize>) -> Result<Self::MapState> {
         self.write_collection_start(5, len)
     }
-    
+
     #[inline]
-    fn serialize_map_elt<K: Serialize, V: Serialize>(&mut self,
-                                                     _state: &mut CollectionState,
-                                                     key: K,
-                                                     value: V) -> Result<()> {
-        key.serialize(self).and_then(|()| value.serialize(self))
+    fn serialize_map_key<T: Serialize>(&mut self,
+                                       _state: &mut CollectionState,
+                                       key: T) -> Result<()> {
+        key.serialize(self)
     }
-    
+
+    #[inline]
+    fn serialize_map_value<T: Serialize>(&mut self,
+                                         _state: &mut CollectionState,
+                                         value: T) -> Result<()> {
+        value.serialize(self)
+    }
+
     #[inline]
     fn serialize_map_end(&mut self, state: CollectionState) -> Result<()> {
         self.write_collection_end(state)

@@ -177,7 +177,7 @@ fn test_kietaub_file() {
 fn test_option_roundtrip() {
     let obj1 = Some(10u32);
 
-    let mut v = to_vec(&obj1).unwrap();
+    let v = to_vec(&obj1).unwrap();
     let obj2: Result<Option<u32>, _> = serde_cbor::de::from_reader(&v[..]);
     println!("{:?}", obj2);
 
@@ -188,7 +188,7 @@ fn test_option_roundtrip() {
 fn test_option_none_roundtrip() {
     let obj1 = None;
 
-    let mut v = to_vec(&obj1).unwrap();
+    let v = to_vec(&obj1).unwrap();
     println!("{:?}", v);
     let obj2: Result<Option<u32>, _> = serde_cbor::de::from_reader(&v[..]);
 

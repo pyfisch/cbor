@@ -271,23 +271,23 @@ impl<R: Read> de::Deserializer for Deserializer<R> {
         };
         visitor.visit(CompositeVisitor::new(self, items))
     }
-    fn deserialize_seq_fixed_size<V>(&mut self, len: usize, visitor: V) -> Result<V::Value>
+    fn deserialize_seq_fixed_size<V>(&mut self, _len: usize, visitor: V) -> Result<V::Value>
             where V: Visitor {
         self.deserialize(visitor)
     }
-    fn deserialize_unit_struct<V>(&mut self, name: &'static str, visitor: V) -> Result<V::Value>
+    fn deserialize_unit_struct<V>(&mut self, _name: &'static str, visitor: V) -> Result<V::Value>
             where V: Visitor {
         self.deserialize(visitor)
     }
-    fn deserialize_struct<V>(&mut self, name: &'static str, fields: &'static [&'static str],
+    fn deserialize_struct<V>(&mut self, _name: &'static str, _fields: &'static [&'static str],
             visitor: V) -> Result<V::Value> where V: Visitor {
         self.deserialize(visitor)
     }
-    fn deserialize_tuple_struct<V>(&mut self, name: &'static str, len: usize, visitor: V)
+    fn deserialize_tuple_struct<V>(&mut self, _name: &'static str, _len: usize, visitor: V)
             -> Result<V::Value> where V: Visitor {
         self.deserialize(visitor)
     }
-    fn deserialize_tuple<V>(&mut self, len: usize, visitor: V)
+    fn deserialize_tuple<V>(&mut self, _len: usize, visitor: V)
             -> Result<V::Value> where V: Visitor {
         self.deserialize(visitor)
     }
