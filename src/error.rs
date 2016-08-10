@@ -57,7 +57,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Custom(ref s) => write!(f, "custom error: {}", s),
-            _ => f.write_str(self.description())
+            _ => f.write_str(self.description()),
         }
     }
 }
