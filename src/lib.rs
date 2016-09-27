@@ -1,7 +1,7 @@
 //! CBOR and serialization.
 //!
 //! # What is CBOR?
-//! [CBOR](http://cbor.io) is a way to enode data in a space-efficient and fast binary format.
+//! [CBOR](http://cbor.io) is a way to encode data in a space-efficient and fast binary format.
 //! CBORs data-model is a superset of the JSONs.
 //!
 //! A simple object describing a person in diagnostic notation (it is actually JSON plus some
