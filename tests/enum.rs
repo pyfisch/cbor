@@ -1,11 +1,11 @@
 // All tests are only run if `unstable` is enabled.
 #![cfg(feature="unstable")]
-// Do not try to use features on stable.
-#![cfg_attr(feature="unstable", feature(custom_derive, plugin))]
-// Do not try to load the plugin if run on stable.
-#![cfg_attr(feature="unstable", plugin(serde_macros))]
 
 extern crate serde_cbor;
+
+#[macro_use]
+extern crate serde_derive;
+
 use serde_cbor::{from_slice, to_vec};
 
 #[derive(Debug,Serialize,Deserialize,PartialEq,Eq)]
@@ -30,8 +30,8 @@ fn test_enum() {
 #[repr(u16)]
 #[derive(Debug,Serialize,Deserialize,PartialEq,Eq)]
 enum ReprEnum {
-    A,  
-    B,  
+    A,
+    B,
 }
 
 #[derive(Debug,Serialize,Deserialize,PartialEq,Eq)]
