@@ -3,7 +3,7 @@
 use std::io::{self, Read};
 
 use byteorder::{BigEndian, ReadBytesExt};
-use serde::de::{self, EnumVisitor, Visitor, Deserialize};
+use serde::de::{self, Visitor, Deserialize, DeserializeSeed};
 use serde::bytes::ByteBuf;
 
 use super::error::{Error, Result};
@@ -13,7 +13,7 @@ const MAX_SEQ_LEN: u64 = 524288;
 macro_rules! forward_deserialize {
     ($($name:ident($($arg:ident: $ty:ty,)*);)*) => {
         $(#[inline]
-        fn $name<V: Visitor>(&mut self, $($arg: $ty,)* visitor: V) -> Result<V::Value> {
+        fn $name<V: Visitor>(self, $($arg: $ty,)* visitor: V) -> Result<V::Value> {
             self.deserialize(visitor)
         })*
     }
@@ -86,7 +86,7 @@ impl<R: Read> Deserializer<R> {
     }
 
     #[inline]
-    fn parse_uint<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
+    fn parse_uint<V: Visitor>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
         match first & 0b000_11111 {
             n @ 0...23 => visitor.visit_u8(n),
             24 => visitor.visit_u8(try!(self.read_u8())),
@@ -98,7 +98,7 @@ impl<R: Read> Deserializer<R> {
     }
 
     #[inline]
-    fn parse_int<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
+    fn parse_int<V: Visitor>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
         match first & 0b000_11111 {
             n @ 0...23 => visitor.visit_i8(-1 - n as i8),
             24 => visitor.visit_i16(-1 - try!(self.read_u8()) as i16),
@@ -110,7 +110,7 @@ impl<R: Read> Deserializer<R> {
     }
 
     #[inline]
-    fn parse_byte_buf<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
+    fn parse_byte_buf<V: Visitor>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
         if let Some(n) = try!(self.parse_size_information(first)) {
             let mut buf = vec![0; n];
             try!(self.reader.read_exact(&mut buf));
@@ -118,7 +118,7 @@ impl<R: Read> Deserializer<R> {
         } else {
             let mut bytes = Vec::new();
             loop {
-                match ByteBuf::deserialize(self) {
+                match ByteBuf::deserialize(&mut *self) {
                     Ok(value) => bytes.append(&mut value.into()),
                     Err(Error::StopCode) => break,
                     Err(e) => return Err(e),
@@ -129,7 +129,7 @@ impl<R: Read> Deserializer<R> {
     }
 
     #[inline]
-    fn parse_string<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
+    fn parse_string<V: Visitor>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
         if let Some(n) = try!(self.parse_size_information(first)) {
             let mut buf = vec![0; n];
             try!(self.reader.read_exact(&mut buf));
@@ -137,7 +137,7 @@ impl<R: Read> Deserializer<R> {
         } else {
             let mut string = String::new();
             loop {
-                match String::deserialize(self) {
+                match String::deserialize(&mut *self) {
                     Ok(value) => string.push_str(&value[..]),
                     Err(Error::StopCode) => break,
                     Err(e) => return Err(e),
@@ -148,13 +148,13 @@ impl<R: Read> Deserializer<R> {
     }
 
     #[inline]
-    fn parse_seq<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
+    fn parse_seq<V: Visitor>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
         let n = try!(self.parse_size_information(first));
         visitor.visit_seq(CompositeVisitor::new(self, n.map(|x| x as usize)))
     }
 
     #[inline]
-    fn parse_map<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
+    fn parse_map<V: Visitor>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
         let n = try!(self.parse_size_information(first));
         visitor.visit_map(CompositeVisitor::new(self, n.map(|x| x as usize)))
     }
@@ -167,7 +167,7 @@ impl<R: Read> Deserializer<R> {
     }
 
     #[inline]
-    fn parse_simple_value<V: Visitor>(&mut self, first: u8, mut visitor: V) -> Result<V::Value> {
+    fn parse_simple_value<V: Visitor>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
         #[inline]
         fn decode_f16(half: u16) -> f32 {
             let exp: u16 = half >> 10 & 0x1f;
@@ -201,16 +201,14 @@ impl<R: Read> Deserializer<R> {
     }
 }
 
-impl<R: Read> de::Deserializer for Deserializer<R> {
+impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
     type Error = Error;
     forward_deserialize!(
         deserialize_bool();
-        deserialize_isize();
         deserialize_i8();
         deserialize_i16();
         deserialize_i32();
         deserialize_i64();
-        deserialize_usize();
         deserialize_u8();
         deserialize_u16();
         deserialize_u32();
@@ -224,6 +222,7 @@ impl<R: Read> de::Deserializer for Deserializer<R> {
         deserialize_seq();
         deserialize_seq_fixed_size(_len: usize,);
         deserialize_bytes();
+        deserialize_byte_buf();
         deserialize_map();
         deserialize_unit_struct(_name: &'static str,);
         deserialize_tuple_struct(_name: &'static str, _len: usize,);
@@ -233,7 +232,7 @@ impl<R: Read> de::Deserializer for Deserializer<R> {
         deserialize_ignored_any();
     );
     #[inline]
-    fn deserialize<V: Visitor>(&mut self, visitor: V) -> Result<V::Value> {
+    fn deserialize<V: Visitor>(self, visitor: V) -> Result<V::Value> {
         if self.first.is_none() {
             self.first = Some(try!(self.read_u8()));
         }
@@ -243,7 +242,7 @@ impl<R: Read> de::Deserializer for Deserializer<R> {
     }
 
     #[inline]
-    fn deserialize_option<V: Visitor>(&mut self, mut visitor: V) -> Result<V::Value> {
+    fn deserialize_option<V: Visitor>(self, visitor: V) -> Result<V::Value> {
         self.first = Some(try!(self.read_u8()));
         if self.first == Some(0b111_10110) {
             self.first = None;
@@ -253,9 +252,9 @@ impl<R: Read> de::Deserializer for Deserializer<R> {
         }
     }
     #[inline]
-    fn deserialize_newtype_struct<V>(&mut self,
+    fn deserialize_newtype_struct<V>(self,
                                      _name: &'static str,
-                                     mut visitor: V)
+                                     visitor: V)
                                      -> Result<V::Value>
         where V: de::Visitor
     {
@@ -263,11 +262,11 @@ impl<R: Read> de::Deserializer for Deserializer<R> {
     }
 
     #[inline]
-    fn deserialize_enum<V: EnumVisitor>(&mut self,
-                                        _enum: &'static str,
-                                        _variants: &'static [&'static str],
-                                        mut visitor: V)
-                                        -> Result<V::Value> {
+    fn deserialize_enum<V: Visitor>(self,
+                                    _enum: &'static str,
+                                    _variants: &'static [&'static str],
+                                    visitor: V)
+                                    -> Result<V::Value> {
         let first = try!(self.read_u8());
         let items = match (first & 0b111_00000) >> 5 {
             3 => {
@@ -277,7 +276,7 @@ impl<R: Read> de::Deserializer for Deserializer<R> {
             4 => try!(self.parse_size_information(first)),
             _ => return Err(Error::Syntax),
         };
-        visitor.visit(CompositeVisitor::new(self, items))
+        visitor.visit_enum(CompositeVisitor::new(self, items))
     }
 }
 
@@ -302,13 +301,13 @@ impl<'a, R: 'a + Read> CompositeVisitor<'a, R> {
         }
     }
 
-    fn _visit<T: Deserialize>(&mut self) -> Result<Option<T>> {
+    fn _visit<T: DeserializeSeed>(&mut self, seed: T) -> Result<Option<T::Value>> {
         match self.items {
             Some(0) => return Ok(None),
             Some(ref mut n) => *n -= 1,
             _ => {}
         };
-        match Deserialize::deserialize(self.de) {
+        match seed.deserialize(&mut *self.de) {
             Ok(value) => Ok(Some(value)),
             Err(Error::StopCode) if self.items.is_none() => {
                 self.items = Some(0);
@@ -333,11 +332,8 @@ impl<'a, R: 'a + Read> CompositeVisitor<'a, R> {
 
 impl<'a, R: Read> de::SeqVisitor for CompositeVisitor<'a, R> {
     type Error = Error;
-    fn visit<T: Deserialize>(&mut self) -> Result<Option<T>> {
-        self._visit()
-    }
-    fn end(&mut self) -> Result<()> {
-        self._end()
+    fn visit_seed<T: DeserializeSeed>(&mut self, seed: T) -> Result<Option<T::Value>> {
+        self._visit(seed)
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self._size_hint()
@@ -346,27 +342,33 @@ impl<'a, R: Read> de::SeqVisitor for CompositeVisitor<'a, R> {
 
 impl<'a, R: Read> de::MapVisitor for CompositeVisitor<'a, R> {
     type Error = Error;
-    fn visit_key<K: Deserialize>(&mut self) -> Result<Option<K>> {
-        self._visit()
+    fn visit_key_seed<K: DeserializeSeed>(&mut self, seed: K) -> Result<Option<K::Value>> {
+        self._visit(seed)
     }
-    fn visit_value<V: Deserialize>(&mut self) -> Result<V> {
-        Deserialize::deserialize(self.de)
-    }
-    fn end(&mut self) -> Result<()> {
-        self._end()
+    fn visit_value_seed<V: DeserializeSeed>(&mut self, seed: V) -> Result<V::Value> {
+        seed.deserialize(&mut *self.de)
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self._size_hint()
     }
 }
 
+impl<'a, R: Read> de::EnumVisitor for CompositeVisitor<'a, R> {
+    type Error = Error;
+    type Variant = Self;
+
+    fn visit_variant_seed<V>(self, seed: V) -> Result<(V::Value, Self)>
+        where V: de::DeserializeSeed
+    {
+        let val = try!(seed.deserialize(&mut *self.de));
+        Ok((val, self))
+    }
+}
+
 impl<'a, R: Read> de::VariantVisitor for CompositeVisitor<'a, R> {
     type Error = Error;
-    fn visit_variant<V: Deserialize>(&mut self) -> Result<V> {
-        Deserialize::deserialize(self.de)
-    }
 
-    fn visit_unit(&mut self) -> Result<()> {
+    fn visit_unit(self) -> Result<()> {
         if self.items == Some(0) {
             Ok(())
         } else {
@@ -374,11 +376,11 @@ impl<'a, R: Read> de::VariantVisitor for CompositeVisitor<'a, R> {
         }
     }
 
-    fn visit_newtype<T: Deserialize>(&mut self) -> Result<T> {
-        Deserialize::deserialize(self.de)
+    fn visit_newtype_seed<T: DeserializeSeed>(self, seed: T) -> Result<T::Value> {
+        seed.deserialize(self.de)
     }
 
-    fn visit_tuple<V: Visitor>(&mut self, len: usize, mut visitor: V) -> Result<V::Value> {
+    fn visit_tuple<V: Visitor>(self, len: usize, visitor: V) -> Result<V::Value> {
         if self.items.is_some() && self.items != Some(len + 1) {
             return Err(Error::Syntax);
         }
@@ -386,7 +388,7 @@ impl<'a, R: Read> de::VariantVisitor for CompositeVisitor<'a, R> {
         visitor.visit_seq(seq)
     }
 
-    fn visit_struct<V: Visitor>(&mut self,
+    fn visit_struct<V: Visitor>(self,
                                 _fields: &'static [&'static str],
                                 visitor: V)
                                 -> Result<V::Value> {

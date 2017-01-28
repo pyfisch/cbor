@@ -76,18 +76,14 @@ impl From<FromUtf8Error> for Error {
 }
 
 impl de::Error for Error {
-    fn custom<T: Into<String>>(msg: T) -> Error {
-        Error::Custom(msg.into())
-    }
-
-    fn end_of_stream() -> Error {
-        Error::Eof
+    fn custom<T: fmt::Display>(msg: T) -> Error {
+        Error::Custom(msg.to_string())
     }
 }
 
 impl ser::Error for Error {
-    fn custom<T: Into<String>>(msg: T) -> Error {
-        Error::Custom(msg.into())
+    fn custom<T: fmt::Display>(msg: T) -> Error {
+        Error::Custom(msg.to_string())
     }
 }
 

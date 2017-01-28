@@ -1,10 +1,9 @@
-// Do not try to use features on stable.
-#![cfg_attr(feature="unstable", feature(custom_derive, plugin))]
-// Do not try to load the plugin if run on stable.
-#![cfg_attr(feature="unstable", plugin(serde_macros))]
-
 extern crate serde;
 extern crate serde_cbor;
+
+#[cfg(feature = "unstable")]
+#[macro_use]
+extern crate serde_derive;
 
 use std::u8;
 
@@ -49,7 +48,7 @@ macro_rules! testcase {
         }
     }
 }
-            
+
 
 testcase!(test_bool_false, bool, false, "f4");
 testcase!(test_bool_true, bool, true, "f5");
