@@ -3,7 +3,7 @@
 use std::io::Write;
 
 use byteorder::{BigEndian, WriteBytesExt};
-use serde::ser::{self, Serialize};
+use serde::ser::{self, Serialize, Serializer as SerdeSerializer};
 
 use {Error, Result};
 
@@ -89,13 +89,22 @@ impl<W: Write> Serializer<W> {
     }
 
     #[inline]
-    fn write_collection_start(&mut self, major: u8, len: Option<usize>) -> Result<CollectionState> {
+    fn write_collection_start(&mut self,
+                              major: u8,
+                              len: Option<usize>)
+                              -> Result<Compound<W, CollectionState>> {
         if let Some(len) = len {
             try!(self.write_type_u64(major, len as u64));
-            Ok(CollectionState::Fixed)
+            Ok(Compound {
+                ser: self,
+                state: CollectionState::Fixed,
+            })
         } else {
             try!(self.writer.write_u8(major << 5 | 31));
-            Ok(CollectionState::Indefinite)
+            Ok(Compound {
+                ser: self,
+                state: CollectionState::Indefinite,
+            })
         }
     }
 
@@ -108,36 +117,151 @@ impl<W: Write> Serializer<W> {
     }
 }
 
-/// A collection like an array or map may have a fixed or indefinite length.
+#[doc(hidden)]
 pub enum CollectionState {
-    /// Fixed collections end after all elements were serialized.
     Fixed,
-    /// Indefinite collections are terminated by a stop code after the last element.
     Indefinite,
 }
 
-/// Structs are record types. They are serialized as key value pairs.
-///
-/// The keys are either strings or indexes denoting the position in the struct.
-/// In `packed` serialization indexes are used to preserve space.
-///
-/// To keep track of the current index a counter is stored in this state.
+#[doc(hidden)]
 pub struct StructState {
     counter: usize,
 }
 
-impl<W: Write> ser::Serializer for Serializer<W> {
+#[doc(hidden)]
+pub struct Compound<'a, W: 'a + Write, S> {
+    ser: &'a mut Serializer<W>,
+    state: S,
+}
+
+impl<'a, W: Write> ser::SerializeSeq for Compound<'a, W, CollectionState> {
+    type Ok = ();
     type Error = Error;
-    type SeqState = CollectionState;
-    type TupleState = ();
-    type TupleStructState = ();
-    type TupleVariantState = ();
-    type MapState = CollectionState;
-    type StructState = StructState;
-    type StructVariantState = StructState;
+
+    fn serialize_element<T: ?Sized + ser::Serialize>(&mut self, value: &T) -> Result<()> {
+        value.serialize(&mut *self.ser)
+    }
+
+    fn end(self) -> Result<()> {
+        self.ser.write_collection_end(self.state)
+    }
+}
+
+impl<'a, W: Write> ser::SerializeTuple for &'a mut Serializer<W> {
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_element<T: ?Sized + ser::Serialize>(&mut self, value: &T) -> Result<()> {
+        value.serialize(&mut **self)
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a, W: Write> ser::SerializeTupleStruct for &'a mut Serializer<W> {
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T: ?Sized + ser::Serialize>(&mut self, value: &T) -> Result<()> {
+        value.serialize(&mut **self)
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a, W: Write> ser::SerializeTupleVariant for &'a mut Serializer<W> {
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T: ?Sized + ser::Serialize>(&mut self, value: &T) -> Result<()> {
+        value.serialize(&mut **self)
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a, W: Write> ser::SerializeMap for Compound<'a, W, CollectionState> {
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_key<T: ?Sized + ser::Serialize>(&mut self, value: &T) -> Result<()> {
+        value.serialize(&mut *self.ser)
+    }
+
+    fn serialize_value<T: ?Sized + ser::Serialize>(&mut self, value: &T) -> Result<()> {
+        value.serialize(&mut *self.ser)
+    }
+
+    fn end(self) -> Result<()> {
+        self.ser.write_collection_end(self.state)
+    }
+}
+
+impl<'a, W: Write> ser::SerializeStruct for Compound<'a, W, StructState> {
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T: ?Sized + ser::Serialize>(&mut self,
+                                                   key: &'static str,
+                                                   value: &T)
+                                                   -> Result<()> {
+        if !self.ser.packed {
+            try!(self.ser.serialize_str(key));
+        } else {
+            try!(self.ser.serialize_u64(self.state.counter as u64));
+        }
+        try!(value.serialize(&mut *self.ser));
+        self.state.counter += 1;
+        Ok(())
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a, W: Write> ser::SerializeStructVariant for Compound<'a, W, StructState> {
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T: ?Sized + ser::Serialize>(&mut self,
+                                                   key: &'static str,
+                                                   value: &T)
+                                                   -> Result<()> {
+        if !self.ser.packed {
+            try!(self.ser.serialize_str(key));
+        } else {
+            try!(self.ser.serialize_u64(self.state.counter as u64));
+        }
+        try!(value.serialize(&mut *self.ser));
+        self.state.counter += 1;
+        Ok(())
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
+    type Ok = ();
+    type Error = Error;
+    type SerializeSeq = Compound<'a, W, CollectionState>;
+    type SerializeTuple = &'a mut Serializer<W>;
+    type SerializeTupleStruct = &'a mut Serializer<W>;
+    type SerializeTupleVariant = &'a mut Serializer<W>;
+    type SerializeMap = Compound<'a, W, CollectionState>;
+    type SerializeStruct = Compound<'a, W, StructState>;
+    type SerializeStructVariant = Compound<'a, W, StructState>;
 
     #[inline]
-    fn serialize_bool(&mut self, v: bool) -> Result<()> {
+    fn serialize_bool(self, v: bool) -> Result<()> {
         self.writer
             .write_u8(match v {
                 false => 7 << 5 | 20,
@@ -147,12 +271,7 @@ impl<W: Write> ser::Serializer for Serializer<W> {
     }
 
     #[inline]
-    fn serialize_isize(&mut self, v: isize) -> Result<()> {
-        self.serialize_i64(v as i64)
-    }
-
-    #[inline]
-    fn serialize_i8(&mut self, v: i8) -> Result<()> {
+    fn serialize_i8(self, v: i8) -> Result<()> {
         if v < 0 {
             self.write_type_u8(1, -(v + 1) as u8)
         } else {
@@ -161,7 +280,7 @@ impl<W: Write> ser::Serializer for Serializer<W> {
     }
 
     #[inline]
-    fn serialize_i16(&mut self, v: i16) -> Result<()> {
+    fn serialize_i16(self, v: i16) -> Result<()> {
         if v < 0 {
             self.write_type_u16(1, -(v + 1) as u16)
         } else {
@@ -170,7 +289,7 @@ impl<W: Write> ser::Serializer for Serializer<W> {
     }
 
     #[inline]
-    fn serialize_i32(&mut self, v: i32) -> Result<()> {
+    fn serialize_i32(self, v: i32) -> Result<()> {
         if v < 0 {
             self.write_type_u32(1, -(v + 1) as u32)
         } else {
@@ -179,7 +298,7 @@ impl<W: Write> ser::Serializer for Serializer<W> {
     }
 
     #[inline]
-    fn serialize_i64(&mut self, v: i64) -> Result<()> {
+    fn serialize_i64(self, v: i64) -> Result<()> {
         if v < 0 {
             self.write_type_u64(1, -(v + 1) as u64)
         } else {
@@ -188,32 +307,27 @@ impl<W: Write> ser::Serializer for Serializer<W> {
     }
 
     #[inline]
-    fn serialize_usize(&mut self, v: usize) -> Result<()> {
-        self.serialize_u64(v as u64)
-    }
-
-    #[inline]
-    fn serialize_u8(&mut self, v: u8) -> Result<()> {
+    fn serialize_u8(self, v: u8) -> Result<()> {
         self.write_type_u8(0, v)
     }
 
     #[inline]
-    fn serialize_u16(&mut self, v: u16) -> Result<()> {
+    fn serialize_u16(self, v: u16) -> Result<()> {
         self.write_type_u16(0, v)
     }
 
     #[inline]
-    fn serialize_u32(&mut self, v: u32) -> Result<()> {
+    fn serialize_u32(self, v: u32) -> Result<()> {
         self.write_type_u32(0, v)
     }
 
     #[inline]
-    fn serialize_u64(&mut self, v: u64) -> Result<()> {
+    fn serialize_u64(self, v: u64) -> Result<()> {
         self.write_type_u64(0, v)
     }
 
     #[inline]
-    fn serialize_f32(&mut self, v: f32) -> Result<()> {
+    fn serialize_f32(self, v: f32) -> Result<()> {
         // TODO: Encode to f16
         if v.is_infinite() && v.is_sign_positive() {
                 self.writer.write_all(&[0xf9, 0x7c, 0x00])
@@ -230,7 +344,7 @@ impl<W: Write> ser::Serializer for Serializer<W> {
     }
 
     #[inline]
-    fn serialize_f64(&mut self, v: f64) -> Result<()> {
+    fn serialize_f64(self, v: f64) -> Result<()> {
         // TODO: Encode to f16
         if v.is_infinite() && v.is_sign_positive() {
                 self.writer.write_all(&[0xf9, 0x7c, 0x00])
@@ -251,7 +365,7 @@ impl<W: Write> ser::Serializer for Serializer<W> {
     }
 
     #[inline]
-    fn serialize_char(&mut self, v: char) -> Result<()> {
+    fn serialize_char(self, v: char) -> Result<()> {
         // TODO: Avoid allocation. rust-lang/rust#27784
         let mut s = String::new();
         s.push(v);
@@ -259,29 +373,39 @@ impl<W: Write> ser::Serializer for Serializer<W> {
     }
 
     #[inline]
-    fn serialize_str(&mut self, value: &str) -> Result<()> {
+    fn serialize_str(self, value: &str) -> Result<()> {
         try!(self.write_type_u64(3, value.len() as u64));
         self.writer.write_all(value.as_bytes()).map_err(From::from)
     }
 
     #[inline]
-    fn serialize_bytes(&mut self, value: &[u8]) -> Result<()> {
+    fn serialize_bytes(self, value: &[u8]) -> Result<()> {
         try!(self.write_type_u64(2, value.len() as u64));
         self.writer.write_all(value).map_err(From::from)
     }
 
     #[inline]
-    fn serialize_unit(&mut self) -> Result<()> {
-        self.writer.write_u8(7 << 5 | 22).map_err(From::from)
-    }
-
-    #[inline]
-    fn serialize_unit_struct(&mut self, _name: &'static str) -> Result<()> {
+    fn serialize_none(self) -> Result<()> {
         self.serialize_unit()
     }
 
     #[inline]
-    fn serialize_unit_variant(&mut self,
+    fn serialize_some<T: ?Sized + Serialize>(self, value: &T) -> Result<()> {
+        value.serialize(self)
+    }
+
+    #[inline]
+    fn serialize_unit(self) -> Result<()> {
+        self.writer.write_u8(7 << 5 | 22).map_err(From::from)
+    }
+
+    #[inline]
+    fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
+        self.serialize_unit()
+    }
+
+    #[inline]
+    fn serialize_unit_variant(self,
                               _name: &'static str,
                               variant_index: usize,
                               variant: &'static str)
@@ -289,205 +413,101 @@ impl<W: Write> ser::Serializer for Serializer<W> {
         if !self.packed {
             self.serialize_str(variant)
         } else {
-            self.serialize_usize(variant_index)
+            self.serialize_u64(variant_index as u64)
         }
     }
 
     #[inline]
-    fn serialize_newtype_struct<T: Serialize>(&mut self,
-                                              _name: &'static str,
-                                              value: T)
-                                              -> Result<()> {
+    fn serialize_newtype_struct<T: ?Sized + Serialize>(self,
+                                                       _name: &'static str,
+                                                       value: &T)
+                                                       -> Result<()> {
         value.serialize(self)
     }
 
     #[inline]
-    fn serialize_newtype_variant<T: Serialize>(&mut self,
-                                               name: &'static str,
-                                               variant_index: usize,
-                                               variant: &'static str,
-                                               value: T)
-                                               -> Result<()> {
+    fn serialize_newtype_variant<T: ?Sized + Serialize>(self,
+                                                        name: &'static str,
+                                                        variant_index: usize,
+                                                        variant: &'static str,
+                                                        value: &T)
+                                                        -> Result<()> {
         try!(self.writer.write_u8(4 << 5 | 2));
         try!(self.serialize_unit_variant(name, variant_index, variant));
         value.serialize(self)
     }
 
     #[inline]
-    fn serialize_none(&mut self) -> Result<()> {
-        self.serialize_unit()
-    }
-
-    #[inline]
-    fn serialize_some<T: Serialize>(&mut self, value: T) -> Result<()> {
-        value.serialize(self)
-    }
-
-    #[inline]
-    fn serialize_seq(&mut self, len: Option<usize>) -> Result<CollectionState> {
+    fn serialize_seq(self, len: Option<usize>) -> Result<Compound<'a, W, CollectionState>> {
         self.write_collection_start(4, len)
     }
 
     #[inline]
-    fn serialize_seq_elt<T: Serialize>(&mut self,
-                                       _state: &mut Self::SeqState,
-                                       value: T)
-                                       -> Result<()> {
-        value.serialize(self)
-    }
-
-    #[inline]
-    fn serialize_seq_end(&mut self, state: CollectionState) -> Result<()> {
-        self.write_collection_end(state)
-    }
-
-    #[inline]
-    fn serialize_seq_fixed_size(&mut self, size: usize) -> Result<CollectionState> {
+    fn serialize_seq_fixed_size(self, size: usize) -> Result<Compound<'a, W, CollectionState>> {
         self.serialize_seq(Some(size))
     }
 
     #[inline]
-    fn serialize_tuple(&mut self, len: usize) -> Result<()> {
-        self.write_type_u64(4, len as u64)
+    fn serialize_tuple(self, len: usize) -> Result<&'a mut Serializer<W>> {
+        try!(self.write_type_u64(4, len as u64));
+        Ok(self)
     }
 
     #[inline]
-    fn serialize_tuple_elt<T: Serialize>(&mut self, _state: &mut (), value: T) -> Result<()> {
-        value.serialize(self)
-    }
-
-    #[inline]
-    fn serialize_tuple_end(&mut self, _state: ()) -> Result<()> {
-        Ok(())
-    }
-
-    #[inline]
-    fn serialize_tuple_struct(&mut self, _name: &'static str, len: usize) -> Result<()> {
+    fn serialize_tuple_struct(self,
+                              _name: &'static str,
+                              len: usize)
+                              -> Result<&'a mut Serializer<W>> {
         self.serialize_tuple(len)
     }
 
     #[inline]
-    fn serialize_tuple_struct_elt<T: Serialize>(&mut self,
-                                                _state: &mut (),
-                                                value: T)
-                                                -> Result<()> {
-        value.serialize(self)
-    }
-
-    #[inline]
-    fn serialize_tuple_struct_end(&mut self, _state: ()) -> Result<()> {
-        Ok(())
-    }
-
-    #[inline]
-    fn serialize_tuple_variant(&mut self,
+    fn serialize_tuple_variant(self,
                                name: &'static str,
                                variant_index: usize,
                                variant: &'static str,
                                len: usize)
-                               -> Result<()> {
+                               -> Result<&'a mut Serializer<W>> {
         try!(self.write_type_u64(4, (len + 1) as u64));
-        self.serialize_unit_variant(name, variant_index, variant)
+        try!(self.serialize_unit_variant(name, variant_index, variant));
+        Ok(self)
     }
 
     #[inline]
-    fn serialize_tuple_variant_elt<T: Serialize>(&mut self,
-                                                 _state: &mut (),
-                                                 value: T)
-                                                 -> Result<()> {
-        value.serialize(self)
-    }
-
-    #[inline]
-    fn serialize_tuple_variant_end(&mut self, _state: ()) -> Result<()> {
-        Ok(())
-    }
-
-    #[inline]
-    fn serialize_map(&mut self, len: Option<usize>) -> Result<Self::MapState> {
+    fn serialize_map(self, len: Option<usize>) -> Result<Compound<'a, W, CollectionState>> {
         self.write_collection_start(5, len)
     }
 
     #[inline]
-    fn serialize_map_key<T: Serialize>(&mut self,
-                                       _state: &mut CollectionState,
-                                       key: T)
-                                       -> Result<()> {
-        key.serialize(self)
-    }
-
-    #[inline]
-    fn serialize_map_value<T: Serialize>(&mut self,
-                                         _state: &mut CollectionState,
-                                         value: T)
-                                         -> Result<()> {
-        value.serialize(self)
-    }
-
-    #[inline]
-    fn serialize_map_end(&mut self, state: CollectionState) -> Result<()> {
-        self.write_collection_end(state)
-    }
-
-    #[inline]
-    fn serialize_struct(&mut self, _name: &'static str, len: usize) -> Result<StructState> {
+    fn serialize_struct(self,
+                        _name: &'static str,
+                        len: usize)
+                        -> Result<Compound<'a, W, StructState>> {
         try!(self.write_type_u64(5, len as u64));
-        Ok(StructState { counter: 0 })
+        Ok(Compound {
+            ser: self,
+            state: StructState {
+                counter: 0,
+            }
+        })
     }
 
     #[inline]
-    fn serialize_struct_elt<V: Serialize>(&mut self,
-                                          state: &mut StructState,
-                                          key: &'static str,
-                                          value: V)
-                                          -> Result<()> {
-        if !self.packed {
-            try!(self.serialize_str(key));
-        } else {
-            try!(self.serialize_usize(state.counter));
-        }
-        try!(value.serialize(self));
-        state.counter += 1;
-        Ok(())
-    }
-
-    #[inline]
-    fn serialize_struct_end(&mut self, _state: StructState) -> Result<()> {
-        Ok(())
-    }
-
-    #[inline]
-    fn serialize_struct_variant(&mut self,
+    fn serialize_struct_variant(self,
                                 name: &'static str,
                                 variant_index: usize,
                                 variant: &'static str,
                                 len: usize)
-                                -> Result<StructState> {
+                                -> Result<Compound<'a, W, StructState>> {
         try!(self.writer.write_u8(4 << 5 | 2));
         try!(self.serialize_unit_variant(name, variant_index, variant));
         try!(self.write_type_u64(5, len as u64));
-        Ok(StructState { counter: 0 })
-    }
-
-    #[inline]
-    fn serialize_struct_variant_elt<V: Serialize>(&mut self,
-                                                  state: &mut StructState,
-                                                  key: &'static str,
-                                                  value: V)
-                                                  -> Result<()> {
-        if !self.packed {
-            try!(self.serialize_str(key));
-        } else {
-            try!(self.serialize_usize(state.counter));
-        }
-        try!(value.serialize(self));
-        state.counter += 1;
-        Ok(())
-    }
-
-    #[inline]
-    fn serialize_struct_variant_end(&mut self, _state: StructState) -> Result<()> {
-        Ok(())
+        Ok(Compound {
+            ser: self,
+            state: StructState {
+                counter: 0,
+            }
+        })
     }
 }
 
