@@ -1,7 +1,7 @@
 # Serde CBOR Serialization Library
 [![Build Status](https://travis-ci.org/pyfisch/cbor.svg?branch=master)](https://travis-ci.org/pyfisch/cbor)
 [![Coverage Status](https://coveralls.io/repos/pyfisch/cbor/badge.svg?branch=master&service=github)](https://coveralls.io/github/pyfisch/cbor?branch=master)
-[![Crates.io](https://img.shields.io/crates/v/serde_cbor.svg)]()
+[![Crates.io](https://img.shields.io/crates/v/serde_cbor.svg)](https://crates.io/crates/serde_cbor)
 [Documentation](https://pyfisch.github.io/cbor/serde_cbor/)
 
 This crate is a Rust library for parsing and generating the
