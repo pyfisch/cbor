@@ -194,3 +194,9 @@ fn test_option_none_roundtrip() {
 
     assert_eq!(obj1, obj2.unwrap());
 }
+
+#[test]
+fn test_empty_map() {
+    let _: std::collections::HashMap<(), ()> = serde_cbor::from_slice(&[191, 255]).unwrap();
+    let _: () = serde_cbor::from_slice(&[191, 255]).unwrap();
+}

@@ -322,6 +322,27 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
         };
         visitor.visit_enum(CompositeVisitor::new(self, items))
     }
+    
+    #[inline]
+    fn deserialize_unit<V: Visitor>(&mut self, mut visitor: V) -> Result<V::Value> {
+        // CBOR values, `null`, `undefined` and the empty map are accepted.
+        let first = try!(self.read_u8());
+        match first {
+            0b111_10110 => visitor.visit_unit(),
+            0b111_10111 => visitor.visit_unit(),
+            _ if ((first & 0b111_00000) >> 5) == 5 => {
+                let len = try!(self.parse_additional_information(first));
+                if len == Some(0)
+                        || (len == None && try!(self.read_u8()) == 0b111_11111) {
+                    visitor.visit_unit()
+                } else {
+                    Err(Error::Syntax)
+                }
+            },
+            0b111_11111 => Err(Error::StopCode),
+            _ => Err(Error::Syntax),
+        }
+    }
 }
 
 impl<R: Read> Read for Deserializer<R> {
