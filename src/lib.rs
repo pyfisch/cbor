@@ -82,8 +82,8 @@
 //! as string keys to a map. Esspecially in embedded environments this can increase the file
 //! size too much. In packed encoding the keys and variants will be serialized as variable sized
 //! integers. The first 24 entries in any struct consume only a single byte!
-//! To serialize a document in packed encoding use `ser::to_(vec|writer)_packed`, deserialization works
-//! without any changes.
+//! To serialize a document in packed encoding use `ser::to_(vec|writer)_packed`, deserialization
+//! works without any changes.
 //!
 //! # Self describing documents
 //! In some contexts different formats are used but there is no way to declare the format used

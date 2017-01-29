@@ -41,7 +41,7 @@ impl<R: Read> Deserializer<R> {
     /// This allows the `Deserializer` to validate that the input stream is at the end.
     #[inline]
     pub fn end(&mut self) -> Result<()> {
-        if try!(self.read(&mut [0; 1])) == 0 {
+        if self.read(&mut [0; 1])? == 0 {
             Ok(())
         } else {
             Err(Error::TrailingBytes)
@@ -69,17 +69,17 @@ impl<R: Read> Deserializer<R> {
     fn parse_additional_information(&mut self, first: u8) -> Result<Option<u64>> {
         Ok(Some(match first & 0b000_11111 {
             n @ 0...23 => n as u64,
-            24 => try!(self.read_u8()) as u64,
-            25 => try!(self.read_u16::<BigEndian>()) as u64,
-            26 => try!(self.read_u32::<BigEndian>()) as u64,
-            27 => try!(self.read_u64::<BigEndian>()) as u64,
+            24 => self.read_u8()? as u64,
+            25 => self.read_u16::<BigEndian>()? as u64,
+            26 => self.read_u32::<BigEndian>()? as u64,
+            27 => self.read_u64::<BigEndian>()? as u64,
             31 => return Ok(None),
             _ => return Err(Error::Syntax),
         }))
     }
 
     fn parse_size_information(&mut self, first: u8) -> Result<Option<usize>> {
-        let n = try!(self.parse_additional_information(first));
+        let n = self.parse_additional_information(first)?;
         match n {
             Some(n) if n > MAX_SEQ_LEN => return Err(Error::Syntax),
             _ => (),
@@ -91,10 +91,10 @@ impl<R: Read> Deserializer<R> {
     fn parse_uint<V: Visitor>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
         match first & 0b000_11111 {
             n @ 0...23 => visitor.visit_u8(n),
-            24 => visitor.visit_u8(try!(self.read_u8())),
-            25 => visitor.visit_u16(try!(self.read_u16::<BigEndian>())),
-            26 => visitor.visit_u32(try!(self.read_u32::<BigEndian>())),
-            27 => visitor.visit_u64(try!(self.read_u64::<BigEndian>())),
+            24 => visitor.visit_u8(self.read_u8()?),
+            25 => visitor.visit_u16(self.read_u16::<BigEndian>()?),
+            26 => visitor.visit_u32(self.read_u32::<BigEndian>()?),
+            27 => visitor.visit_u64(self.read_u64::<BigEndian>()?),
             _ => Err(Error::Syntax),
         }
     }
@@ -103,19 +103,19 @@ impl<R: Read> Deserializer<R> {
     fn parse_int<V: Visitor>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
         match first & 0b000_11111 {
             n @ 0...23 => visitor.visit_i8(-1 - n as i8),
-            24 => visitor.visit_i16(-1 - try!(self.read_u8()) as i16),
-            25 => visitor.visit_i32(-1 - try!(self.read_u16::<BigEndian>()) as i32),
-            26 => visitor.visit_i64(-1 - try!(self.read_u32::<BigEndian>()) as i64),
-            27 => visitor.visit_i64(-1 - try!(self.read_u64::<BigEndian>()) as i64),
+            24 => visitor.visit_i16(-1 - self.read_u8()? as i16),
+            25 => visitor.visit_i32(-1 - self.read_u16::<BigEndian>()? as i32),
+            26 => visitor.visit_i64(-1 - self.read_u32::<BigEndian>()? as i64),
+            27 => visitor.visit_i64(-1 - self.read_u64::<BigEndian>()? as i64),
             _ => Err(Error::Syntax),
         }
     }
 
     #[inline]
     fn parse_byte_buf<V: Visitor>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
-        if let Some(n) = try!(self.parse_size_information(first)) {
+        if let Some(n) = self.parse_size_information(first)? {
             let mut buf = vec![0; n];
-            try!(self.reader.read_exact(&mut buf));
+            self.reader.read_exact(&mut buf)?;
             visitor.visit_byte_buf(buf)
         } else {
             let mut bytes = Vec::new();
@@ -132,10 +132,10 @@ impl<R: Read> Deserializer<R> {
 
     #[inline]
     fn parse_string<V: Visitor>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
-        if let Some(n) = try!(self.parse_size_information(first)) {
+        if let Some(n) = self.parse_size_information(first)? {
             let mut buf = vec![0; n];
-            try!(self.reader.read_exact(&mut buf));
-            visitor.visit_string(try!(String::from_utf8(buf)))
+            self.reader.read_exact(&mut buf)?;
+            visitor.visit_string(String::from_utf8(buf)?)
         } else {
             let mut string = String::new();
             loop {
@@ -151,20 +151,20 @@ impl<R: Read> Deserializer<R> {
 
     #[inline]
     fn parse_seq<V: Visitor>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
-        let n = try!(self.parse_size_information(first));
+        let n = self.parse_size_information(first)?;
         visitor.visit_seq(CompositeVisitor::new(self, n.map(|x| x as usize)))
     }
 
     #[inline]
     fn parse_map<V: Visitor>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
-        let n = try!(self.parse_size_information(first));
+        let n = self.parse_size_information(first)?;
         visitor.visit_map(CompositeVisitor::new(self, n.map(|x| x as usize)))
     }
 
     #[inline]
     fn parse_tag<V: Visitor>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
-        try!(self.parse_additional_information(first));
-        self.first = Some(try!(self.read_u8()));
+        self.parse_additional_information(first)?;
+        self.first = Some(self.read_u8()?);
         self.parse_value(visitor)
     }
 
@@ -194,9 +194,9 @@ impl<R: Read> Deserializer<R> {
             21 => visitor.visit_bool(true),
             22 => visitor.visit_unit(),
             23 => visitor.visit_unit(),
-            25 => visitor.visit_f32(decode_f16(try!(self.read_u16::<BigEndian>()))),
-            26 => visitor.visit_f32(try!(self.read_f32::<BigEndian>())),
-            27 => visitor.visit_f64(try!(self.read_f64::<BigEndian>())),
+            25 => visitor.visit_f32(decode_f16(self.read_u16::<BigEndian>()?)),
+            26 => visitor.visit_f32(self.read_f32::<BigEndian>()?),
+            27 => visitor.visit_f64(self.read_f64::<BigEndian>()?),
             31 => Err(Error::StopCode),
             _ => Err(Error::Syntax),
         }
@@ -234,7 +234,7 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
     #[inline]
     fn deserialize<V: Visitor>(self, visitor: V) -> Result<V::Value> {
         if self.first.is_none() {
-            self.first = Some(try!(self.read_u8()));
+            self.first = Some(self.read_u8()?);
         }
         let result = self.parse_value(visitor);
         self.first = None;
@@ -243,7 +243,7 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
 
     #[inline]
     fn deserialize_option<V: Visitor>(self, visitor: V) -> Result<V::Value> {
-        self.first = Some(try!(self.read_u8()));
+        self.first = Some(self.read_u8()?);
         if self.first == Some(0b111_10110) {
             self.first = None;
             visitor.visit_none()
@@ -252,10 +252,7 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
         }
     }
     #[inline]
-    fn deserialize_newtype_struct<V>(self,
-                                     _name: &'static str,
-                                     visitor: V)
-                                     -> Result<V::Value>
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
         where V: de::Visitor
     {
         visitor.visit_newtype_struct(self)
@@ -274,15 +271,13 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
     }
 
     #[inline]
-    fn deserialize_struct_field<V>(self,
-                                   visitor: V)
-                                   -> Result<V::Value>
+    fn deserialize_struct_field<V>(self, visitor: V) -> Result<V::Value>
         where V: de::Visitor
     {
         // Reads a struct field name. A name is either a string
         // or an index to a field. Indices are converted to strings.
         if self.first.is_none() {
-            self.first = Some(try!(self.read_u8()));
+            self.first = Some(self.read_u8()?);
         }
         match (self.first.unwrap() & 0b111_00000) >> 5 {
             // integer index for field
@@ -291,11 +286,11 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
                 self.first = None;
                 let index = self.parse_additional_information(first)?
                     .ok_or(Error::Syntax)? as usize;
-                visitor.visit_string(
-                    self.struct_fields
-                    .get(index).ok_or(Error::Syntax)?
+                visitor.visit_string(self.struct_fields
+                    .get(index)
+                    .ok_or(Error::Syntax)?
                     .to_string())
-            },
+            }
             // string field name
             3 => self.deserialize_string(visitor),
             _ => Err(Error::Custom(((self.first.unwrap() & 0b111_00000) >> 5).to_string())),
@@ -308,7 +303,7 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
                                     variants: &'static [&'static str],
                                     visitor: V)
                                     -> Result<V::Value> {
-        let first = try!(self.read_u8());
+        let first = self.read_u8()?;
         self.struct_fields = variants;
         let items = match (first & 0b111_00000) >> 5 {
             // simple enums packed repr is an integer
@@ -322,7 +317,7 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
                 Some(0)
             }
             // variants with associated data as a sequence
-            4 => try!(self.parse_size_information(first)),
+            4 => self.parse_size_information(first)?,
             _ => return Err(Error::Syntax),
         };
         visitor.visit_enum(CompositeVisitor::new(self, items))
@@ -409,7 +404,7 @@ impl<'a, R: Read> de::EnumVisitor for CompositeVisitor<'a, R> {
     fn visit_variant_seed<V>(self, seed: V) -> Result<(V::Value, Self)>
         where V: de::DeserializeSeed
     {
-        let val = try!(seed.deserialize(&mut *self.de));
+        let val = seed.deserialize(&mut *self.de)?;
         Ok((val, self))
     }
 }
@@ -449,8 +444,8 @@ impl<'a, R: Read> de::VariantVisitor for CompositeVisitor<'a, R> {
 #[inline]
 pub fn from_reader<T: Deserialize, R: Read>(reader: R) -> Result<T> {
     let mut de = Deserializer::new(reader);
-    let value = try!(Deserialize::deserialize(&mut de));
-    try!(de.end());
+    let value = Deserialize::deserialize(&mut de)?;
+    de.end()?;
     Ok(value)
 }
 

@@ -39,18 +39,18 @@ impl<W: Write> Serializer<W> {
     /// Tagging allows a decoder to distinguish different file formats
     /// based on their content without other information.
     pub fn self_describe(&mut self) -> Result<()> {
-        try!(self.writer.write_u8(6 << 5 | 25));
-        try!(self.writer.write_u16::<BigEndian>(55799));
+        self.writer.write_u8(6 << 5 | 25)?;
+        self.writer.write_u16::<BigEndian>(55799)?;
         Ok(())
     }
 
     #[inline]
     fn write_type_u8(&mut self, major: u8, additional: u8) -> Result<()> {
         if additional > 23 {
-            try!(self.writer.write_u8(major << 5 | 24));
-            try!(self.writer.write_u8(additional));
+            self.writer.write_u8(major << 5 | 24)?;
+            self.writer.write_u8(additional)?;
         } else {
-            try!(self.writer.write_u8(major << 5 | additional));
+            self.writer.write_u8(major << 5 | additional)?;
         }
         Ok(())
     }
@@ -58,10 +58,10 @@ impl<W: Write> Serializer<W> {
     #[inline]
     fn write_type_u16(&mut self, major: u8, additional: u16) -> Result<()> {
         if additional > ::std::u8::MAX as u16 {
-            try!(self.writer.write_u8(major << 5 | 25));
-            try!(self.writer.write_u16::<BigEndian>(additional));
+            self.writer.write_u8(major << 5 | 25)?;
+            self.writer.write_u16::<BigEndian>(additional)?;
         } else {
-            try!(self.write_type_u8(major, additional as u8));
+            self.write_type_u8(major, additional as u8)?;
         }
         Ok(())
     }
@@ -69,10 +69,10 @@ impl<W: Write> Serializer<W> {
     #[inline]
     fn write_type_u32(&mut self, major: u8, additional: u32) -> Result<()> {
         if additional > ::std::u16::MAX as u32 {
-            try!(self.writer.write_u8(major << 5 | 26));
-            try!(self.writer.write_u32::<BigEndian>(additional));
+            self.writer.write_u8(major << 5 | 26)?;
+            self.writer.write_u32::<BigEndian>(additional)?;
         } else {
-            try!(self.write_type_u16(major, additional as u16));
+            self.write_type_u16(major, additional as u16)?;
         }
         Ok(())
     }
@@ -80,10 +80,10 @@ impl<W: Write> Serializer<W> {
     #[inline]
     fn write_type_u64(&mut self, major: u8, additional: u64) -> Result<()> {
         if additional > ::std::u32::MAX as u64 {
-            try!(self.writer.write_u8(major << 5 | 27));
-            try!(self.writer.write_u64::<BigEndian>(additional));
+            self.writer.write_u8(major << 5 | 27)?;
+            self.writer.write_u64::<BigEndian>(additional)?;
         } else {
-            try!(self.write_type_u32(major, additional as u32));
+            self.write_type_u32(major, additional as u32)?;
         }
         Ok(())
     }
@@ -94,13 +94,13 @@ impl<W: Write> Serializer<W> {
                               len: Option<usize>)
                               -> Result<Compound<W, CollectionState>> {
         if let Some(len) = len {
-            try!(self.write_type_u64(major, len as u64));
+            self.write_type_u64(major, len as u64)?;
             Ok(Compound {
                 ser: self,
                 state: CollectionState::Fixed,
             })
         } else {
-            try!(self.writer.write_u8(major << 5 | 31));
+            self.writer.write_u8(major << 5 | 31)?;
             Ok(Compound {
                 ser: self,
                 state: CollectionState::Indefinite,
@@ -212,11 +212,11 @@ impl<'a, W: Write> ser::SerializeStruct for Compound<'a, W, StructState> {
                                                    value: &T)
                                                    -> Result<()> {
         if !self.ser.packed {
-            try!(self.ser.serialize_str(key));
+            self.ser.serialize_str(key)?;
         } else {
-            try!(self.ser.serialize_u64(self.state.counter as u64));
+            self.ser.serialize_u64(self.state.counter as u64)?;
         }
-        try!(value.serialize(&mut *self.ser));
+        value.serialize(&mut *self.ser)?;
         self.state.counter += 1;
         Ok(())
     }
@@ -235,11 +235,11 @@ impl<'a, W: Write> ser::SerializeStructVariant for Compound<'a, W, StructState> 
                                                    value: &T)
                                                    -> Result<()> {
         if !self.ser.packed {
-            try!(self.ser.serialize_str(key));
+            self.ser.serialize_str(key)?;
         } else {
-            try!(self.ser.serialize_u64(self.state.counter as u64));
+            self.ser.serialize_u64(self.state.counter as u64)?;
         }
-        try!(value.serialize(&mut *self.ser));
+        value.serialize(&mut *self.ser)?;
         self.state.counter += 1;
         Ok(())
     }
@@ -374,13 +374,13 @@ impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
 
     #[inline]
     fn serialize_str(self, value: &str) -> Result<()> {
-        try!(self.write_type_u64(3, value.len() as u64));
+        self.write_type_u64(3, value.len() as u64)?;
         self.writer.write_all(value.as_bytes()).map_err(From::from)
     }
 
     #[inline]
     fn serialize_bytes(self, value: &[u8]) -> Result<()> {
-        try!(self.write_type_u64(2, value.len() as u64));
+        self.write_type_u64(2, value.len() as u64)?;
         self.writer.write_all(value).map_err(From::from)
     }
 
@@ -432,8 +432,8 @@ impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
                                                         variant: &'static str,
                                                         value: &T)
                                                         -> Result<()> {
-        try!(self.writer.write_u8(4 << 5 | 2));
-        try!(self.serialize_unit_variant(name, variant_index, variant));
+        self.writer.write_u8(4 << 5 | 2)?;
+        self.serialize_unit_variant(name, variant_index, variant)?;
         value.serialize(self)
     }
 
@@ -449,7 +449,7 @@ impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
 
     #[inline]
     fn serialize_tuple(self, len: usize) -> Result<&'a mut Serializer<W>> {
-        try!(self.write_type_u64(4, len as u64));
+        self.write_type_u64(4, len as u64)?;
         Ok(self)
     }
 
@@ -468,8 +468,8 @@ impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
                                variant: &'static str,
                                len: usize)
                                -> Result<&'a mut Serializer<W>> {
-        try!(self.write_type_u64(4, (len + 1) as u64));
-        try!(self.serialize_unit_variant(name, variant_index, variant));
+        self.write_type_u64(4, (len + 1) as u64)?;
+        self.serialize_unit_variant(name, variant_index, variant)?;
         Ok(self)
     }
 
@@ -483,12 +483,10 @@ impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
                         _name: &'static str,
                         len: usize)
                         -> Result<Compound<'a, W, StructState>> {
-        try!(self.write_type_u64(5, len as u64));
+        self.write_type_u64(5, len as u64)?;
         Ok(Compound {
             ser: self,
-            state: StructState {
-                counter: 0,
-            }
+            state: StructState { counter: 0 },
         })
     }
 
@@ -499,14 +497,12 @@ impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
                                 variant: &'static str,
                                 len: usize)
                                 -> Result<Compound<'a, W, StructState>> {
-        try!(self.writer.write_u8(4 << 5 | 2));
-        try!(self.serialize_unit_variant(name, variant_index, variant));
-        try!(self.write_type_u64(5, len as u64));
+        self.writer.write_u8(4 << 5 | 2)?;
+        self.serialize_unit_variant(name, variant_index, variant)?;
+        self.write_type_u64(5, len as u64)?;
         Ok(Compound {
             ser: self,
-            state: StructState {
-                counter: 0,
-            }
+            state: StructState { counter: 0 },
         })
     }
 }
@@ -519,7 +515,7 @@ pub fn to_writer<W: Write, T: Serialize>(mut writer: &mut W, value: &T) -> Resul
 /// Serializes a value to a writer and add a CBOR self-describe tag.
 pub fn to_writer_sd<W: Write, T: Serialize>(mut writer: &mut W, value: &T) -> Result<()> {
     let mut ser = Serializer::new(&mut writer);
-    try!(ser.self_describe());
+    ser.self_describe()?;
     value.serialize(&mut ser)
 }
 
@@ -531,33 +527,33 @@ pub fn to_writer_packed<W: Write, T: Serialize>(mut writer: &mut W, value: &T) -
 /// Serializes a value without names to a writer and add a CBOR self-describe tag.
 pub fn to_writer_packed_sd<W: Write, T: Serialize>(mut writer: &mut W, value: &T) -> Result<()> {
     let mut ser = Serializer::packed(&mut writer);
-    try!(ser.self_describe());
+    ser.self_describe()?;
     value.serialize(&mut ser)
 }
 
 /// Serializes a value to a vector.
 pub fn to_vec<T: Serialize>(value: &T) -> Result<Vec<u8>> {
     let mut vec = Vec::new();
-    try!(to_writer(&mut vec, value));
+    to_writer(&mut vec, value)?;
     Ok(vec)
 }
 
 /// Serializes a value to a vector and add a CBOR self-describe tag.
 pub fn to_vec_sd<T: Serialize>(value: &T) -> Result<Vec<u8>> {
     let mut vec = Vec::new();
-    try!(to_writer_sd(&mut vec, value));
+    to_writer_sd(&mut vec, value)?;
     Ok(vec)
 }
 
 /// Serializes a value without names to a vector.
 pub fn to_vec_packed<T: Serialize>(value: &T) -> Result<Vec<u8>> {
     let mut vec = Vec::new();
-    try!(to_writer_packed(&mut vec, value));
+    to_writer_packed(&mut vec, value)?;
     Ok(vec)
 }
 /// Serializes a value without names to a vector and add a CBOR self-describe tag.
 pub fn to_vec_packed_sd<T: Serialize>(value: &T) -> Result<Vec<u8>> {
     let mut vec = Vec::new();
-    try!(to_writer_packed_sd(&mut vec, value));
+    to_writer_packed_sd(&mut vec, value)?;
     Ok(vec)
 }
