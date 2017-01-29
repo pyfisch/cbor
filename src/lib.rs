@@ -77,6 +77,19 @@
 //!
 //! The CBOR API also provides an enum serde_cbor::Value
 //!
+//! # Packed Encoding
+//! When serializing structs or enums in CBOR the keys or enum variant names will be serialized
+//! as string keys to a map. Esspecially in embedded environments this can increase the file
+//! size too much. In packed encoding the keys and variants will be serialized as variable sized
+//! integers. The first 24 entries in any struct consume only a single byte!
+//! To serialize a document in packed encoding use `ser::to_(vec|writer)_packed`, deserialization works
+//! without any changes.
+//!
+//! # Self describing documents
+//! In some contexts different formats are used but there is no way to declare the format used
+//! out of band. For this reason CBOR has a magic number that may be added before any document.
+//! The *`_sd` (for *s*elf*d*escribe) append the magic number before documents.
+//!
 //! # Examples
 //! Read a CBOR value that is known to be a map of string keys to string values and print it.
 //!
@@ -110,6 +123,7 @@
 //! programming_languages.insert("python", vec!["powerful", "friendly", "open"]);
 //! programming_languages.insert("js", vec!["lightweight", "interpreted", "object-oriented"]);
 //! let encoded = to_vec(&programming_languages);
+//! assert_eq!(encoded.unwrap().len(), 103);
 //! ```
 
 #![deny(missing_docs)]

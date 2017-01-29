@@ -22,7 +22,9 @@ struct EnumStruct {
 #[test]
 fn test_enum() {
     let enum_struct = EnumStruct{ e: Enum::B };
-    let re : EnumStruct = from_slice(&to_vec(&enum_struct).unwrap()).unwrap();
+    let raw = &to_vec(&enum_struct).unwrap();
+    println!("raw enum {:?}", raw);
+    let re : EnumStruct = from_slice(raw).unwrap();
     assert_eq!(enum_struct, re);
 }
 

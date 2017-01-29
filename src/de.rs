@@ -23,6 +23,7 @@ macro_rules! forward_deserialize {
 pub struct Deserializer<R: Read> {
     reader: R,
     first: Option<u8>,
+    struct_fields: &'static [&'static str],
 }
 
 impl<R: Read> Deserializer<R> {
@@ -32,6 +33,7 @@ impl<R: Read> Deserializer<R> {
         Deserializer {
             reader: reader,
             first: None,
+            struct_fields: &[],
         }
     }
 
@@ -227,8 +229,6 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
         deserialize_unit_struct(_name: &'static str,);
         deserialize_tuple_struct(_name: &'static str, _len: usize,);
         deserialize_tuple(_len: usize,);
-        deserialize_struct(_name: &'static str, _fields: &'static [&'static str],);
-        deserialize_struct_field();
         deserialize_ignored_any();
     );
     #[inline]
@@ -262,17 +262,66 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
     }
 
     #[inline]
+    fn deserialize_struct<V>(self,
+                             _name: &'static str,
+                             fields: &'static [&'static str],
+                             visitor: V)
+                             -> Result<V::Value>
+        where V: de::Visitor
+    {
+        self.struct_fields = fields;
+        self.deserialize(visitor)
+    }
+
+    #[inline]
+    fn deserialize_struct_field<V>(self,
+                                   visitor: V)
+                                   -> Result<V::Value>
+        where V: de::Visitor
+    {
+        // Reads a struct field name. A name is either a string
+        // or an index to a field. Indices are converted to strings.
+        if self.first.is_none() {
+            self.first = Some(try!(self.read_u8()));
+        }
+        match (self.first.unwrap() & 0b111_00000) >> 5 {
+            // integer index for field
+            0 => {
+                let first = self.first.unwrap();
+                self.first = None;
+                let index = self.parse_additional_information(first)?
+                    .ok_or(Error::Syntax)? as usize;
+                visitor.visit_string(
+                    self.struct_fields
+                    .get(index).ok_or(Error::Syntax)?
+                    .to_string())
+            },
+            // string field name
+            3 => self.deserialize_string(visitor),
+            _ => Err(Error::Custom(((self.first.unwrap() & 0b111_00000) >> 5).to_string())),
+        }
+    }
+
+    #[inline]
     fn deserialize_enum<V: Visitor>(self,
                                     _enum: &'static str,
-                                    _variants: &'static [&'static str],
+                                    variants: &'static [&'static str],
                                     visitor: V)
                                     -> Result<V::Value> {
         let first = try!(self.read_u8());
+        self.struct_fields = variants;
         let items = match (first & 0b111_00000) >> 5 {
+            // simple enums packed repr is an integer
+            0 => {
+                self.first = Some(first);
+                Some(0)
+            }
+            // simple enums are serialized as string
             3 => {
                 self.first = Some(first);
                 Some(0)
             }
+            // variants with associated data as a sequence
             4 => try!(self.parse_size_information(first)),
             _ => return Err(Error::Syntax),
         };

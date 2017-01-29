@@ -9,7 +9,8 @@ use std::u8;
 
 use serde::bytes::ByteBuf;
 
-use serde_cbor::{to_vec, from_slice};
+use serde_cbor::from_slice;
+use serde_cbor::ser::{to_vec, to_vec_packed};
 
 fn to_binary(s: &'static str) -> Vec<u8> {
     assert!(s.len() % 2 == 0);
@@ -40,11 +41,14 @@ macro_rules! testcase {
         fn $name() {
             let expr: $ty = $expr;
             let serialized = to_binary($s);
-            println!("Testing serialization");
-            assert_eq!(to_vec(&expr).unwrap(), serialized);
+            assert_eq!(to_vec(&expr).unwrap(), serialized, "serialization differs");
             let parsed: $ty = from_slice(&serialized[..]).unwrap();
-            println!("Testing deserialization");
-            assert_eq!(parsed, expr);
+            assert_eq!(parsed, expr, "parsed result differs");
+            let packed = &to_vec_packed(&expr)
+                .expect("serializing packed")[..];
+            let parsed_from_packed: $ty = from_slice(packed)
+                .expect("parsing packed");
+            assert_eq!(parsed_from_packed, expr, "packed roundtrip fail");
         }
     }
 }
@@ -85,3 +89,47 @@ testcase!(test_newtype_struct, NewtypeStruct, NewtypeStruct(true), "f5");
 
 testcase!(test_option_none, Option<u8>, None, "f6");
 testcase!(test_option_some, Option<u8>, Some(42), "182a");
+
+#[cfg(feature="unstable")]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
+struct Person {
+    name: String,
+    year_of_birth: u16,
+    profession: Option<String>,
+}
+
+#[cfg(feature="unstable")]
+testcase!(test_person_struct,
+    Person,
+    Person {
+        name: "Grace Hopper".to_string(),
+        year_of_birth: 1906,
+        profession: Some("computer scientist".to_string()),
+    },
+    "a3646e616d656c477261636520486f707065726d796561725f6f665f62697274681907726a70726f66657373696f6e72636f6d707574657220736369656e74697374");
+
+#[cfg(feature="unstable")]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
+enum Color {
+    Red,
+    Blue,
+    Yellow,
+    Other(u64),
+    Alpha(u64, u8)
+}
+
+#[cfg(feature="unstable")]
+testcase!(test_color_enum,
+    Color,
+    Color::Blue,
+    "64426c7565");
+#[cfg(feature="unstable")]
+testcase!(test_color_enum_transparent,
+    Color,
+    Color::Other(42),
+    "82654f74686572182a");
+#[cfg(feature="unstable")]
+testcase!(test_color_enum_with_alpha,
+    Color,
+    Color::Alpha(234567, 60),
+    "8365416c7068611a00039447183c");
