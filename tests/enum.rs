@@ -86,3 +86,16 @@ fn test_newtype_struct() {
     assert_eq!(to_vec(&142u8).unwrap(), to_vec(&Newtype(142u8)).unwrap());
     assert_eq!(from_slice::<Newtype>(&[24, 142]).unwrap(), Newtype(142));
 }
+
+#[derive(Deserialize, PartialEq, Debug)]
+enum Foo {
+    #[serde(rename = "require")]
+    Require,
+}
+
+#[test]
+fn test_variable_length_array() {
+    let slice = b"\x9F\x67\x72\x65\x71\x75\x69\x72\x65\xFF";
+    let value: Vec<Foo> = from_slice(slice).unwrap();
+    assert_eq!(value, [Foo::Require]);
+}

@@ -194,3 +194,12 @@ fn test_option_none_roundtrip() {
 
     assert_eq!(obj1, obj2.unwrap());
 }
+
+#[test]
+fn test_variable_length_map() {
+    let slice = b"\xbf\x67\x6d\x65\x73\x73\x61\x67\x65\x64\x70\x6f\x6e\x67\xff";
+    let value: Value = de::from_slice(slice).unwrap();
+    let mut map = HashMap::new();
+    map.insert(ObjectKey::String("message".to_string()), Value::String("pong".to_string()));
+    assert_eq!(value, Value::Object(map))
+}
