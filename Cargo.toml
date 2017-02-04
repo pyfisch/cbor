@@ -1,6 +1,6 @@
 [package]
 name = "serde_cbor"
-version = "0.5.1"
+version = "0.5.2"
 authors = ["Pyfisch <pyfisch@gmail.com>"]
 repository = "https://github.com/pyfisch/cbor"
 documentation = "http://pyfisch.github.io/cbor/serde_cbor/index.html"
