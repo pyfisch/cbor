@@ -276,10 +276,15 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
     {
         // Reads a struct field name. A name is either a string
         // or an index to a field. Indices are converted to strings.
-        if self.first.is_none() {
-            self.first = Some(self.read_u8()?);
-        }
-        match (self.first.unwrap() & 0b111_00000) >> 5 {
+        let first = match self.first {
+            Some(first) => first,
+            None => {
+                let first = self.read_u8()?;
+                self.first = Some(first);
+                first
+            }
+        };
+        match (first & 0b111_00000) >> 5 {
             // integer index for field
             0 => {
                 let first = self.first.unwrap();
@@ -293,7 +298,11 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
             }
             // string field name
             3 => self.deserialize_string(visitor),
-            _ => Err(Error::Custom(((self.first.unwrap() & 0b111_00000) >> 5).to_string())),
+            7 => {
+                // stop word
+                Err(self.parse_simple_value(first, visitor).err().unwrap_or(Error::Syntax))
+            }
+            _ => Err(Error::Custom(((first & 0b111_00000) >> 5).to_string())),
         }
     }
 
@@ -318,6 +327,10 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
             }
             // variants with associated data as a sequence
             4 => self.parse_size_information(first)?,
+            7 => {
+                // stop word
+                return Err(self.parse_simple_value(first, visitor).err().unwrap_or(Error::Syntax));
+            }
             _ => return Err(Error::Syntax),
         };
         visitor.visit_enum(CompositeVisitor::new(self, items))
