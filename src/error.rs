@@ -20,8 +20,6 @@ pub enum Error {
     FromUtf8(FromUtf8Error),
     /// A custom error provided by serde occured.
     Custom(String),
-    /// The data source contains not enough bytes to parse a value.
-    Eof,
     /// Break stop code encountered.
     StopCode,
     /// The data source contains trailing bytes after all values were read.
@@ -37,7 +35,6 @@ impl StdError for Error {
             Error::Io(ref error) => StdError::description(error),
             Error::FromUtf8(ref error) => error.description(),
             Error::Custom(ref s) => s,
-            Error::Eof => "unexpected end of file",
             Error::StopCode => "unexpected stop code",
             Error::TrailingBytes => "unexpected trailing bytes",
             Error::__Nonexhaustive => unreachable!(),
@@ -89,3 +86,4 @@ impl ser::Error for Error {
 
 /// Helper alias for Result objects that return a JSON Error.
 pub type Result<T> = result::Result<T, Error>;
+
