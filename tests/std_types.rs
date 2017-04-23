@@ -1,5 +1,6 @@
 extern crate serde;
 extern crate serde_cbor;
+extern crate serde_bytes;
 
 #[cfg(feature = "unstable")]
 #[macro_use]
@@ -7,7 +8,7 @@ extern crate serde_derive;
 
 use std::u8;
 
-use serde::bytes::ByteBuf;
+use serde_bytes::ByteBuf;
 
 use serde_cbor::from_slice;
 use serde_cbor::ser::{to_vec, to_vec_packed};

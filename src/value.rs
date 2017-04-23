@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use serde::de::{self, SeqVisitor};
+use serde::de;
 use serde::ser;
 
 /// An enum over all possible CBOR types.
@@ -212,14 +212,14 @@ impl Value {
     }
 }
 
-impl de::Deserialize for Value {
+impl<'de> de::Deserialize<'de> for Value {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Value, D::Error>
-        where D: de::Deserializer
+        where D: de::Deserializer<'de>
     {
         struct ValueVisitor;
 
-        impl de::Visitor for ValueVisitor {
+        impl<'de> de::Visitor<'de> for ValueVisitor {
             type Value = Value;
 
             fn expecting(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
@@ -289,18 +289,28 @@ impl de::Deserialize for Value {
             }
 
             #[inline]
-            fn visit_seq<V>(self, visitor: V) -> Result<Self::Value, V::Error>
-                where V: SeqVisitor
+            fn visit_seq<V>(self, mut visitor: V) -> Result<Self::Value, V::Error>
+                where V: de::SeqAccess<'de>
             {
-                let values = de::impls::VecVisitor::new().visit_seq(visitor)?;
-                Ok(Value::Array(values))
+                let mut vec = Vec::new();
+
+                while let Some(elem) = visitor.next_element()? {
+                    vec.push(elem);
+                }
+
+                Ok(Value::Array(vec))
             }
 
             #[inline]
-            fn visit_map<V>(self, visitor: V) -> Result<Value, V::Error>
-                where V: de::MapVisitor
+            fn visit_map<V>(self, mut visitor: V) -> Result<Value, V::Error>
+                where V: de::MapAccess<'de>
             {
-                let values = de::impls::HashMapVisitor::new().visit_map(visitor)?;
+                let mut values = HashMap::new();
+
+                while let Some((key, value)) = visitor.next_entry()? {
+                    values.insert(key, value);
+                }
+
                 Ok(Value::Object(values))
             }
 
@@ -312,7 +322,7 @@ impl de::Deserialize for Value {
             }
         }
 
-        deserializer.deserialize(ValueVisitor)
+        deserializer.deserialize_any(ValueVisitor)
     }
 }
 
@@ -451,14 +461,14 @@ impl ObjectKey {
     }
 }
 
-impl de::Deserialize for ObjectKey {
+impl<'de> de::Deserialize<'de> for ObjectKey {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<ObjectKey, D::Error>
-        where D: de::Deserializer
+        where D: de::Deserializer<'de>
     {
         struct ObjectKeyVisitor;
 
-        impl de::Visitor for ObjectKeyVisitor {
+        impl<'de> de::Visitor<'de> for ObjectKeyVisitor {
             type Value = ObjectKey;
 
             fn expecting(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
@@ -528,7 +538,7 @@ impl de::Deserialize for ObjectKey {
             }
         }
 
-        deserializer.deserialize(ObjectKeyVisitor)
+        deserializer.deserialize_any(ObjectKeyVisitor)
     }
 }
 
@@ -572,3 +582,4 @@ impl From<Value> for ObjectKey {
         }
     }
 }
+

@@ -96,15 +96,15 @@ impl<W: Write> Serializer<W> {
         if let Some(len) = len {
             self.write_type_u64(major, len as u64)?;
             Ok(Compound {
-                ser: self,
-                state: CollectionState::Fixed,
-            })
+                   ser: self,
+                   state: CollectionState::Fixed,
+               })
         } else {
             self.writer.write_u8(major << 5 | 31)?;
             Ok(Compound {
-                ser: self,
-                state: CollectionState::Indefinite,
-            })
+                   ser: self,
+                   state: CollectionState::Indefinite,
+               })
         }
     }
 
@@ -264,9 +264,9 @@ impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
     fn serialize_bool(self, v: bool) -> Result<()> {
         self.writer
             .write_u8(match v {
-                false => 7 << 5 | 20,
-                true => 7 << 5 | 21,
-            })
+                          false => 7 << 5 | 20,
+                          true => 7 << 5 | 21,
+                      })
             .map_err(From::from)
     }
 
@@ -375,7 +375,9 @@ impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
     #[inline]
     fn serialize_str(self, value: &str) -> Result<()> {
         self.write_type_u64(3, value.len() as u64)?;
-        self.writer.write_all(value.as_bytes()).map_err(From::from)
+        self.writer
+            .write_all(value.as_bytes())
+            .map_err(From::from)
     }
 
     #[inline]
@@ -407,7 +409,7 @@ impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
     #[inline]
     fn serialize_unit_variant(self,
                               _name: &'static str,
-                              variant_index: usize,
+                              variant_index: u32,
                               variant: &'static str)
                               -> Result<()> {
         if !self.packed {
@@ -428,7 +430,7 @@ impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
     #[inline]
     fn serialize_newtype_variant<T: ?Sized + Serialize>(self,
                                                         name: &'static str,
-                                                        variant_index: usize,
+                                                        variant_index: u32,
                                                         variant: &'static str,
                                                         value: &T)
                                                         -> Result<()> {
@@ -440,11 +442,6 @@ impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
     #[inline]
     fn serialize_seq(self, len: Option<usize>) -> Result<Compound<'a, W, CollectionState>> {
         self.write_collection_start(4, len)
-    }
-
-    #[inline]
-    fn serialize_seq_fixed_size(self, size: usize) -> Result<Compound<'a, W, CollectionState>> {
-        self.serialize_seq(Some(size))
     }
 
     #[inline]
@@ -464,7 +461,7 @@ impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
     #[inline]
     fn serialize_tuple_variant(self,
                                name: &'static str,
-                               variant_index: usize,
+                               variant_index: u32,
                                variant: &'static str,
                                len: usize)
                                -> Result<&'a mut Serializer<W>> {
@@ -485,15 +482,15 @@ impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
                         -> Result<Compound<'a, W, StructState>> {
         self.write_type_u64(5, len as u64)?;
         Ok(Compound {
-            ser: self,
-            state: StructState { counter: 0 },
-        })
+               ser: self,
+               state: StructState { counter: 0 },
+           })
     }
 
     #[inline]
     fn serialize_struct_variant(self,
                                 name: &'static str,
-                                variant_index: usize,
+                                variant_index: u32,
                                 variant: &'static str,
                                 len: usize)
                                 -> Result<Compound<'a, W, StructState>> {
@@ -501,9 +498,9 @@ impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
         self.serialize_unit_variant(name, variant_index, variant)?;
         self.write_type_u64(5, len as u64)?;
         Ok(Compound {
-            ser: self,
-            state: StructState { counter: 0 },
-        })
+               ser: self,
+               state: StructState { counter: 0 },
+           })
     }
 }
 
@@ -557,3 +554,4 @@ pub fn to_vec_packed_sd<T: Serialize>(value: &T) -> Result<Vec<u8>> {
     to_writer_packed_sd(&mut vec, value)?;
     Ok(vec)
 }
+

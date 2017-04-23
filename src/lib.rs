@@ -130,6 +130,7 @@
 
 extern crate byteorder;
 extern crate serde;
+extern crate serde_bytes;
 
 pub use de::{from_slice, from_reader};
 pub use error::{Error, Result};
