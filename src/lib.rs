@@ -71,11 +71,11 @@
 //! # Type-based Serialization and Deserialization
 //! Serde provides a mechanism for low boilerplate serialization & deserialization of values to and
 //! from CBOR via the serialization API. To be able to serialize a piece of data, it must implement
-//! the serde::Serialize trait. To be able to deserialize a piece of data, it must implement the
-//! serde::Deserialize trait. Serde provides an annotation to automatically generate the
-//! code for these traits: #[derive(Serialize, Deserialize)].
+//! the `serde::Serialize` trait. To be able to deserialize a piece of data, it must implement the
+//! `serde::Deserialize` trait. Serde provides an annotation to automatically generate the
+//! code for these traits: `#[derive(Serialize, Deserialize)]`.
 //!
-//! The CBOR API also provides an enum serde_cbor::Value
+//! The CBOR API also provides an enum `serde_cbor::Value`.
 //!
 //! # Packed Encoding
 //! When serializing structs or enums in CBOR the keys or enum variant names will be serialized
