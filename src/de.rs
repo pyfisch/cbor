@@ -23,7 +23,7 @@ macro_rules! forward_deserialize {
 pub struct Deserializer<R: Read> {
     reader: R,
     first: Option<u8>,
-    struct_fields: &'static [&'static str],
+    struct_fields: Vec<&'static [&'static str]>,
 }
 
 impl<R: Read> Deserializer<R> {
@@ -33,7 +33,7 @@ impl<R: Read> Deserializer<R> {
         Deserializer {
             reader: reader,
             first: None,
-            struct_fields: &[],
+            struct_fields: Vec::new(),
         }
     }
 
@@ -68,14 +68,14 @@ impl<R: Read> Deserializer<R> {
     #[inline]
     fn parse_additional_information(&mut self, first: u8) -> Result<Option<u64>> {
         Ok(Some(match first & 0b000_11111 {
-            n @ 0...23 => n as u64,
-            24 => self.read_u8()? as u64,
-            25 => self.read_u16::<BigEndian>()? as u64,
-            26 => self.read_u32::<BigEndian>()? as u64,
-            27 => self.read_u64::<BigEndian>()? as u64,
-            31 => return Ok(None),
-            _ => return Err(Error::Syntax),
-        }))
+                    n @ 0...23 => n as u64,
+                    24 => self.read_u8()? as u64,
+                    25 => self.read_u16::<BigEndian>()? as u64,
+                    26 => self.read_u32::<BigEndian>()? as u64,
+                    27 => self.read_u64::<BigEndian>()? as u64,
+                    31 => return Ok(None),
+                    _ => return Err(Error::Syntax),
+                }))
     }
 
     fn parse_size_information(&mut self, first: u8) -> Result<Option<usize>> {
@@ -183,11 +183,7 @@ impl<R: Read> Deserializer<R> {
             } else {
                 ::std::f32::NAN
             };
-            if half & 0x8000 != 0 {
-                -val
-            } else {
-                val
-            }
+            if half & 0x8000 != 0 { -val } else { val }
         }
         match first & 0b000_11111 {
             20 => visitor.visit_bool(false),
@@ -266,8 +262,12 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
                              -> Result<V::Value>
         where V: de::Visitor
     {
-        self.struct_fields = fields;
-        self.deserialize(visitor)
+        self.struct_fields.push(fields);
+        let result = self.deserialize(visitor)?;
+        self.struct_fields
+            .pop()
+            .expect("struct_fields is not empty");
+        Ok(result)
     }
 
     #[inline]
@@ -292,15 +292,19 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
                 let index = self.parse_additional_information(first)?
                     .ok_or(Error::Syntax)? as usize;
                 visitor.visit_string(self.struct_fields
-                    .get(index)
-                    .ok_or(Error::Syntax)?
-                    .to_string())
+                                         .last()
+                                         .expect("struct_fields is not empty")
+                                         .get(index)
+                                         .ok_or(Error::Syntax)?
+                                         .to_string())
             }
             // string field name
             3 => self.deserialize_string(visitor),
             7 => {
                 // stop word
-                Err(self.parse_simple_value(first, visitor).err().unwrap_or(Error::Syntax))
+                Err(self.parse_simple_value(first, visitor)
+                        .err()
+                        .unwrap_or(Error::Syntax))
             }
             _ => Err(Error::Custom(((first & 0b111_00000) >> 5).to_string())),
         }
@@ -313,7 +317,7 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
                                     visitor: V)
                                     -> Result<V::Value> {
         let first = self.read_u8()?;
-        self.struct_fields = variants;
+        self.struct_fields.push(variants);
         let items = match (first & 0b111_00000) >> 5 {
             // simple enums packed repr is an integer
             0 => {
@@ -329,11 +333,17 @@ impl<'a, R: Read> de::Deserializer for &'a mut Deserializer<R> {
             4 => self.parse_size_information(first)?,
             7 => {
                 // stop word
-                return Err(self.parse_simple_value(first, visitor).err().unwrap_or(Error::Syntax));
+                return Err(self.parse_simple_value(first, visitor)
+                               .err()
+                               .unwrap_or(Error::Syntax));
             }
             _ => return Err(Error::Syntax),
         };
-        visitor.visit_enum(CompositeVisitor::new(self, items))
+        let result = visitor.visit_enum(CompositeVisitor::new(self, items))?;
+        self.struct_fields
+            .pop()
+            .expect("struct_fields is not empty");
+        Ok(result)
     }
 }
 
@@ -467,3 +477,4 @@ pub fn from_reader<T: Deserialize, R: Read>(reader: R) -> Result<T> {
 pub fn from_slice<T: Deserialize>(v: &[u8]) -> Result<T> {
     from_reader(v)
 }
+
