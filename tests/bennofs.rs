@@ -1,6 +1,3 @@
-// All tests are only run if `unstable` is enabled.
-#![cfg(feature="unstable")]
-
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;

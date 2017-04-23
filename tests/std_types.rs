@@ -1,8 +1,6 @@
 extern crate serde;
 extern crate serde_cbor;
 extern crate serde_bytes;
-
-#[cfg(feature = "unstable")]
 #[macro_use]
 extern crate serde_derive;
 
@@ -76,22 +74,17 @@ testcase!(test_str_pangram_de, String, "aâø↓é".to_owned(), "6a61c3a2c3b8e28
 testcase!(test_bytes, ByteBuf, b"\x00\xab".to_vec().into(), "4200ab");
 testcase!(test_unit, (), (), "f6");
 
-#[cfg(feature="unstable")]
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 struct UnitStruct;
-#[cfg(feature="unstable")]
 testcase!(test_unit_struct, UnitStruct, UnitStruct, "f6");
 
-#[cfg(feature="unstable")]
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 struct NewtypeStruct(bool);
-#[cfg(feature="unstable")]
 testcase!(test_newtype_struct, NewtypeStruct, NewtypeStruct(true), "f5");
 
 testcase!(test_option_none, Option<u8>, None, "f6");
 testcase!(test_option_some, Option<u8>, Some(42), "182a");
 
-#[cfg(feature="unstable")]
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 struct Person {
     name: String,
@@ -99,7 +92,6 @@ struct Person {
     profession: Option<String>,
 }
 
-#[cfg(feature="unstable")]
 testcase!(test_person_struct,
     Person,
     Person {
@@ -109,7 +101,6 @@ testcase!(test_person_struct,
     },
     "a3646e616d656c477261636520486f707065726d796561725f6f665f62697274681907726a70726f66657373696f6e72636f6d707574657220736369656e74697374");
 
-#[cfg(feature="unstable")]
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 enum Color {
     Red,
@@ -119,17 +110,14 @@ enum Color {
     Alpha(u64, u8)
 }
 
-#[cfg(feature="unstable")]
 testcase!(test_color_enum,
     Color,
     Color::Blue,
     "64426c7565");
-#[cfg(feature="unstable")]
 testcase!(test_color_enum_transparent,
     Color,
     Color::Other(42),
     "82654f74686572182a");
-#[cfg(feature="unstable")]
 testcase!(test_color_enum_with_alpha,
     Color,
     Color::Alpha(234567, 60),
