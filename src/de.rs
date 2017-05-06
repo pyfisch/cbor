@@ -3,7 +3,7 @@
 use std::io::{self, Read};
 
 use byteorder::{BigEndian, ReadBytesExt};
-use serde::de::{self, Visitor, Deserialize, DeserializeSeed};
+use serde::de::{self, Visitor, Deserialize, DeserializeOwned, DeserializeSeed};
 use serde_bytes::ByteBuf;
 
 use super::error::{Error, Result};
@@ -464,7 +464,7 @@ impl<'de, 'a, R: Read> de::VariantAccess<'de> for CompositeVisitor<'a, R> {
 
 /// Decodes a CBOR value from a `std::io::Read`.
 #[inline]
-pub fn from_reader<'de, T: Deserialize<'de>, R: Read>(reader: R) -> Result<T> {
+pub fn from_reader<T: DeserializeOwned, R: Read>(reader: R) -> Result<T> {
     let mut de = Deserializer::new(reader);
     let value = Deserialize::deserialize(&mut de)?;
     de.end()?;
@@ -473,7 +473,7 @@ pub fn from_reader<'de, T: Deserialize<'de>, R: Read>(reader: R) -> Result<T> {
 
 /// Decodes a CBOR value from a `&[u8]` slice.
 #[inline]
-pub fn from_slice<'de, T: Deserialize<'de>>(v: &[u8]) -> Result<T> {
+pub fn from_slice<T: DeserializeOwned>(v: &[u8]) -> Result<T> {
     from_reader(v)
 }
 
