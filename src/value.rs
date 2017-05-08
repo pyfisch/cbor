@@ -583,3 +583,52 @@ impl From<Value> for ObjectKey {
     }
 }
 
+macro_rules! impl_from {
+    ($enum:ident, $variant:ident, $type:ty) => (
+        impl From<$type> for $enum {
+            fn from (v: $type) -> $enum {
+                $enum::$variant(v)
+            }
+        }
+    )
+}
+
+// All except &'a str and Cow<'a, str>
+impl_from!(ObjectKey, Integer, i64);
+impl_from!(ObjectKey, Bytes, Vec<u8>);
+impl_from!(ObjectKey, String, String);
+impl_from!(ObjectKey, Bool, bool);
+
+// All except &'a str and Cow<'a, str>
+impl_from!(Value, U64, u64);
+impl_from!(Value, I64, i64);
+impl_from!(Value, Bytes, Vec<u8>);
+impl_from!(Value, String, String);
+impl_from!(Value, Array, Vec<Value>);
+impl_from!(Value, Object, HashMap<ObjectKey, Value>);
+impl_from!(Value, F64, f64);
+impl_from!(Value, Bool, bool);
+
+impl<'a> From<&'a str> for ObjectKey {
+    fn from(s: &'a str) -> ObjectKey {
+        ObjectKey::String(s.to_string())
+    }
+}
+
+impl<'a> From<::std::borrow::Cow<'a, str>> for ObjectKey {
+    fn from(s: ::std::borrow::Cow<'a, str>) -> ObjectKey {
+        ObjectKey::String(s.to_string())
+    }
+}
+
+impl<'a> From<&'a str> for Value {
+    fn from(s: &'a str) -> Value {
+        Value::String(s.to_string())
+    }
+}
+
+impl<'a> From<::std::borrow::Cow<'a, str>> for Value {
+    fn from(s: ::std::borrow::Cow<'a, str>) -> Value {
+        Value::String(s.to_string())
+    }
+}
