@@ -584,10 +584,10 @@ impl From<Value> for ObjectKey {
 }
 
 macro_rules! impl_from {
-    ($enum:ident, $variant:ident, $type:ty) => (
-        impl From<$type> for $enum {
-            fn from (v: $type) -> $enum {
-                $enum::$variant(v)
+    ($for_enum:ident, $variant:ident, $for_type:ty) => (
+        impl From<$for_type> for $for_enum {
+            fn from (v: $for_type) -> $for_enum {
+                $for_enum::$variant(v)
             }
         }
     )
