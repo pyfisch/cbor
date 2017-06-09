@@ -94,11 +94,11 @@
 //! Read a CBOR value that is known to be a map of string keys to string values and print it.
 //!
 //! ```rust
-//! use std::collections::HashMap;
+//! use std::collections::BTreeMap;
 //! use serde_cbor::from_slice;
 //!
 //! let slice = b"\xa5aaaAabaBacaCadaDaeaE";
-//! let value: HashMap<String, String> = from_slice(slice).unwrap();
+//! let value: BTreeMap<String, String> = from_slice(slice).unwrap();
 //! println!("{:?}", value); // {"e": "E", "d": "D", "a": "A", "c": "C", "b": "B"}
 //! ```
 //!
@@ -115,10 +115,10 @@
 //! Serialize an object.
 //!
 //! ```rust
-//! use std::collections::HashMap;
+//! use std::collections::BTreeMap;
 //! use serde_cbor::to_vec;
 //!
-//! let mut programming_languages = HashMap::new();
+//! let mut programming_languages = BTreeMap::new();
 //! programming_languages.insert("rust", vec!["safe", "concurrent", "fast"]);
 //! programming_languages.insert("python", vec!["powerful", "friendly", "open"]);
 //! programming_languages.insert("js", vec!["lightweight", "interpreted", "object-oriented"]);

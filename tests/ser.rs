@@ -1,7 +1,7 @@
 extern crate serde;
 extern crate serde_cbor;
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde::Serializer;
 use serde_cbor::{to_vec, from_slice};
@@ -21,7 +21,7 @@ fn test_list() {
 
 #[test]
 fn test_object() {
-    let mut object = HashMap::new();
+    let mut object = BTreeMap::new();
     object.insert("a".to_owned(), "A".to_owned());
     object.insert("b".to_owned(), "B".to_owned());
     object.insert("c".to_owned(), "C".to_owned());

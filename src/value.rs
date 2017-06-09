@@ -1,6 +1,6 @@
 //! CBOR values and keys.
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt;
 
 use serde::de;
@@ -20,7 +20,7 @@ pub enum Value {
     /// Represents a list.
     Array(Vec<Value>),
     /// Represents a map.
-    Object(HashMap<ObjectKey, Value>),
+    Object(BTreeMap<ObjectKey, Value>),
     /// Represents a floating point value.
     F64(f64),
     /// Represents a boolean value.
@@ -36,7 +36,7 @@ impl Value {
     }
 
     /// If the value is an object, returns the associated BTreeMap. Returns None otherwise.
-    pub fn as_object(&self) -> Option<&HashMap<ObjectKey, Value>> {
+    pub fn as_object(&self) -> Option<&BTreeMap<ObjectKey, Value>> {
         if let Value::Object(ref v) = *self {
             Some(v)
         } else {
@@ -46,7 +46,7 @@ impl Value {
 
 
     /// If the value is an object, returns the associated mutable BTreeMap. Returns None otherwise.
-    pub fn as_object_mut(&mut self) -> Option<&mut HashMap<ObjectKey, Value>> {
+    pub fn as_object_mut(&mut self) -> Option<&mut BTreeMap<ObjectKey, Value>> {
         if let Value::Object(ref mut v) = *self {
             Some(v)
         } else {
@@ -305,7 +305,7 @@ impl<'de> de::Deserialize<'de> for Value {
             fn visit_map<V>(self, mut visitor: V) -> Result<Value, V::Error>
                 where V: de::MapAccess<'de>
             {
-                let mut values = HashMap::new();
+                let mut values = BTreeMap::new();
 
                 while let Some((key, value)) = visitor.next_entry()? {
                     values.insert(key, value);
