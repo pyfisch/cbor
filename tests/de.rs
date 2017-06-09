@@ -170,7 +170,7 @@ fn test_32f16() {
 fn test_kietaub_file() {
     let file = include_bytes!("kietaub.cbor");
     let value_result: error::Result<Value> = de::from_slice(file);
-    assert!(value_result.is_ok());
+    value_result.unwrap();
 }
 
 #[test]
