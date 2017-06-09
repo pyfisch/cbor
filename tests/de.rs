@@ -203,3 +203,13 @@ fn test_variable_length_map() {
     map.insert(ObjectKey::String("message".to_string()), Value::String("pong".to_string()));
     assert_eq!(value, Value::Object(map))
 }
+
+#[test]
+fn test_object_determinism_roundtrip() {
+    let expected = b"\xa2aa\x01ab\x82\x02\x03";
+
+    // 0.1% chance of not catching failure
+    for _ in 0..10 {
+        assert_eq!(&to_vec(&de::from_slice::<Value>(expected).unwrap()).unwrap(), expected);
+    }
+}
