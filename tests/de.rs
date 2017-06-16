@@ -213,3 +213,17 @@ fn test_object_determinism_roundtrip() {
         assert_eq!(&to_vec(&de::from_slice::<Value>(expected).unwrap()).unwrap(), expected);
     }
 }
+
+#[test]
+fn test_tuple_from_array() {
+    let bytes = [0x83, 0x01, 0x02, 0x03];
+    let result: (i64, i64, i64) = serde_cbor::de::from_slice(&bytes).unwrap();
+    assert_eq!((1, 2, 3), result)
+}
+
+#[test]
+fn test_tuple_from_indefinite_length_array() {
+    let bytes = [0x9f, 0x01, 0x02, 0x03, 0xff];
+    let result: (i64, i64, i64) = serde_cbor::de::from_slice(&bytes).unwrap();
+    assert_eq!((1, 2, 3), result)
+}

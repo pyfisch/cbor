@@ -222,8 +222,6 @@ impl<'de, 'a, R: Read> de::Deserializer<'de> for &'a mut Deserializer<R> {
         deserialize_byte_buf();
         deserialize_map();
         deserialize_unit_struct(_name: &'static str,);
-        deserialize_tuple_struct(_name: &'static str, _len: usize,);
-        deserialize_tuple(_len: usize,);
         deserialize_ignored_any();
     );
     #[inline]
@@ -343,6 +341,38 @@ impl<'de, 'a, R: Read> de::Deserializer<'de> for &'a mut Deserializer<R> {
             .pop()
             .expect("struct_fields is not empty");
         Ok(result)
+    }
+
+    #[inline]
+    fn deserialize_tuple<V: Visitor<'de>>(self, _len: usize, visitor: V) -> Result<V::Value> {
+        let first = match self.first {
+            Some(first) => first,
+            None => {
+                let first = self.read_u8()?;
+                self.first = Some(first);
+                first
+            }
+        };
+
+        let result = self.deserialize_any(visitor);
+
+        if first == 0x9f {
+            match self.read_u8()? {
+                0xff => {},
+                _ => return Err(Error::Syntax),
+            }
+        }
+
+        result
+    }
+
+    #[inline]
+    fn deserialize_tuple_struct<V: Visitor<'de>>(self,
+                                                 _name: &'static str,
+                                                 len: usize,
+                                                 visitor: V)
+                                                 -> Result<V::Value> {
+        self.deserialize_tuple(len, visitor)
     }
 }
 
