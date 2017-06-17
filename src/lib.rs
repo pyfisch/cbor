@@ -129,15 +129,19 @@
 #![deny(missing_docs)]
 
 extern crate byteorder;
+
+#[macro_use]
 extern crate serde;
-extern crate serde_bytes;
 
-pub use de::{from_slice, from_reader};
-pub use error::{Error, Result};
-pub use ser::to_vec;
-pub use value::{Value, ObjectKey};
-
+mod read;
 pub mod de;
 pub mod error;
 pub mod ser;
 pub mod value;
+
+#[doc(inline)]
+pub use de::{from_slice, from_reader, Deserializer};
+#[doc(inline)]
+pub use ser::{to_writer, to_vec, Serializer};
+#[doc(inline)]
+pub use value::{Value, ObjectKey};

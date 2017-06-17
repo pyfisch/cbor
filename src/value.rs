@@ -215,7 +215,8 @@ impl Value {
 impl<'de> de::Deserialize<'de> for Value {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Value, D::Error>
-        where D: de::Deserializer<'de>
+    where
+        D: de::Deserializer<'de>,
     {
         struct ValueVisitor;
 
@@ -228,69 +229,79 @@ impl<'de> de::Deserialize<'de> for Value {
 
             #[inline]
             fn visit_str<E>(self, value: &str) -> Result<Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 self.visit_string(String::from(value))
             }
 
             #[inline]
             fn visit_string<E>(self, value: String) -> Result<Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(Value::String(value))
             }
             #[inline]
             fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 self.visit_byte_buf(v.to_owned())
             }
 
             #[inline]
             fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(Value::Bytes(v))
             }
 
             #[inline]
             fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(Value::U64(v))
             }
 
             #[inline]
             fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(Value::I64(v))
             }
 
             #[inline]
             fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(Value::Bool(v))
             }
 
             #[inline]
             fn visit_none<E>(self) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 self.visit_unit()
             }
 
             #[inline]
             fn visit_unit<E>(self) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(Value::Null)
             }
 
             #[inline]
             fn visit_seq<V>(self, mut visitor: V) -> Result<Self::Value, V::Error>
-                where V: de::SeqAccess<'de>
+            where
+                V: de::SeqAccess<'de>,
             {
                 let mut vec = Vec::new();
 
@@ -303,7 +314,8 @@ impl<'de> de::Deserialize<'de> for Value {
 
             #[inline]
             fn visit_map<V>(self, mut visitor: V) -> Result<Value, V::Error>
-                where V: de::MapAccess<'de>
+            where
+                V: de::MapAccess<'de>,
             {
                 let mut values = BTreeMap::new();
 
@@ -316,7 +328,8 @@ impl<'de> de::Deserialize<'de> for Value {
 
             #[inline]
             fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(Value::F64(v))
             }
@@ -326,11 +339,11 @@ impl<'de> de::Deserialize<'de> for Value {
     }
 }
 
-
 impl ser::Serialize for Value {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: ser::Serializer
+    where
+        S: ser::Serializer,
     {
         match *self {
             Value::U64(v) => serializer.serialize_u64(v),
@@ -464,7 +477,8 @@ impl ObjectKey {
 impl<'de> de::Deserialize<'de> for ObjectKey {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<ObjectKey, D::Error>
-        where D: de::Deserializer<'de>
+    where
+        D: de::Deserializer<'de>,
     {
         struct ObjectKeyVisitor;
 
@@ -477,62 +491,71 @@ impl<'de> de::Deserialize<'de> for ObjectKey {
 
             #[inline]
             fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 self.visit_string(String::from(value))
             }
 
             #[inline]
             fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(ObjectKey::String(value))
             }
             #[inline]
             fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 self.visit_byte_buf(v.to_owned())
             }
 
             #[inline]
             fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(ObjectKey::Bytes(v))
             }
 
             #[inline]
             fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(ObjectKey::Integer(v as i64))
             }
 
             #[inline]
             fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(ObjectKey::Integer(v))
             }
 
             #[inline]
             fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(ObjectKey::Bool(v))
             }
 
             #[inline]
             fn visit_none<E>(self) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 self.visit_unit()
             }
 
             #[inline]
             fn visit_unit<E>(self) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(ObjectKey::Null)
             }
@@ -545,7 +568,8 @@ impl<'de> de::Deserialize<'de> for ObjectKey {
 impl ser::Serialize for ObjectKey {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: ser::Serializer
+    where
+        S: ser::Serializer,
     {
         match *self {
             ObjectKey::Integer(v) => serializer.serialize_i64(v),
