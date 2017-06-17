@@ -1,53 +1,47 @@
-//! CBOR errors.
-use std::error;
-use std::error::Error as StdError;
-use std::fmt;
-use std::result;
-use std::io;
-use std::string::FromUtf8Error;
-
+//! When serializing or deserializing CBOR goes wrong.
 use serde::de;
 use serde::ser;
+use std::error;
+use std::fmt;
+use std::io;
+use std::result;
 
-/// Represents all possible errors that can occur when serializing or deserializing a value.
-#[derive(Debug)]
-pub enum Error {
-    /// The CBOR value had a syntactic error.
-    Syntax,
-    /// The size of the sequence/mapping/buffer is larger than usize
-    SizeError,
-    /// Some IO error occured when processing a value.
-    Io(io::Error),
-    /// Some error occured while converting a string.
-    FromUtf8(FromUtf8Error),
-    /// A custom error provided by serde occured.
-    Custom(String),
-    /// Break stop code encountered.
-    StopCode,
-    /// The data source contains trailing bytes after all values were read.
-    TrailingBytes,
-    #[doc(hidden)]
-    __Nonexhaustive,
+/// This type represents all possible errors that can occur when serializing or deserializing CBOR
+/// data.
+pub struct Error(Box<ErrorImpl>);
+
+/// Alias for a `Result` with the error type `serde_cbor::Error`.
+pub type Result<T> = result::Result<T, Error>;
+
+impl Error {
+    /// The byte offset at which the error occurred.
+    pub fn offset(&self) -> u64 {
+        self.0.offset
+    }
+
+    pub(crate) fn syntax(code: ErrorCode, offset: u64) -> Error {
+        Error(Box::new(ErrorImpl { code, offset }))
+    }
+
+    pub(crate) fn io(error: io::Error) -> Error {
+        Error(Box::new(ErrorImpl {
+            code: ErrorCode::Io(error),
+            offset: 0,
+        }))
+    }
 }
 
-impl StdError for Error {
+impl error::Error for Error {
     fn description(&self) -> &str {
-        match *self {
-            Error::Syntax => "syntax error",
-            Error::SizeError => "size error",
-            Error::Io(ref error) => StdError::description(error),
-            Error::FromUtf8(ref error) => error.description(),
-            Error::Custom(ref s) => s,
-            Error::StopCode => "unexpected stop code",
-            Error::TrailingBytes => "unexpected trailing bytes",
-            Error::__Nonexhaustive => unreachable!(),
+        match self.0.code {
+            ErrorCode::Io(ref err) => error::Error::description(err),
+            _ => "CBOR error",
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
-        match *self {
-            Error::Io(ref error) => Some(error),
-            Error::FromUtf8(ref error) => Some(error),
+        match self.0.code {
+            ErrorCode::Io(ref err) => Some(err),
             _ => None,
         }
     }
@@ -55,38 +49,93 @@ impl StdError for Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Custom(ref s) => write!(f, "custom error: {}", s),
-            _ => f.write_str(self.description()),
+        if self.0.offset == 0 {
+            fmt::Display::fmt(&self.0.code, f)
+        } else {
+            write!(f, "{} at offset {}", self.0.code, self.0.offset)
         }
     }
 }
 
-
-impl From<io::Error> for Error {
-    fn from(error: io::Error) -> Error {
-        Error::Io(error)
-    }
-}
-
-impl From<FromUtf8Error> for Error {
-    fn from(error: FromUtf8Error) -> Error {
-        Error::FromUtf8(error)
+impl fmt::Debug for Error {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&*self.0, fmt)
     }
 }
 
 impl de::Error for Error {
-    fn custom<T: fmt::Display>(msg: T) -> Error {
-        Error::Custom(msg.to_string())
+    fn custom<T>(msg: T) -> Error
+    where
+        T: fmt::Display,
+    {
+        Error(Box::new(ErrorImpl {
+            code: ErrorCode::Message(msg.to_string()),
+            offset: 0,
+        }))
+    }
+
+    fn invalid_type(unexp: de::Unexpected, exp: &de::Expected) -> Error {
+        if let de::Unexpected::Unit = unexp {
+            Error::custom(format_args!("invalid type: null, expected {}", exp))
+        } else {
+            Error::custom(format_args!("invalid type: {}, expected {}", unexp, exp))
+        }
     }
 }
 
 impl ser::Error for Error {
-    fn custom<T: fmt::Display>(msg: T) -> Error {
-        Error::Custom(msg.to_string())
+    fn custom<T>(msg: T) -> Error
+    where
+        T: fmt::Display,
+    {
+        Error(Box::new(ErrorImpl {
+            code: ErrorCode::Message(msg.to_string()),
+            offset: 0,
+        }))
     }
 }
 
-/// Helper alias for Result objects that return a JSON Error.
-pub type Result<T> = result::Result<T, Error>;
+#[derive(Debug)]
+struct ErrorImpl {
+    code: ErrorCode,
+    offset: u64,
+}
 
+#[derive(Debug)]
+pub(crate) enum ErrorCode {
+    Message(String),
+    Io(io::Error),
+    EofWhileParsingValue,
+    EofWhileParsingArray,
+    EofWhileParsingMap,
+    NumberOutOfRange,
+    LengthOutOfRange,
+    InvalidUtf8,
+    UnassignedCode,
+    UnexpectedCode,
+    TrailingData,
+    ArrayTooShort,
+    ArrayTooLong,
+    RecursionLimitExceeded,
+}
+
+impl fmt::Display for ErrorCode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ErrorCode::Message(ref msg) => f.write_str(msg),
+            ErrorCode::Io(ref err) => fmt::Display::fmt(err, f),
+            ErrorCode::EofWhileParsingValue => f.write_str("EOF while parsing a value"),
+            ErrorCode::EofWhileParsingArray => f.write_str("EOF while parsing an array"),
+            ErrorCode::EofWhileParsingMap => f.write_str("EOF while parsing a map"),
+            ErrorCode::NumberOutOfRange => f.write_str("number out of range"),
+            ErrorCode::LengthOutOfRange => f.write_str("length out of range"),
+            ErrorCode::InvalidUtf8 => f.write_str("invalid UTF-8"),
+            ErrorCode::UnassignedCode => f.write_str("unassigned type"),
+            ErrorCode::UnexpectedCode => f.write_str("unexpected code"),
+            ErrorCode::TrailingData => f.write_str("trailing data"),
+            ErrorCode::ArrayTooShort => f.write_str("array too short"),
+            ErrorCode::ArrayTooLong => f.write_str("array too long"),
+            ErrorCode::RecursionLimitExceeded => f.write_str("recursion limit exceeded"),
+        }
+    }
+}
