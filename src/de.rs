@@ -8,8 +8,6 @@ use serde_bytes::ByteBuf;
 
 use super::error::{Error, Result};
 
-const MAX_SEQ_LEN: u64 = 524288;
-
 macro_rules! forward_deserialize {
     ($($name:ident($($arg:ident: $ty:ty,)*);)*) => {
         $(#[inline]
@@ -21,6 +19,7 @@ macro_rules! forward_deserialize {
 
 /// A structure that deserializes CBOR into Rust values.
 pub struct Deserializer<R: Read> {
+    max_seq_len: usize,
     reader: R,
     first: Option<u8>,
     struct_fields: Vec<&'static [&'static str]>,
@@ -28,13 +27,35 @@ pub struct Deserializer<R: Read> {
 
 impl<'de, R: Read> Deserializer<R> {
     /// Creates the CBOR parser from an `std::io::Read`.
+    ///
+    /// Note: deserializer has maximum size of sequence that can be read to
+    /// prevent DoS attacks. See `set_sequence_limit`.
     #[inline]
     pub fn new(reader: R) -> Deserializer<R> {
         Deserializer {
+            max_seq_len: 524288,
             reader: reader,
             first: None,
             struct_fields: Vec::new(),
         }
+    }
+    /// Change the limit on the size of sequences that can be read.
+    ///
+    /// Default value is `524288` (512KiB)
+    ///
+    /// The limit affects:
+    ///
+    /// * bytes type
+    /// * string type (number of bytes)
+    /// * array type (number of elements)
+    /// * map type (number of pairs)
+    ///
+    /// But the value doesn't impose a limit on "indefinite" length
+    /// sequences.
+    #[inline]
+    pub fn set_sequence_limit(&mut self, max_seq_len: usize) -> &mut Self {
+        self.max_seq_len = max_seq_len;
+        self
     }
 
     /// The `Deserializer::end` method should be called after a value has been fully deserialized.
@@ -81,7 +102,9 @@ impl<'de, R: Read> Deserializer<R> {
     fn parse_size_information(&mut self, first: u8) -> Result<Option<usize>> {
         let n = self.parse_additional_information(first)?;
         match n {
-            Some(n) if n > MAX_SEQ_LEN => return Err(Error::Syntax),
+            Some(n) if n > self.max_seq_len as u64 => {
+                return Err(Error::Syntax);
+            }
             _ => (),
         }
         Ok(n.map(|x| x as usize))
