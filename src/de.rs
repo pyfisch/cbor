@@ -486,6 +486,8 @@ impl<'de, 'a, R: Read> de::VariantAccess<'de> for CompositeVisitor<'a, R> {
 }
 
 /// Decodes a CBOR value from a `std::io::Read`.
+///
+/// Note: this function decodes with default value of `set_sequence_limit`
 #[inline]
 pub fn from_reader<T: DeserializeOwned, R: Read>(reader: R) -> Result<T> {
     let mut de = Deserializer::new(reader);
@@ -495,8 +497,16 @@ pub fn from_reader<T: DeserializeOwned, R: Read>(reader: R) -> Result<T> {
 }
 
 /// Decodes a CBOR value from a `&[u8]` slice.
+///
+/// Note: this function calls `set_sequence_limit` with the length of a slice.
+/// The idea is that memory used after deserialization is bound by
+/// `O(v.len())`, so it's safe to set the limit.
 #[inline]
 pub fn from_slice<T: DeserializeOwned>(v: &[u8]) -> Result<T> {
-    from_reader(v)
+    let mut de = Deserializer::new(v);
+    de.set_sequence_limit(v.len());
+    let value = Deserialize::deserialize(&mut de)?;
+    de.end()?;
+    Ok(value)
 }
 
