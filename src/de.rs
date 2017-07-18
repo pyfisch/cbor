@@ -1,14 +1,14 @@
 //! CBOR deserialization.
 
 use std::io::{self, Read};
+use std::cmp::min;
+use std::usize;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use serde::de::{self, Visitor, Deserialize, DeserializeOwned, DeserializeSeed};
 use serde_bytes::ByteBuf;
 
 use super::error::{Error, Result};
-
-const MAX_SEQ_LEN: u64 = 524288;
 
 macro_rules! forward_deserialize {
     ($($name:ident($($arg:ident: $ty:ty,)*);)*) => {
@@ -81,7 +81,7 @@ impl<'de, R: Read> Deserializer<R> {
     fn parse_size_information(&mut self, first: u8) -> Result<Option<usize>> {
         let n = self.parse_additional_information(first)?;
         match n {
-            Some(n) if n > MAX_SEQ_LEN => return Err(Error::Syntax),
+            Some(n) if n > usize::MAX as u64 => return Err(Error::SizeError),
             _ => (),
         }
         Ok(n.map(|x| x as usize))
@@ -114,8 +114,8 @@ impl<'de, R: Read> Deserializer<R> {
     #[inline]
     fn parse_byte_buf<V: Visitor<'de>>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
         if let Some(n) = self.parse_size_information(first)? {
-            let mut buf = vec![0; n];
-            self.reader.read_exact(&mut buf)?;
+            let mut buf = Vec::with_capacity(min(n, 4096));
+            (&mut self.reader).take(n as u64).read_to_end(&mut buf)?;
             visitor.visit_byte_buf(buf)
         } else {
             let mut bytes = Vec::new();
@@ -133,8 +133,8 @@ impl<'de, R: Read> Deserializer<R> {
     #[inline]
     fn parse_string<V: Visitor<'de>>(&mut self, first: u8, visitor: V) -> Result<V::Value> {
         if let Some(n) = self.parse_size_information(first)? {
-            let mut buf = vec![0; n];
-            self.reader.read_exact(&mut buf)?;
+            let mut buf = Vec::with_capacity(min(n, 4096));
+            (&mut self.reader).take(n as u64).read_to_end(&mut buf)?;
             visitor.visit_string(String::from_utf8(buf)?)
         } else {
             let mut string = String::new();
