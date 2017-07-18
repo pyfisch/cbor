@@ -8,8 +8,6 @@ use serde_bytes::ByteBuf;
 
 use super::error::{Error, Result};
 
-const MAX_SEQ_LEN: u64 = 524288;
-
 macro_rules! forward_deserialize {
     ($($name:ident($($arg:ident: $ty:ty,)*);)*) => {
         $(#[inline]
@@ -21,6 +19,7 @@ macro_rules! forward_deserialize {
 
 /// A structure that deserializes CBOR into Rust values.
 pub struct Deserializer<R: Read> {
+    max_seq_len: usize,
     reader: R,
     first: Option<u8>,
     struct_fields: Vec<&'static [&'static str]>,
@@ -28,13 +27,35 @@ pub struct Deserializer<R: Read> {
 
 impl<'de, R: Read> Deserializer<R> {
     /// Creates the CBOR parser from an `std::io::Read`.
+    ///
+    /// Note: deserializer has maximum size of sequence that can be read to
+    /// prevent DoS attacks. See `set_sequence_limit`.
     #[inline]
     pub fn new(reader: R) -> Deserializer<R> {
         Deserializer {
+            max_seq_len: 524288,
             reader: reader,
             first: None,
             struct_fields: Vec::new(),
         }
+    }
+    /// Change the limit on the size of sequences that can be read.
+    ///
+    /// Default value is `524288` (512KiB)
+    ///
+    /// The limit affects:
+    ///
+    /// * bytes type
+    /// * string type (number of bytes)
+    /// * array type (number of elements)
+    /// * map type (number of pairs)
+    ///
+    /// But the value doesn't impose a limit on "indefinite" length
+    /// sequences.
+    #[inline]
+    pub fn set_sequence_limit(&mut self, max_seq_len: usize) -> &mut Self {
+        self.max_seq_len = max_seq_len;
+        self
     }
 
     /// The `Deserializer::end` method should be called after a value has been fully deserialized.
@@ -81,7 +102,9 @@ impl<'de, R: Read> Deserializer<R> {
     fn parse_size_information(&mut self, first: u8) -> Result<Option<usize>> {
         let n = self.parse_additional_information(first)?;
         match n {
-            Some(n) if n > MAX_SEQ_LEN => return Err(Error::Syntax),
+            Some(n) if n > self.max_seq_len as u64 => {
+                return Err(Error::Syntax);
+            }
             _ => (),
         }
         Ok(n.map(|x| x as usize))
@@ -463,6 +486,8 @@ impl<'de, 'a, R: Read> de::VariantAccess<'de> for CompositeVisitor<'a, R> {
 }
 
 /// Decodes a CBOR value from a `std::io::Read`.
+///
+/// Note: this function decodes with default value of `set_sequence_limit`
 #[inline]
 pub fn from_reader<T: DeserializeOwned, R: Read>(reader: R) -> Result<T> {
     let mut de = Deserializer::new(reader);
@@ -472,8 +497,16 @@ pub fn from_reader<T: DeserializeOwned, R: Read>(reader: R) -> Result<T> {
 }
 
 /// Decodes a CBOR value from a `&[u8]` slice.
+///
+/// Note: this function calls `set_sequence_limit` with the length of a slice.
+/// The idea is that memory used after deserialization is bound by
+/// `O(v.len())`, so it's safe to set the limit.
 #[inline]
 pub fn from_slice<T: DeserializeOwned>(v: &[u8]) -> Result<T> {
-    from_reader(v)
+    let mut de = Deserializer::new(v);
+    de.set_sequence_limit(v.len());
+    let value = Deserialize::deserialize(&mut de)?;
+    de.end()?;
+    Ok(value)
 }
 
