@@ -14,6 +14,8 @@ use serde::ser;
 pub enum Error {
     /// The CBOR value had a syntactic error.
     Syntax,
+    /// The size of the sequence/mapping/buffer is larger than usize
+    SizeError,
     /// Some IO error occured when processing a value.
     Io(io::Error),
     /// Some error occured while converting a string.
@@ -32,6 +34,7 @@ impl StdError for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Syntax => "syntax error",
+            Error::SizeError => "size error",
             Error::Io(ref error) => StdError::description(error),
             Error::FromUtf8(ref error) => error.description(),
             Error::Custom(ref s) => s,
