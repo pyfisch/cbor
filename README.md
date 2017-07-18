@@ -1,3 +1,23 @@
+# UNMAINTAINED
+Unfortuanly I don't have enough time to maintain this crate well.
+Originally I wrote it to toy with serde and CBOR but it is now actually used by
+some people.
+
+If you use this crate and want to continue to improve it please open a 
+PR and we can discuss how to best transfer the repository and crates.io entry.
+
+I will still review PRs.
+
+The crate has a bunch of bugs that need to be fixed:
+
+* #37 packed encoding is broken
+* #39 strings are always completly allocated
+* Error messages are mostly useless.
+
+There are more things that can be improved. Have a look at the issues.
+
+2017-07-18 Pyfisch
+
 # Serde CBOR Serialization Library
 [![Build Status](https://travis-ci.org/pyfisch/cbor.svg?branch=master)](https://travis-ci.org/pyfisch/cbor)
 [![Crates.io](https://img.shields.io/crates/v/serde_cbor.svg)](https://crates.io/crates/serde_cbor)
