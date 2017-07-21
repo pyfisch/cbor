@@ -11,7 +11,6 @@ I will still review PRs.
 The crate has a bunch of bugs that need to be fixed:
 
 * #37 packed encoding is broken
-* #39 strings are always completly allocated
 * Error messages are mostly useless.
 
 There are more things that can be improved. Have a look at the issues.
