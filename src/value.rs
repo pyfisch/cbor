@@ -583,3 +583,28 @@ impl From<Value> for ObjectKey {
     }
 }
 
+macro_rules! impl_from {
+    ($for_enum:ident, $variant:ident, $for_type:ty) => (
+        impl From<$for_type> for $for_enum {
+            fn from (v: $for_type) -> $for_enum {
+                $for_enum::$variant(v)
+            }
+        }
+    )
+}
+
+// All except &'a str and Cow<'a, str>
+impl_from!(ObjectKey, Integer, i64);
+impl_from!(ObjectKey, Bytes, Vec<u8>);
+impl_from!(ObjectKey, String, String);
+impl_from!(ObjectKey, Bool, bool);
+
+// All except &'a str and Cow<'a, str>
+impl_from!(Value, U64, u64);
+impl_from!(Value, I64, i64);
+impl_from!(Value, Bytes, Vec<u8>);
+impl_from!(Value, String, String);
+impl_from!(Value, Array, Vec<Value>);
+impl_from!(Value, Object, BTreeMap<ObjectKey, Value>);
+impl_from!(Value, F64, f64);
+impl_from!(Value, Bool, bool);
