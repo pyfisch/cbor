@@ -130,6 +130,7 @@ where
     where
         V: de::Visitor<'de>,
     {
+        self.buf.clear();
         match self.read.read(len, &mut self.buf, 0)? {
             Reference::Borrowed(buf) => visitor.visit_borrowed_bytes(buf),
             Reference::Copied => visitor.visit_bytes(&self.buf),
@@ -141,6 +142,7 @@ where
         V: de::Visitor<'de>,
     {
         let mut offset = 0;
+        self.buf.clear();
         loop {
             let byte = self.parse_u8()?;
             let len = match byte {
@@ -191,6 +193,7 @@ where
     where
         V: de::Visitor<'de>,
     {
+        self.buf.clear();
         match self.read.read(len, &mut self.buf, 0)? {
             Reference::Borrowed(buf) => {
                 let s = self.convert_str(buf)?;
@@ -208,6 +211,7 @@ where
         V: de::Visitor<'de>,
     {
         let mut offset = 0;
+        self.buf.clear();
         loop {
             let byte = self.parse_u8()?;
             let len = match byte {
