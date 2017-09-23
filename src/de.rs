@@ -549,7 +549,7 @@ where
                 self.parse_u64()?;
                 self.parse_value(visitor)
             }
-            0xde...0xdf => Err(self.error(ErrorCode::UnassignedCode)),
+            0xdc...0xdf => Err(self.error(ErrorCode::UnassignedCode)),
 
             // Major type 7: floating-point numbers and other simple data types that need no content
             0xe0...0xf3 => Err(self.error(ErrorCode::UnassignedCode)),
