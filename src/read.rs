@@ -1,3 +1,4 @@
+use std::cmp;
 use std::io::{self, Read as StdRead};
 
 use error::{Result, Error, ErrorCode};
@@ -107,24 +108,26 @@ where
 
     fn read(
         &mut self,
-        n: usize,
+        mut n: usize,
         scratch: &mut Vec<u8>,
         mut scratch_offset: usize,
     ) -> Result<Reference<'de>> {
-        if n == 0 {
-            return Ok(Reference::Copied);
-        }
+        while n > 0 {
+            // defend against malicious input pretending to be huge strings by limiting growth
+            let to_read = cmp::min(n, 16 * 1024);
+            n -= to_read;
 
-        if n > scratch.len() - scratch_offset {
-            scratch.resize(scratch_offset + n, 0);
-        }
+            if to_read > scratch.len() - scratch_offset {
+                scratch.resize(scratch_offset + to_read, 0);
+            }
 
-        if let Some(ch) = self.ch.take() {
-            scratch[scratch_offset] = ch;
-            scratch_offset += 1;
-        }
+            if let Some(ch) = self.ch.take() {
+                scratch[scratch_offset] = ch;
+                scratch_offset += 1;
+            }
 
-        self.read_into(&mut scratch[scratch_offset..])?;
+            self.read_into(&mut scratch[scratch_offset..])?;
+        }
 
         Ok(Reference::Copied)
     }
