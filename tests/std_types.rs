@@ -1,4 +1,3 @@
-extern crate serde;
 extern crate serde_cbor;
 extern crate serde_bytes;
 #[macro_use]
