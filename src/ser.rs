@@ -438,10 +438,7 @@ where
     #[inline]
     fn serialize_struct(self, _name: &'static str, len: usize) -> Result<StructSerializer<'a, W>> {
         self.write_u64(5, len as u64)?;
-        Ok(StructSerializer {
-            ser: self,
-            idx: 0,
-        })
+        Ok(StructSerializer { ser: self, idx: 0 })
     }
 
     #[inline]
@@ -524,7 +521,7 @@ where
 #[doc(hidden)]
 pub struct StructSerializer<'a, W: 'a> {
     ser: &'a mut Serializer<W>,
-    idx: u32
+    idx: u32,
 }
 
 impl<'a, W> StructSerializer<'a, W>
