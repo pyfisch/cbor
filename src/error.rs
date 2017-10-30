@@ -13,6 +13,18 @@ pub struct Error(Box<ErrorImpl>);
 /// Alias for a `Result` with the error type `serde_cbor::Error`.
 pub type Result<T> = result::Result<T, Error>;
 
+/// Categorizes the cause of a `serde_cbor::Error`.
+pub enum Category {
+    /// The error was caused by a failure to read or write bytes on an IO stream.
+    Io,
+    /// The error was caused by input that was not syntactically valid CBOR.
+    Syntax,
+    /// The error was caused by input data that was semantically correct.
+    Data,
+    /// The error was causeed by prematurely reaching the end of the input data.
+    Eof,
+}
+
 impl Error {
     /// The byte offset at which the error occurred.
     pub fn offset(&self) -> u64 {
@@ -28,6 +40,58 @@ impl Error {
             code: ErrorCode::Io(error),
             offset: 0,
         }))
+    }
+
+    /// Categorizes the cause of this error.
+    pub fn classify(&self) -> Category {
+        match self.0.code {
+            ErrorCode::Message(_) => Category::Data,
+            ErrorCode::Io(_) => Category::Io,
+            ErrorCode::EofWhileParsingValue |
+            ErrorCode::EofWhileParsingArray |
+            ErrorCode::EofWhileParsingMap => Category::Eof,
+            ErrorCode::NumberOutOfRange |
+            ErrorCode::LengthOutOfRange |
+            ErrorCode::InvalidUtf8 |
+            ErrorCode::UnassignedCode |
+            ErrorCode::UnexpectedCode |
+            ErrorCode::TrailingData |
+            ErrorCode::ArrayTooShort |
+            ErrorCode::ArrayTooLong |
+            ErrorCode::RecursionLimitExceeded => Category::Syntax,
+        }
+    }
+
+    /// Returns true if this error was caused by a failure to read or write bytes on an IO stream.
+    pub fn is_io(&self) -> bool {
+        match self.classify() {
+            Category::Io => true,
+            _ => false,
+        }
+    }
+
+    /// Returns true if this error was caused by input that was not syntactically valid CBOR.
+    pub fn is_syntax(&self) -> bool {
+        match self.classify() {
+            Category::Syntax => true,
+            _ => false,
+        }
+    }
+
+    /// Returns true if this error was caused by data that was semantically incorrect.
+    pub fn is_data(&self) -> bool {
+        match self.classify() {
+            Category::Data => true,
+            _ => false,
+        }
+    }
+
+    /// Returns true if this error was caused by prematurely reaching the end of the input data.
+    pub fn is_eof(&self) -> bool {
+        match self.classify() {
+            Category::Eof => true,
+            _ => false,
+        }
     }
 }
 
