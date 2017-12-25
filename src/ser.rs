@@ -453,6 +453,10 @@ where
         self.serialize_unit_variant(name, variant_index, variant)?;
         self.serialize_struct(name, len)
     }
+
+    fn is_human_readable(&self) -> bool {
+        false
+    }
 }
 
 impl<'a, W> ser::SerializeTuple for &'a mut Serializer<W>
