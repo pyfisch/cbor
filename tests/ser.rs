@@ -91,3 +91,13 @@ fn test_self_describing() {
     }
     assert_eq!(vec, b"\xd9\xd9\xf7\x09");
 }
+
+#[test]
+fn test_ip_addr() {
+    use std::net::Ipv4Addr;
+
+    let addr = Ipv4Addr::new(8, 8, 8, 8);
+    let vec = to_vec(&addr).unwrap();
+    println!("{:?}", vec);
+    assert_eq!(vec.len(), 5);
+}
