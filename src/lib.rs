@@ -134,6 +134,7 @@ extern crate byteorder;
 extern crate serde;
 
 mod read;
+pub mod tagged;
 pub mod de;
 pub mod error;
 pub mod ser;

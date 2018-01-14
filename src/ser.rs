@@ -1,7 +1,7 @@
 //! Serialize a Rust data structure to CBOR data.
 use byteorder::{ByteOrder, BigEndian};
 use serde::ser::{self, Serialize};
-use std::io;
+use std::{io, mem};
 
 use error::{Error, Result};
 
@@ -411,10 +411,22 @@ where
     #[inline]
     fn serialize_tuple_struct(
         self,
-        _name: &'static str,
+        name: &'static str,
         len: usize,
     ) -> Result<&'a mut Serializer<W>> {
-        self.serialize_tuple(len)
+        use tagged::CBOR_NO_LENGTH_FIELD;
+        if name.as_ptr() == CBOR_NO_LENGTH_FIELD.as_ptr() && name == CBOR_NO_LENGTH_FIELD {
+            // We put both the pointer comparison and the string comparison, in case the optimizer
+            // decides to do something funny and make two different strings have the same pointer.
+            //
+            // It might be possible to intentionally get into this branch be a user of the library,
+            // but only if they name their tuple-struct "__CBOR_NO_LENGTH_FIELD", which will not
+            // happen accidentally. If they do, then the only thing that will accomplish is to make
+            // us generate invalid CBOR.
+            Ok(self)
+        } else {
+            self.serialize_tuple(len)
+        }
     }
 
     #[inline]
@@ -492,7 +504,21 @@ where
     where
         T: ?Sized + ser::Serialize,
     {
-        value.serialize(&mut **self)
+        use tagged::CborTag;
+        let t_fn: fn(&T, Self) -> Result<()> = T::serialize;
+        let cbor_fn: fn(&CborTag, Self) -> Result<()> = CborTag::serialize;
+
+        if t_fn as usize == cbor_fn as usize {
+            // We should only be able to get in here if T == CborTag, since the type is local to
+            // this crate. If it does happen, it should not be able to happen by accident. To avoid
+            // undefined behavior even in the case of intentional bad behavior, we assert that T has
+            // the right size.
+            assert_eq!(mem::size_of_val(value), mem::size_of::<CborTag>());
+            let value = unsafe { *(value as *const T as *const CborTag) };
+            self.write_u64(6, value.0)
+        } else {
+            value.serialize(&mut **self)
+        }
     }
 
     #[inline]
