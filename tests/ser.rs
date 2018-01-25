@@ -100,4 +100,6 @@ fn test_ip_addr() {
     let vec = to_vec(&addr).unwrap();
     println!("{:?}", vec);
     assert_eq!(vec.len(), 5);
+    let test_addr: Ipv4Addr = from_slice(&vec).unwrap();
+    assert_eq!(addr, test_addr);
 }
