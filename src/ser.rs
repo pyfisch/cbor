@@ -454,6 +454,7 @@ where
         self.serialize_struct(name, len)
     }
 
+    #[inline]
     fn is_human_readable(&self) -> bool {
         false
     }

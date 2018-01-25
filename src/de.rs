@@ -663,6 +663,11 @@ where
         }
     }
 
+    #[inline]
+    fn is_human_readable(&self) -> bool {
+        false
+    }
+
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string unit
         unit_struct seq tuple tuple_struct map struct identifier ignored_any
