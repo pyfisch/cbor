@@ -39,6 +39,8 @@ pub struct Deserializer<R> {
     read: R,
     buf: Vec<u8>,
     remaining_depth: u8,
+    // TODO(tailhook) use slices for Deserializer<SliceRead>
+    string_refs: Vec<Vec<String>>,
 }
 
 impl<R> Deserializer<IoRead<R>>
@@ -72,6 +74,7 @@ where
             read,
             buf: Vec::new(),
             remaining_depth: 128,
+            string_refs: Vec::new(),
         }
     }
 
@@ -197,10 +200,19 @@ where
         match self.read.read(len, &mut self.buf, 0)? {
             Reference::Borrowed(buf) => {
                 let s = self.convert_str(buf)?;
+                if let Some(ref mut buf) = self.string_refs.last_mut() {
+                    // TODO(tailhook) add only if bigger than reference size
+                    // TODO(tailhook) add a reference instead
+                    buf.push(s.to_string());
+                }
                 visitor.visit_borrowed_str(s)
             }
             Reference::Copied => {
                 let s = self.convert_str(&self.buf)?;
+                if let Some(ref mut buf) = self.string_refs.last_mut() {
+                    // TODO(tailhook) add only if bigger than reference size
+                    buf.push(s.to_string());
+                }
                 visitor.visit_str(s)
             }
         }
@@ -386,6 +398,31 @@ where
         Ok(BigEndian::read_f64(&buf))
     }
 
+    fn push_string_context(&mut self) {
+        self.string_refs.push(Vec::new());
+    }
+
+    fn pop_string_context(&mut self) {
+        self.string_refs.pop().unwrap();
+    }
+
+    fn parse_usize(&mut self) -> Result<usize> {
+        let byte = self.parse_u8()?;
+        match byte {
+            // Major type 0: an unsigned integer
+            0x00...0x17 => Ok(byte as usize),
+            0x18 => Ok(self.parse_u8()? as usize),
+            0x19 => Ok(self.parse_u16()? as usize),
+            0x1a => Ok(self.parse_u32()? as usize),
+            // TODO(tailhook) add check for 32bit usize
+            0x1b => Ok(self.parse_u64()? as usize),
+            _ => {
+                return Err(self.error(ErrorCode::Message(
+                    format!("integer expected got code {:?}", byte))));
+            }
+        }
+    }
+
     fn parse_value<V>(&mut self, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
@@ -534,12 +571,31 @@ where
             // Major type 6: optional semantic tagging of other major types
             0xc0...0xd7 => self.parse_value(visitor),
             0xd8 => {
-                self.parse_u8()?;
-                self.parse_value(visitor)
+                let tag = self.parse_u8()?;
+                if tag == 25 {
+                    let rindex = self.parse_usize()?;
+                    let rstr = self.string_refs.last()
+                        .and_then(|vec| vec.get(rindex));
+                    if let Some(ref s) = rstr {
+                        visitor.visit_str(s)
+                    } else {
+                        Err(self.error(ErrorCode::Message(
+                            format!("no string ref {}", rindex))))
+                    }
+                } else {
+                    self.parse_value(visitor)
+                }
             }
             0xd9 => {
-                self.parse_u16()?;
-                self.parse_value(visitor)
+                let tag = self.parse_u16()?;
+                if tag == 256 {
+                    self.push_string_context();
+                }
+                let res = self.parse_value(visitor);
+                if tag == 256 {
+                    self.pop_string_context();
+                }
+                res
             }
             0xda => {
                 self.parse_u32()?;
