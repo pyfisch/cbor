@@ -1,5 +1,6 @@
 //! Serialize a Rust data structure to CBOR data.
 use byteorder::{ByteOrder, BigEndian};
+use std::collections::HashMap;
 use serde::ser::{self, Serialize};
 use std::io;
 
@@ -100,6 +101,7 @@ where
 pub struct Serializer<W> {
     writer: W,
     packed: bool,
+    string_refs: Option<HashMap<String, usize>>,
 }
 
 impl<W> Serializer<W>
@@ -112,6 +114,7 @@ where
         Serializer {
             writer,
             packed: false,
+            string_refs: None,
         }
     }
 
@@ -124,6 +127,18 @@ where
         Serializer {
             writer,
             packed: true,
+            string_refs: None,
+        }
+    }
+
+    /// Creates a new CBOR serializer with `stringref` enabled
+    ///
+    #[inline]
+    pub fn with_stringref(writer: W) -> Serializer<W> {
+        Serializer {
+            writer,
+            packed: true,
+            string_refs: Some(HashMap::new()),
         }
     }
 
@@ -142,6 +157,20 @@ where
     #[inline]
     pub fn into_inner(self) -> W {
         self.writer
+    }
+
+    fn check_ref(&mut self, value: &str) -> Option<usize> {
+        let refs = match self.string_refs {
+            Some(ref mut refs) => refs,
+            None => return None,
+        };
+        if let Some(&index) = refs.get(value) {
+            return Some(index);
+        }
+        let index = refs.len();
+        // TODO(tailhook) check value length
+        refs.insert(value.to_string(), index);
+        return None;
     }
 
     #[inline]
@@ -326,8 +355,13 @@ where
 
     #[inline]
     fn serialize_str(self, value: &str) -> Result<()> {
-        self.write_u64(3, value.len() as u64)?;
-        self.writer.write_all(value.as_bytes()).map_err(Error::io)
+        if let Some(idx) = self.check_ref(value) {
+            self.writer.write_all(&[0xd8]).map_err(Error::io)?;
+            self.write_u64(0, idx as u64)
+        } else {
+            self.write_u64(3, value.len() as u64)?;
+            self.writer.write_all(value.as_bytes()).map_err(Error::io)
+        }
     }
 
     #[inline]
