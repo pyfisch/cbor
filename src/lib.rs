@@ -125,6 +125,20 @@
 //! let encoded = to_vec(&programming_languages);
 //! assert_eq!(encoded.unwrap().len(), 103);
 //! ```
+//!
+//! Serializing a `Vec` as a specialized byte string uses about 2x less RAM and
+//! 100x less CPU than as a default array.
+//! ```rust
+//! use std::collections::BTreeMap
+//! use serde_bytes::ByteBuf;
+//! use serde_cbor::to_vec;
+//!
+//! let data: Vec<u8> = vec![0, 1, 255];
+//! let byte_buf = ByteBuf::from(data);
+//! let serialized_array = to_vec(&data);
+//! let serialized_byte_string = to_vec(byte_buf);
+//! assert!(serialized_byte_string.len() < serialized_array.len());
+//! ```
 
 #![deny(missing_docs)]
 

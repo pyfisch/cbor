@@ -1,9 +1,11 @@
 extern crate serde;
+extern crate serde_bytes;
 extern crate serde_cbor;
 
 use std::collections::BTreeMap;
 
 use serde::Serializer;
+use serde_bytes::{ByteBuf, Bytes};
 use serde_cbor::{to_vec, from_slice};
 use serde_cbor::ser;
 
@@ -102,4 +104,40 @@ fn test_ip_addr() {
     assert_eq!(vec.len(), 5);
     let test_addr: Ipv4Addr = from_slice(&vec).unwrap();
     assert_eq!(addr, test_addr);
+}
+
+/// Test all of CBOR's fixed-length byte string types
+#[test]
+fn test_byte_string() {
+    let short = ByteBuf::from(vec![0, 1, 2, 255]);
+    let short_s = to_vec(&short).unwrap();
+    assert_eq!(&short_s[..], [0x44, 0, 1, 2, 255]);
+
+    // Encoding a slice should work the same as a vector
+    let short_slice_s = to_vec(&Bytes::from(&short[..])).unwrap();
+    assert_eq!(&short_slice_s[..], [0x44, 0, 1, 2, 255]);
+
+    let medium = ByteBuf::from(vec![0u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+        12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 255]);
+    let medium_s = to_vec(&medium).unwrap();
+    assert_eq!(&medium_s[..], [0x58, 24, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+        12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 255]);
+
+    let long_vec = (0..256).map(|i| (i & 0xFF) as u8).collect::<Vec<_>>();
+    let long = ByteBuf::from(long_vec);
+    let long_s = to_vec(&long).unwrap();
+    assert_eq!(&long_s[0..3], [0x59, 1, 0]);
+    assert_eq!(&long_s[3..], &long[..]);
+
+    let very_long_vec = (0..65536).map(|i| (i & 0xFF) as u8).collect::<Vec<_>>();
+    let very_long = ByteBuf::from(very_long_vec);
+    let very_long_s = to_vec(&very_long).unwrap();
+    assert_eq!(&very_long_s[0..5], [0x5a, 0, 1, 0, 0]);
+    assert_eq!(&very_long_s[5..], &very_long[..]);
+
+    // This assertion takes about 8GB of RAM, so it may fail on small systems.
+    let much_too_long = ByteBuf::from(vec![0u8; 1usize<<32]);
+    let much_too_long_s = to_vec(&much_too_long).unwrap();
+    assert_eq!(&much_too_long_s[0..9], [0x5b, 0, 0, 0, 1, 0, 0, 0, 0]);
+    assert_eq!(&much_too_long_s[9..], &much_too_long[..]);
 }
