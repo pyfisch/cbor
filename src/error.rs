@@ -19,7 +19,7 @@ pub enum Category {
     Io,
     /// The error was caused by input that was not syntactically valid CBOR.
     Syntax,
-    /// The error was caused by input data that was semantically correct.
+    /// The error was caused by input data that was semantically incorrect.
     Data,
     /// The error was causeed by prematurely reaching the end of the input data.
     Eof,
