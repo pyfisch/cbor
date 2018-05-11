@@ -144,4 +144,4 @@ pub use de::{from_slice, from_reader, Deserializer};
 #[doc(inline)]
 pub use ser::{to_writer, to_vec, Serializer};
 #[doc(inline)]
-pub use value::{Value, ObjectKey, to_value};
+pub use value::{Value, ObjectKey, to_value, from_value};

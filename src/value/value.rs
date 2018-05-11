@@ -632,3 +632,16 @@ impl_from!(Value, Array, Vec<Value>);
 impl_from!(Value, Object, BTreeMap<ObjectKey, Value>);
 impl_from!(Value, F64, f64);
 impl_from!(Value, Bool, bool);
+
+/// Convert a `serde_cbor::Value` into a type `T`
+pub fn from_value<T>(value: Value) -> Result<T, ::error::Error>
+where
+    T: de::DeserializeOwned,
+{
+    // TODO implement in a way that doesn't require
+    // roundtrip through buffer (i.e. by implementing
+    // `serde::de::Deserializer` for `Value` and then doing
+    // `T::deserialize(value)`).
+    let buf = ::to_vec(&value)?;
+    ::from_slice(buf.as_slice())
+}
