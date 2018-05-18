@@ -127,7 +127,7 @@
 //! ```
 //!
 //! Serializing a `Vec` as a specialized byte string uses about 2x less RAM and
-//! 100x less CPU than as a default array.
+//! 100x less CPU time than serializing it as an array.
 //!
 //! ```rust
 //! # extern crate serde_bytes;
