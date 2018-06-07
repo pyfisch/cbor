@@ -383,6 +383,24 @@ where
         })
     }
 
+    fn parse_enum_map<V>(&mut self, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.recursion_checked(|de| {
+            let mut len = 1;
+            let value = visitor.visit_enum(VariantAccessMap {
+                map: MapAccess { de, len: &mut len },
+            })?;
+
+            if len != 0 {
+                Err(de.error(ErrorCode::TrailingData))
+            } else {
+                Ok(value)
+            }
+        })
+    }
+
     fn parse_indefinite_enum<V>(&mut self, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
@@ -693,6 +711,10 @@ where
                     _ => unreachable!(),
                 }
             }
+            Some(0xa1) => {
+                self.consume();
+                self.parse_enum_map(visitor)
+            }
             None => Err(self.error(ErrorCode::EofWhileParsingValue)),
             _ => visitor.visit_enum(UnitVariantAccess { de: self }),
         }
@@ -819,6 +841,15 @@ where
 
     fn size_hint(&self) -> Option<usize> {
         Some(*self.len)
+    }
+}
+
+impl<'de, 'a, R> MakeError for MapAccess<'a, R>
+where
+    R: Read<'de>,
+{
+    fn error(&self, code: ErrorCode) -> Error {
+        self.de.error(code)
     }
 }
 
@@ -1047,5 +1078,67 @@ where
             Ok(None) => None,
             Err(e) => Some(Err(e)),
         }
+    }
+}
+
+struct VariantAccessMap<T> {
+    map: T,
+}
+
+impl<'de, T> de::EnumAccess<'de> for VariantAccessMap<T>
+where
+    T: de::MapAccess<'de, Error = Error> + MakeError,
+{
+    type Error = Error;
+    type Variant = VariantAccessMap<T>;
+
+    fn variant_seed<V>(mut self, seed: V) -> Result<(V::Value, VariantAccessMap<T>)>
+    where
+        V: de::DeserializeSeed<'de>,
+    {
+        let variant = match self.map.next_key_seed(seed) {
+            Ok(Some(variant)) => variant,
+            Ok(None) => return Err(self.map.error(ErrorCode::ArrayTooShort)),
+            Err(e) => return Err(e),
+        };
+        Ok((variant, self))
+    }
+}
+
+impl<'de, T> de::VariantAccess<'de> for VariantAccessMap<T>
+where
+    T: de::MapAccess<'de, Error = Error>
+        + MakeError,
+{
+    type Error = Error;
+
+    fn unit_variant(mut self) -> Result<()> {
+        match self.map.next_value() {
+            Ok(()) => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
+
+    fn newtype_variant_seed<S>(mut self, seed: S) -> Result<S::Value>
+    where
+        S: de::DeserializeSeed<'de>,
+    {
+        self.map.next_value_seed(seed)
+    }
+
+    fn tuple_variant<V>(mut self, _len: usize, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        let seed = StructVariantSeed { visitor };
+        self.map.next_value_seed(seed)
+    }
+
+    fn struct_variant<V>(mut self, _fields: &'static [&'static str], visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        let seed = StructVariantSeed { visitor };
+        self.map.next_value_seed(seed)
     }
 }

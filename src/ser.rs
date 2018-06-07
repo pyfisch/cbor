@@ -52,6 +52,27 @@ where
     value.serialize(&mut ser)
 }
 
+/// Serializes a value without names to a writer.
+pub fn to_writer_with_options<W, T>(mut writer: &mut W, value: &T, options: &SerializerOptions) -> Result<()>
+where
+    W: io::Write,
+    T: ser::Serialize,
+{
+    let mut ser = Serializer::new_with_options(&mut writer, options);
+    value.serialize(&mut ser)
+}
+
+/// Serializes a value without names to a writer and adds a CBOR self-describe tag.
+pub fn to_writer_with_options_sd<W, T>(mut writer: &mut W, value: &T, options: &SerializerOptions) -> Result<()>
+where
+    W: io::Write,
+    T: ser::Serialize,
+{
+    let mut ser = Serializer::new_with_options(&mut writer, options);
+    ser.self_describe()?;
+    value.serialize(&mut ser)
+}
+
 /// Serializes a value to a vector.
 pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
@@ -97,10 +118,42 @@ where
     Ok(vec)
 }
 
+/// Serializes a value to a vector.
+pub fn to_vec_with_options<T>(value: &T, options: &SerializerOptions) -> Result<Vec<u8>>
+where
+    T: ser::Serialize,
+{
+    let mut vec = Vec::new();
+    to_writer_with_options(&mut vec, value, options)?;
+    Ok(vec)
+}
+
+/// Serializes a value to a vector and adds a CBOR self-describe tag.
+pub fn to_vec_with_options_sd<T>(value: &T, options: &SerializerOptions) -> Result<Vec<u8>>
+where
+    T: ser::Serialize,
+{
+    let mut vec = Vec::new();
+    to_writer_with_options_sd(&mut vec, value, options)?;
+    Ok(vec)
+}
+
+/// Options for a CBOR serializer.
+pub struct SerializerOptions {
+    /// Struct fields and enum variants are identified by their numeric indices rather than names
+    /// to save space.
+    pub packed: bool,
+    /// When enum_as_map is set, enums are encoded as maps rather than arrays.
+    /// This makes no difference when decoding to an enum value but it shows
+    /// up when decoding to a `Value` or decoding in other languages.
+    pub enum_as_map: bool,
+}
+
 /// A structure for serializing Rust values to CBOR.
 pub struct Serializer<W> {
     writer: W,
     packed: bool,
+    enum_as_map: bool,
 }
 
 impl<W> Serializer<W>
@@ -113,6 +166,7 @@ where
         Serializer {
             writer,
             packed: false,
+            enum_as_map: false,
         }
     }
 
@@ -125,6 +179,17 @@ where
         Serializer {
             writer,
             packed: true,
+            enum_as_map: false,
+        }
+    }
+
+    /// Creates a new CBOR serializer with the specified options.
+    #[inline]
+    pub fn new_with_options(writer: W, options: &SerializerOptions) -> Serializer<W> {
+        Serializer {
+            writer,
+            packed: options.packed,
+            enum_as_map: options.enum_as_map,
         }
     }
 
@@ -406,8 +471,13 @@ where
     where
         T: ?Sized + ser::Serialize,
     {
-        self.writer.write_all(&[4 << 5 | 2]).map_err(Error::io)?;
-        self.serialize_unit_variant(name, variant_index, variant)?;
+        if self.enum_as_map {
+            self.write_u64(5, 1u64)?;
+            variant.serialize(&mut *self)?;
+        } else {
+            self.writer.write_all(&[4 << 5 | 2]).map_err(Error::io)?;
+            self.serialize_unit_variant(name, variant_index, variant)?;
+        }
         value.serialize(self)
     }
 
@@ -439,9 +509,15 @@ where
         variant: &'static str,
         len: usize,
     ) -> Result<&'a mut Serializer<W>> {
-        self.write_u64(4, (len + 1) as u64)?;
-        self.serialize_unit_variant(name, variant_index, variant)?;
-        Ok(self)
+        if self.enum_as_map {
+            self.write_u64(5, 1u64)?;
+            variant.serialize(&mut *self)?;
+            self.serialize_tuple(len)
+        } else {
+            self.write_u64(4, (len + 1) as u64)?;
+            self.serialize_unit_variant(name, variant_index, variant)?;
+            Ok(self)
+        }
     }
 
     #[inline]
