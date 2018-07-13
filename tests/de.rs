@@ -1,8 +1,10 @@
 extern crate serde_cbor;
+extern crate serde_bytes;
 
+use serde_bytes::ByteBuf;
 use std::collections::BTreeMap;
 
-use serde_cbor::{to_vec, Value, ObjectKey, error, de};
+use serde_cbor::{to_vec, Value, ObjectKey, error, de, from_reader};
 
 #[test]
 fn test_string1() {
@@ -212,4 +214,14 @@ fn test_object_determinism_roundtrip() {
     for _ in 0..10 {
         assert_eq!(&to_vec(&de::from_slice::<Value>(expected).unwrap()).unwrap(), expected);
     }
+}
+
+#[test]
+fn test_large_bytes() {
+    let expected = (0..2 * 1024 * 1024).map(|i| (i * 7) as u8).collect::<Vec<_>>();
+    let expected = ByteBuf::from(expected);
+    let v = to_vec(&expected).unwrap();
+
+    let actual = from_reader(&v[..]).unwrap();
+    assert_eq!(expected, actual);
 }

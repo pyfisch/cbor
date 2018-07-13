@@ -127,6 +127,7 @@ where
             }
 
             self.read_into(&mut scratch[scratch_offset..])?;
+            scratch_offset = scratch.len();
         }
 
         Ok(Reference::Copied)
