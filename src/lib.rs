@@ -159,7 +159,7 @@ pub mod ser;
 pub mod value;
 
 #[doc(inline)]
-pub use de::{from_slice, from_reader, Deserializer};
+pub use de::{from_slice, from_reader, Deserializer, StreamDeserializer};
 #[doc(inline)]
 pub use ser::{to_writer, to_vec, Serializer};
 #[doc(inline)]

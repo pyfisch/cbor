@@ -6,6 +6,7 @@ use std::io;
 use std::str;
 use std::f32;
 use std::result;
+use std::marker::PhantomData;
 
 use error::{Error, Result, ErrorCode};
 use read::Reference;
@@ -81,6 +82,18 @@ where
         match self.next()? {
             Some(_) => Err(self.error(ErrorCode::TrailingData)),
             None => Ok(()),
+        }
+    }
+
+    /// Turn a CBOR deserializer into an iterator over values of type T.
+    pub fn into_iter<T>(self) -> StreamDeserializer<'de, R, T>
+    where
+        T: de::Deserialize<'de>,
+    {
+        StreamDeserializer {
+            de: self,
+            output: PhantomData,
+            lifetime: PhantomData,
         }
     }
 
@@ -965,5 +978,52 @@ where
         D: de::Deserializer<'de>,
     {
         de.deserialize_any(self.visitor)
+    }
+}
+
+/// Iterator that deserializes a stream into multiple CBOR values.
+///
+/// A stream deserializer can be created from any CBOR deserializer using the
+/// `Deserializer::into_iter` method.
+pub struct StreamDeserializer<'de, R, T> {
+    de: Deserializer<R>,
+    output: PhantomData<T>,
+    lifetime: PhantomData<&'de ()>,
+}
+
+impl<'de, R, T> StreamDeserializer<'de, R, T>
+where
+    R: Read<'de>,
+    T: de::Deserialize<'de>,
+{
+    /// Create a new CBOR stream deserializer from one of the possible
+    /// serde_cbor input sources.
+    ///
+    /// Typically it is more convenient to use one of these methods instead:
+    ///
+    /// * `Deserializer::from_bytes(...).into_iter()`
+    /// * `Deserializer::from_reader(...).into_iter()`
+    pub fn new(read: R) -> StreamDeserializer<'de, R, T> {
+        StreamDeserializer {
+            de: Deserializer::new(read),
+            output: PhantomData,
+            lifetime: PhantomData,
+        }
+    }
+}
+
+impl<'de, R, T> Iterator for StreamDeserializer<'de, R, T>
+where
+    R: Read<'de>,
+    T: de::Deserialize<'de>,
+{
+    type Item = Result<T>;
+
+    fn next(&mut self) -> Option<Result<T>> {
+        match self.de.peek() {
+            Ok(Some(_)) => Some(T::deserialize(&mut self.de)),
+            Ok(None) => None,
+            Err(e) => Some(Err(e)),
+        }
     }
 }
