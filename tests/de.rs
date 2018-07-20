@@ -4,7 +4,7 @@ extern crate serde_bytes;
 use serde_bytes::ByteBuf;
 use std::collections::BTreeMap;
 
-use serde_cbor::{to_vec, Value, ObjectKey, error, de, from_reader};
+use serde_cbor::{to_vec, Value, ObjectKey, error, de, Deserializer, from_reader};
 
 #[test]
 fn test_string1() {
@@ -214,6 +214,23 @@ fn test_object_determinism_roundtrip() {
     for _ in 0..10 {
         assert_eq!(&to_vec(&de::from_slice::<Value>(expected).unwrap()).unwrap(), expected);
     }
+}
+
+#[test]
+fn stream_deserializer() {
+    let slice = b"\x01\x66foobar";
+    let mut it = Deserializer::from_slice(slice).into_iter::<Value>();
+    assert_eq!(Value::U64(1), it.next().unwrap().unwrap());
+    assert_eq!(Value::String("foobar".to_string()), it.next().unwrap().unwrap());
+    assert!(it.next().is_none());
+}
+
+#[test]
+fn stream_deserializer_eof() {
+    let slice = b"\x01\x66foob";
+    let mut it = Deserializer::from_slice(slice).into_iter::<Value>();
+    assert_eq!(Value::U64(1), it.next().unwrap().unwrap());
+    assert!(it.next().unwrap().unwrap_err().is_eof());
 }
 
 #[test]
