@@ -117,7 +117,7 @@ where
     fn parse_u8(&mut self) -> Result<u8> {
         match self.next()? {
             Some(byte) => Ok(byte),
-            None => return Err(self.error(ErrorCode::EofWhileParsingValue)),
+            None => Err(self.error(ErrorCode::EofWhileParsingValue)),
         }
     }
 
@@ -429,15 +429,15 @@ where
             0x20...0x37 => visitor.visit_i8(-1 - (byte - 0x20) as i8),
             0x38 => {
                 let value = self.parse_u8()?;
-                visitor.visit_i16(-1 - value as i16)
+                visitor.visit_i16(-1 - i16::from(value))
             }
             0x39 => {
                 let value = self.parse_u16()?;
-                visitor.visit_i32(-1 - value as i32)
+                visitor.visit_i32(-1 - i32::from(value))
             }
             0x3a => {
                 let value = self.parse_u32()?;
-                visitor.visit_i64(-1 - value as i64)
+                visitor.visit_i64(-1 - i64::from(value))
             }
             0x3b => {
                 let value = self.parse_u64()?;

@@ -156,7 +156,7 @@ where
 
     #[inline]
     fn write_u16(&mut self, major: u8, value: u16) -> Result<()> {
-        if value <= u8::max_value() as u16 {
+        if value <= u16::from(u8::max_value()) {
             self.write_u8(major, value as u8)
         } else {
             let mut buf = [major << 5 | 25, 0, 0];
@@ -167,7 +167,7 @@ where
 
     #[inline]
     fn write_u32(&mut self, major: u8, value: u32) -> Result<()> {
-        if value <= u16::max_value() as u32 {
+        if value <= u32::from(u16::max_value()) {
             self.write_u16(major, value as u16)
         } else {
             let mut buf = [major << 5 | 26, 0, 0, 0, 0];
@@ -178,7 +178,7 @@ where
 
     #[inline]
     fn write_u64(&mut self, major: u8, value: u64) -> Result<()> {
-        if value <= u32::max_value() as u64 {
+        if value <= u64::from(u32::max_value()) {
             self.write_u32(major, value as u32)
         } else {
             let mut buf = [major << 5 | 27, 0, 0, 0, 0, 0, 0, 0, 0];

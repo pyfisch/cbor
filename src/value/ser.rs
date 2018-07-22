@@ -37,17 +37,17 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_i8(self, value: i8) -> Result<Value, Error> {
-        self.serialize_i64(value as i64)
+        self.serialize_i64(i64::from(value))
     }
 
     #[inline]
     fn serialize_i16(self, value: i16) -> Result<Value, Error> {
-        self.serialize_i64(value as i64)
+        self.serialize_i64(i64::from(value))
     }
 
     #[inline]
     fn serialize_i32(self, value: i32) -> Result<Value, Error> {
-        self.serialize_i64(value as i64)
+        self.serialize_i64(i64::from(value))
     }
 
     fn serialize_i64(self, value: i64) -> Result<Value, Error> {
@@ -56,17 +56,17 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_u8(self, value: u8) -> Result<Value, Error> {
-        self.serialize_u64(value as u64)
+        self.serialize_u64(u64::from(value))
     }
 
     #[inline]
     fn serialize_u16(self, value: u16) -> Result<Value, Error> {
-        self.serialize_u64(value as u64)
+        self.serialize_u64(u64::from(value))
     }
 
     #[inline]
     fn serialize_u32(self, value: u32) -> Result<Value, Error> {
-        self.serialize_u64(value as u64)
+        self.serialize_u64(u64::from(value))
     }
 
     #[inline]
@@ -76,7 +76,7 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_f32(self, value: f32) -> Result<Value, Error> {
-        self.serialize_f64(value as f64)
+        self.serialize_f64(f64::from(value))
     }
 
     #[inline]
@@ -97,7 +97,7 @@ impl serde::Serializer for Serializer {
     }
 
     fn serialize_bytes(self, value: &[u8]) -> Result<Value, Error> {
-        Ok(Value::Bytes(value.iter().map(|&x| x).collect()))
+        Ok(Value::Bytes(value.to_vec()))
     }
 
     #[inline]

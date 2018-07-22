@@ -56,7 +56,7 @@ where
     pub fn new(reader: R) -> IoRead<R> {
         IoRead {
             reader: OffsetReader {
-                reader: reader,
+                reader,
                 offset: 0,
             },
             ch: None,
@@ -194,7 +194,7 @@ impl<'a> SliceRead<'a> {
     /// Creates a CBOR input source to read from a slice of bytes.
     pub fn new(slice: &'a [u8]) -> SliceRead<'a> {
         SliceRead {
-            slice: slice,
+            slice,
             index: 0,
         }
     }
