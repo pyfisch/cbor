@@ -142,3 +142,10 @@ fn test_byte_string() {
     // byte strings > 2^32 bytes have 9-byte headers, but they take too much RAM
     // to test in Travis.
 }
+
+#[test]
+fn test_half() {
+    let vec = to_vec(&42.5f32).unwrap();
+    assert_eq!(vec, b"\xF9\x51\x50");
+    assert_eq!(from_slice::<f32>(&vec[..]).unwrap(), 42.5f32);
+}

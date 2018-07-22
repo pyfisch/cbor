@@ -1,6 +1,7 @@
 //! Deserialization.
 
 use byteorder::{ByteOrder, BigEndian};
+use half::f16;
 use serde::de;
 use std::io;
 use std::str;
@@ -366,25 +367,7 @@ where
     }
 
     fn parse_f16(&mut self) -> Result<f32> {
-        let half = self.parse_u16()?;
-        let exp = (half >> 10) & 0x1f;
-        let mant = half & 0x3ff;
-
-        let mut val = if exp == 0 {
-            (mant as f32) * (-24f32).exp2()
-        } else if exp != 31 {
-            ((mant + 1024) as f32) * (exp as f32 - 25.).exp2()
-        } else if mant == 0 {
-            f32::INFINITY
-        } else {
-            f32::NAN
-        };
-
-        if half & 0x8000 != 0 {
-            val = -val;
-        }
-
-        Ok(val)
+        Ok(f32::from(f16::from_bits(self.parse_u16()?)))
     }
 
     fn parse_f32(&mut self) -> Result<f32> {

@@ -148,6 +148,7 @@
 #![deny(missing_docs)]
 
 extern crate byteorder;
+extern crate half;
 
 #[macro_use]
 extern crate serde;

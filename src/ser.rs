@@ -1,5 +1,6 @@
 //! Serialize a Rust data structure to CBOR data.
 use byteorder::{ByteOrder, BigEndian};
+use half::f16;
 use serde::ser::{self, Serialize};
 use std::io;
 
@@ -298,8 +299,11 @@ where
             }
         } else if value.is_nan() {
             self.writer.write_all(&[0xf9, 0x7e, 0x00])
+        } else if f32::from(f16::from_f32(value)) == value {
+            let mut buf = [0xf9, 0, 0];
+            BigEndian::write_u16(&mut buf[1..], f16::from_f32(value).as_bits());
+            self.writer.write_all(&buf)
         } else {
-            // TODO encode as f16 when possible
             let mut buf = [0xfa, 0, 0, 0, 0];
             BigEndian::write_f32(&mut buf[1..], value);
             self.writer.write_all(&buf)
