@@ -14,6 +14,26 @@ use read::Reference;
 pub use read::{Read, IoRead, SliceRead};
 
 /// Decodes a value from CBOR data in a slice.
+///
+/// # Examples
+///
+/// Deserialize a `String`
+///
+/// ```
+/// # use serde_cbor::de;
+/// let v: Vec<u8> = vec![0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72];
+/// let value: String = de::from_slice(&v[..]).unwrap();
+/// assert_eq!(value, "foobar");
+/// ```
+///
+/// Deserialize a borrowed string with zero copies.
+///
+/// ```
+/// # use serde_cbor::de;
+/// let v: Vec<u8> = vec![0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72];
+/// let value: &str = de::from_slice(&v[..]).unwrap();
+/// assert_eq!(value, "foobar");
+/// ```
 pub fn from_slice<'a, T>(slice: &'a [u8]) -> Result<T>
 where
     T: de::Deserialize<'a>,
@@ -25,9 +45,29 @@ where
 }
 
 /// Decodes a value from CBOR data in a reader.
-pub fn from_reader<'a, T, R>(reader: R) -> Result<T>
+///
+/// # Examples
+///
+/// Deserialize a `String`
+///
+/// ```
+/// # use serde_cbor::de;
+/// let v: Vec<u8> = vec![0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72];
+/// let value: String = de::from_reader(&v[..]).unwrap();
+/// assert_eq!(value, "foobar");
+/// ```
+///
+/// Note that `from_reader` cannot borrow data:
+///
+/// ```compile_fail
+/// # use serde_cbor::de;
+/// let v: Vec<u8> = vec![0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72];
+/// let value: &str = de::from_reader(&v[..]).unwrap();
+/// assert_eq!(value, "foobar");
+/// ```
+pub fn from_reader<T, R>(reader: R) -> Result<T>
 where
-    T: de::Deserialize<'a>,
+    T: de::DeserializeOwned,
     R: io::Read,
 {
     let mut deserializer = Deserializer::from_reader(reader);
