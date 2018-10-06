@@ -191,10 +191,7 @@ where
         }
     }
 
-    fn parse_indefinite_bytes<V>(&mut self, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
+    fn parse_indefinite_bytes(&mut self) -> Result<&[u8]> {
         let mut offset = 0;
         self.buf.clear();
         loop {
@@ -229,7 +226,7 @@ where
             offset += len;
         }
 
-        visitor.visit_bytes(&self.buf[..offset])
+        Ok(&self.buf[..offset])
     }
 
     fn convert_str<'a>(&self, buf: &'a [u8]) -> Result<&'a str> {
@@ -260,10 +257,7 @@ where
         }
     }
 
-    fn parse_indefinite_str<V>(&mut self, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
+    fn parse_indefinite_str(&mut self) -> Result<&str> {
         let mut offset = 0;
         self.buf.clear();
         loop {
@@ -298,8 +292,7 @@ where
             offset += len;
         }
 
-        let s = self.convert_str(&self.buf[..offset])?;
-        visitor.visit_str(s)
+        self.convert_str(&self.buf[..offset])
     }
 
     fn recursion_checked<F, T>(&mut self, f: F) -> Result<T>
@@ -493,7 +486,10 @@ where
                 self.parse_bytes(len as usize, visitor)
             }
             0x5c...0x5e => Err(self.error(ErrorCode::UnassignedCode)),
-            0x5f => self.parse_indefinite_bytes(visitor),
+            0x5f => {
+                let bytes = self.parse_indefinite_bytes()?;
+                visitor.visit_bytes(bytes)
+            }
 
             // Major type 3: a text string
             0x60...0x77 => self.parse_str(byte as usize - 0x60, visitor),
@@ -517,7 +513,10 @@ where
                 self.parse_str(len as usize, visitor)
             }
             0x7c...0x7e => Err(self.error(ErrorCode::UnassignedCode)),
-            0x7f => self.parse_indefinite_str(visitor),
+            0x7f => {
+                let s = self.parse_indefinite_str()?;
+                visitor.visit_str(s)
+            }
 
             // Major type 4: an array of data items
             0x80...0x97 => self.parse_array(byte as usize - 0x80, visitor),
