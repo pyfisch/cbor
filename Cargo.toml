@@ -14,7 +14,7 @@ categories = ["encoding"]
 
 [dependencies]
 byteorder = "1.0.0"
-half = "1.1.2"
+half = "1.2.0"
 serde = "1.0.14"
 
 [dev-dependencies]
