@@ -1,13 +1,13 @@
 //! Deserialization.
 
 use byteorder::{BigEndian, ByteOrder};
+use core::f32;
+use core::marker::PhantomData;
+use core::result;
+use core::str;
 use half::f16;
 use serde::de;
-use std::f32;
 use std::io;
-use std::marker::PhantomData;
-use std::result;
-use std::str;
 
 use crate::error::{Error, ErrorCode, Result};
 use crate::read::EitherLifetime;

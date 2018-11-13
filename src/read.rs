@@ -1,6 +1,6 @@
-use std::cmp;
+use core::cmp;
+use core::mem;
 use std::io::{self, Read as StdRead};
-use std::mem;
 
 use crate::error::{Error, ErrorCode, Result};
 
