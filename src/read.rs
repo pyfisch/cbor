@@ -13,12 +13,22 @@ pub trait Read<'de>: private::Sealed {
     fn peek(&mut self) -> io::Result<Option<u8>>;
 
     #[doc(hidden)]
+    /// Read n bytes either into the reader's scratch buffer (after clearing it), or (preferably)
+    /// return them as a longer-lived reference.
     fn read(
         &mut self,
         n: usize,
-        scratch: &mut Vec<u8>,
-        scratch_offset: usize,
     ) -> Result<Reference<'de>>;
+
+    #[doc(hidden)]
+    fn clear_buffer(&mut self);
+
+    #[doc(hidden)]
+    /// Append n bytes from the reader to the reader's scratch buffer (without clearing it)
+    fn read_to_buffer(&mut self, n: usize) -> Result<()>;
+
+    #[doc(hidden)]
+    fn view_buffer<'a>(&'a self) -> &'a [u8];
 
     #[doc(hidden)]
     fn read_into(&mut self, buf: &mut [u8]) -> Result<()>;
@@ -45,6 +55,7 @@ where
     R: io::Read,
 {
     reader: OffsetReader<R>,
+    scratch: Vec<u8>,
     ch: Option<u8>,
 }
 
@@ -59,6 +70,7 @@ where
                 reader,
                 offset: 0,
             },
+            scratch: vec![],
             ch: None,
         }
     }
@@ -106,23 +118,16 @@ where
         }
     }
 
-    fn read(
-        &mut self,
-        mut n: usize,
-        scratch: &mut Vec<u8>,
-        scratch_offset: usize,
-    ) -> Result<Reference<'de>> {
-        assert!(scratch.len() == scratch_offset);
-
+    fn read_to_buffer(&mut self, mut n: usize) -> Result<()> {
         // defend against malicious input pretending to be huge strings by limiting growth
-        scratch.reserve(cmp::min(n, 16 * 1024));
+        self.scratch.reserve(cmp::min(n, 16 * 1024));
 
         if n == 0 {
-            return Ok(Reference::Borrowed(&[]));
+            return Ok(())
         }
 
         if let Some(ch) = self.ch.take() {
-            scratch.push(ch);
+            self.scratch.push(ch);
             n -= 1;
         }
 
@@ -135,17 +140,32 @@ where
             // Append the first n bytes of the reader to the scratch vector (or up to
             // an error or EOF indicated by a shorter read)
             let mut taken = reference.take(n as u64);
-            taken.read_to_end(scratch)
+            taken.read_to_end(&mut self.scratch)
         };
 
         match transfer_result {
-            Ok(r) if r == n => Ok(Reference::Copied),
+            Ok(r) if r == n => Ok(()),
             Ok(_) => Err(Error::syntax(
                     ErrorCode::EofWhileParsingValue,
                     self.offset(),
                 )),
             Err(e) => Err(Error::io(e)),
         }
+    }
+
+    fn read(&mut self, n: usize) -> Result<Reference<'de>> {
+        self.clear_buffer();
+        self.read_to_buffer(n)?;
+
+        Ok(Reference::Copied)
+    }
+
+    fn clear_buffer(&mut self) {
+        self.scratch.clear();
+    }
+
+    fn view_buffer<'a>(&'a self) -> &'a [u8] {
+        &self.scratch
     }
 
     fn read_into(&mut self, buf: &mut [u8]) -> Result<()> {
@@ -190,6 +210,7 @@ where
 /// A CBOR input source that reads from a slice of bytes.
 pub struct SliceRead<'a> {
     slice: &'a [u8],
+    scratch: Vec<u8>,
     index: usize,
 }
 
@@ -198,6 +219,7 @@ impl<'a> SliceRead<'a> {
     pub fn new(slice: &'a [u8]) -> SliceRead<'a> {
         SliceRead {
             slice,
+            scratch: vec![],
             index: 0,
         }
     }
@@ -238,12 +260,29 @@ impl<'a> Read<'a> for SliceRead<'a> {
         })
     }
 
+    fn clear_buffer(&mut self) {
+        self.scratch.clear();
+    }
+
+    fn read_to_buffer(&mut self, n: usize) -> Result<()> {
+        let end = self.end(n)?;
+        let slice = &self.slice[self.index..end];
+        self.scratch.extend_from_slice(slice);
+        self.index = end;
+
+        Ok(())
+    }
+
     #[inline]
-    fn read(&mut self, n: usize, _: &mut Vec<u8>, _: usize) -> Result<Reference<'a>> {
+    fn read(&mut self, n: usize) -> Result<Reference<'a>> {
         let end = self.end(n)?;
         let slice = &self.slice[self.index..end];
         self.index = end;
         Ok(Reference::Borrowed(slice))
+    }
+
+    fn view_buffer<'b>(&'b self) -> &'b [u8] {
+        &self.scratch
     }
 
     #[inline]
