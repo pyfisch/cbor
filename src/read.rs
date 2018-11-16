@@ -110,24 +110,42 @@ where
         &mut self,
         mut n: usize,
         scratch: &mut Vec<u8>,
-        mut scratch_offset: usize,
+        scratch_offset: usize,
     ) -> Result<Reference<'de>> {
+        assert!(scratch.len() == scratch_offset);
         while n > 0 {
             // defend against malicious input pretending to be huge strings by limiting growth
-            let to_read = cmp::min(n, 16 * 1024);
+            let mut to_read = cmp::min(n, 16 * 1024);
             n -= to_read;
 
-            if to_read > scratch.len() - scratch_offset {
-                scratch.resize(scratch_offset + to_read, 0);
-            }
+            scratch.reserve(to_read);
 
             if let Some(ch) = self.ch.take() {
-                scratch[scratch_offset] = ch;
-                scratch_offset += 1;
+                scratch.push(ch);
+                to_read -= 1;
             }
 
-            self.read_into(&mut scratch[scratch_offset..])?;
-            scratch_offset = scratch.len();
+            let transfer_result = {
+                // Prepare for take() (which consumes its reader) by creating a reference adaptor
+                // that'll only live in this block
+                let reference = self.reader.by_ref();
+                // Append the first to_read bytes of the reader to the scratch vector (or up to
+                // an error or EOF indicated by a shorter read)
+                let mut taken = reference.take(to_read as u64);
+                taken.read_to_end(scratch)
+            };
+            match transfer_result {
+                Ok(r) if r == to_read => (),
+                Ok(_) => {
+                    return Err(Error::syntax(
+                        ErrorCode::EofWhileParsingValue,
+                        self.offset(),
+                    ));
+                },
+                Err(e) => {
+                    return Err(Error::io(e))
+                }
+            }
         }
 
         Ok(Reference::Copied)
