@@ -244,6 +244,20 @@ fn stream_deserializer_eof() {
 }
 
 #[test]
+fn stream_deserializer_eof_in_indefinite() {
+    let slice = b"\x7f\x65Mary \x64Had \x62a \x67Little \x64Lamb\xff";
+    let indices: &[usize] = &[
+        2, // announcement but no data
+        10, // mid-buffer EOF
+        12, // neither new element nor end marker
+    ];
+    for end_of_slice in indices {
+        let mut it = Deserializer::from_slice(&slice[..*end_of_slice]).into_iter::<Value>();
+        assert!(it.next().unwrap().unwrap_err().is_eof());
+    }
+}
+
+#[test]
 fn test_large_bytes() {
     let expected = (0..2 * 1024 * 1024).map(|i| (i * 7) as u8).collect::<Vec<_>>();
     let expected = ByteBuf::from(expected);
