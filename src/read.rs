@@ -133,26 +133,14 @@ where
         Ok(Reference::Copied)
     }
 
-    fn read_into(&mut self, mut buf: &mut [u8]) -> Result<()> {
-        while !buf.is_empty() {
-            match self.reader.read(buf) {
-                Ok(0) => {
-                    return Err(Error::syntax(
-                        ErrorCode::EofWhileParsingValue,
-                        self.offset(),
-                    ))
-                }
-                Ok(count) => {
-                    buf = &mut {
-                        buf
-                    }[count..]
-                }
-                Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {}
-                Err(e) => return Err(Error::io(e)),
+    fn read_into(&mut self, buf: &mut [u8]) -> Result<()> {
+        self.reader.read_exact(buf).map_err(|e| {
+            if e.kind() == io::ErrorKind::UnexpectedEof {
+                Error::syntax(ErrorCode::EofWhileParsingValue, self.offset())
+            } else {
+                Error::io(e)
             }
-        }
-
-        Ok(())
+        })
     }
 
     #[inline]
