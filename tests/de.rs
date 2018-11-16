@@ -114,6 +114,16 @@ fn test_indefinite_byte_string() {
 }
 
 #[test]
+fn test_multiple_indefinite_strings() {
+    // This assures that buffer rewinding in infinite buffers works as intended.
+    let value: error::Result<Value> = de::from_slice(b"\x82\x7f\x65Mary \x64Had \x62a \x67Little \x64Lamb\xff\x5f\x42\x01\x23\x42\x45\x67\xff");
+    assert_eq!(value.unwrap(), Value::Array(vec![
+        Value::String("Mary Had a Little Lamb".to_owned()),
+        Value::Bytes(b"\x01#Eg".to_vec())
+        ]));
+}
+
+#[test]
 fn test_float() {
     let value: error::Result<Value> = de::from_slice(b"\xfa\x47\xc3\x50\x00");
     assert_eq!(value.unwrap(), Value::F64(100000.0));
