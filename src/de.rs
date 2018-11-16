@@ -79,7 +79,6 @@ where
 /// A Serde `Deserialize`r of CBOR data.
 pub struct Deserializer<R> {
     read: R,
-    buf: Vec<u8>,
     remaining_depth: u8,
 }
 
@@ -112,7 +111,6 @@ where
     pub fn new(read: R) -> Self {
         Deserializer {
             read,
-            buf: Vec::new(),
             remaining_depth: 128,
         }
     }
@@ -184,16 +182,14 @@ where
     where
         V: de::Visitor<'de>,
     {
-        self.buf.clear();
-        match self.read.read(len, &mut self.buf, 0)? {
+        match self.read.read(len)? {
             Reference::Borrowed(buf) => visitor.visit_borrowed_bytes(buf),
-            Reference::Copied => visitor.visit_bytes(&self.buf),
+            Reference::Copied => visitor.visit_bytes(self.read.view_buffer()),
         }
     }
 
     fn parse_indefinite_bytes(&mut self) -> Result<&[u8]> {
-        let mut offset = 0;
-        self.buf.clear();
+        self.read.clear_buffer();
         loop {
             let byte = self.parse_u8()?;
             let len = match byte {
@@ -212,29 +208,18 @@ where
                 _ => return Err(self.error(ErrorCode::UnexpectedCode)),
             };
 
-            match self.read.read(len, &mut self.buf, offset)? {
-                Reference::Borrowed(buf) => {
-                    let new_len = offset + len;
-                    if new_len > self.buf.len() {
-                        self.buf.resize(new_len, 0);
-                    }
-                    self.buf[offset..].copy_from_slice(buf);
-                }
-                Reference::Copied => {}
-            }
-
-            offset += len;
+            self.read.read_to_buffer(len)?;
         }
 
-        Ok(&self.buf[..offset])
+        Ok(self.read.view_buffer())
     }
 
-    fn convert_str<'a>(&self, buf: &'a [u8]) -> Result<&'a str> {
+    fn convert_str<'a>(buf: &'a [u8], buf_end_offset: u64) -> Result<&'a str> {
         match str::from_utf8(buf) {
             Ok(s) => Ok(s),
             Err(e) => {
                 let shift = buf.len() - e.valid_up_to();
-                let offset = self.read.offset() - shift as u64;
+                let offset = buf_end_offset - shift as u64;
                 Err(Error::syntax(ErrorCode::InvalidUtf8, offset))
             }
         }
@@ -244,22 +229,21 @@ where
     where
         V: de::Visitor<'de>,
     {
-        self.buf.clear();
-        match self.read.read(len, &mut self.buf, 0)? {
+        match self.read.read(len)? {
             Reference::Borrowed(buf) => {
-                let s = self.convert_str(buf)?;
+                let s = Self::convert_str(buf, self.read.offset())?;
                 visitor.visit_borrowed_str(s)
             }
             Reference::Copied => {
-                let s = self.convert_str(&self.buf)?;
+                let offset = self.read.offset();
+                let s = Self::convert_str(self.read.view_buffer(), offset)?;
                 visitor.visit_str(s)
             }
         }
     }
 
     fn parse_indefinite_str(&mut self) -> Result<&str> {
-        let mut offset = 0;
-        self.buf.clear();
+        self.read.clear_buffer();
         loop {
             let byte = self.parse_u8()?;
             let len = match byte {
@@ -278,21 +262,11 @@ where
                 _ => return Err(self.error(ErrorCode::UnexpectedCode)),
             };
 
-            match self.read.read(len, &mut self.buf, offset)? {
-                Reference::Borrowed(buf) => {
-                    let new_len = offset + len;
-                    if new_len > self.buf.len() {
-                        self.buf.resize(new_len, 0);
-                    }
-                    self.buf[offset..].copy_from_slice(buf);
-                }
-                Reference::Copied => {}
-            }
-
-            offset += len;
+            self.read.read_to_buffer(len)?;
         }
 
-        self.convert_str(&self.buf[..offset])
+        let offset = self.read.offset();
+        Self::convert_str(self.read.view_buffer(), offset)
     }
 
     fn recursion_checked<F, T>(&mut self, f: F) -> Result<T>
