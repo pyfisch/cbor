@@ -113,42 +113,33 @@ where
         scratch_offset: usize,
     ) -> Result<Reference<'de>> {
         assert!(scratch.len() == scratch_offset);
-        while n > 0 {
-            // defend against malicious input pretending to be huge strings by limiting growth
-            let mut to_read = cmp::min(n, 16 * 1024);
-            n -= to_read;
 
-            scratch.reserve(to_read);
+        // defend against malicious input pretending to be huge strings by limiting growth
+        scratch.reserve(cmp::min(n, 16 * 1024));
 
-            if let Some(ch) = self.ch.take() {
-                scratch.push(ch);
-                to_read -= 1;
-            }
-
-            let transfer_result = {
-                // Prepare for take() (which consumes its reader) by creating a reference adaptor
-                // that'll only live in this block
-                let reference = self.reader.by_ref();
-                // Append the first to_read bytes of the reader to the scratch vector (or up to
-                // an error or EOF indicated by a shorter read)
-                let mut taken = reference.take(to_read as u64);
-                taken.read_to_end(scratch)
-            };
-            match transfer_result {
-                Ok(r) if r == to_read => (),
-                Ok(_) => {
-                    return Err(Error::syntax(
-                        ErrorCode::EofWhileParsingValue,
-                        self.offset(),
-                    ));
-                },
-                Err(e) => {
-                    return Err(Error::io(e))
-                }
-            }
+        if let Some(ch) = self.ch.take() {
+            scratch.push(ch);
+            n -= 1;
         }
 
-        Ok(Reference::Copied)
+        let transfer_result = {
+            // Prepare for take() (which consumes its reader) by creating a reference adaptor
+            // that'll only live in this block
+            let reference = self.reader.by_ref();
+            // Append the first n bytes of the reader to the scratch vector (or up to
+            // an error or EOF indicated by a shorter read)
+            let mut taken = reference.take(n as u64);
+            taken.read_to_end(scratch)
+        };
+
+        match transfer_result {
+            Ok(r) if r == n => Ok(Reference::Copied),
+            Ok(_) => Err(Error::syntax(
+                    ErrorCode::EofWhileParsingValue,
+                    self.offset(),
+                )),
+            Err(e) => Err(Error::io(e)),
+        }
     }
 
     fn read_into(&mut self, buf: &mut [u8]) -> Result<()> {
