@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 
 use error::{Error, Result, ErrorCode};
 use read::EitherLifetime;
-pub use read::{Read, IoRead, SliceRead};
+pub use read::{Read, IoRead, SliceRead, MutSliceRead};
 
 /// Decodes a value from CBOR data in a slice.
 ///
@@ -39,6 +39,21 @@ where
     T: de::Deserialize<'a>,
 {
     let mut deserializer = Deserializer::from_slice(slice);
+    let value = de::Deserialize::deserialize(&mut deserializer)?;
+    deserializer.end()?;
+    Ok(value)
+}
+
+/// Decode a value from CBOR data in a mutable slice.
+///
+/// This can be used in analogy to `from_slice`. Unlike `from_slice`, this will use the slice's
+/// mutability to rearrange data in it in order to resolve indefinite byte or text strings without
+/// resorting to allocations.
+pub fn from_mut_slice<'a, T>(slice: &'a mut [u8]) -> Result<T>
+where
+    T: de::Deserialize<'a>,
+{
+    let mut deserializer = Deserializer::from_mut_slice(slice);
     let value = de::Deserialize::deserialize(&mut deserializer)?;
     deserializer.end()?;
     Ok(value)
@@ -98,6 +113,16 @@ impl<'a> Deserializer<SliceRead<'a>> {
     /// Borrowed strings and byte slices will be provided when possible.
     pub fn from_slice(bytes: &'a [u8]) -> Deserializer<SliceRead<'a>> {
         Deserializer::new(SliceRead::new(bytes))
+    }
+}
+
+impl<'a> Deserializer<MutSliceRead<'a>> {
+    /// Constructs a `Deserializer` which reads from a mutable slice that doubles as its own
+    /// scratch buffer.
+    ///
+    /// Borrowed strings and byte slices will be provided even for indefinite strings.
+    pub fn from_mut_slice(bytes: &'a mut [u8]) -> Deserializer<MutSliceRead<'a>> {
+        Deserializer::new(MutSliceRead::new(bytes))
     }
 }
 
