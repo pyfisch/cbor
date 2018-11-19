@@ -13,12 +13,30 @@ pub trait Read<'de>: private::Sealed {
     fn peek(&mut self) -> io::Result<Option<u8>>;
 
     #[doc(hidden)]
-    /// Read n bytes either into the reader's scratch buffer (after clearing it), or (preferably)
-    /// return them as a longer-lived reference.
-    fn read(
-        &mut self,
+    /// Read n bytes from the input.
+    ///
+    /// Implementations that can are asked to return a slice with a Long lifetime that outlives the
+    /// decoder, but others (eg. ones that need to allocate the data into a temporary buffer) can
+    /// return it with a Short lifetime that just lives for the time of read's mutable borrow of
+    /// the reader.
+    ///
+    /// This may, as a side effect, clear the reader's scratch buffer (as the provided
+    /// implementation does).
+    ///
+    /// A more appropriate lifetime setup for this (that would allow the Deserializer::convert_str
+    /// to stay a function) would be something like `fn read<'a, 'r: 'a>(&'a mut 'r immut self, ...) -> ...
+    /// EitherLifetime<'r, 'de>>`, which borrows self mutably for the duration of the function and
+    /// downgrates that reference to an immutable one that outlives the result (protecting the
+    /// scratch buffer from changes), but alas, that can't be expressed (yet?).
+    fn read<'a>(
+        &'a mut self,
         n: usize,
-    ) -> Result<Reference<'de>>;
+    ) -> Result<EitherLifetime<'a, 'de>> {
+        self.clear_buffer();
+        self.read_to_buffer(n)?;
+
+        Ok(EitherLifetime::Short(self.view_buffer()))
+    }
 
     #[doc(hidden)]
     fn clear_buffer(&mut self);
@@ -40,9 +58,9 @@ pub trait Read<'de>: private::Sealed {
     fn offset(&self) -> u64;
 }
 
-pub enum Reference<'b> {
-    Borrowed(&'b [u8]),
-    Copied,
+pub enum EitherLifetime<'short, 'long> {
+    Short(&'short [u8]),
+    Long(&'long [u8]),
 }
 
 mod private {
@@ -151,13 +169,6 @@ where
                 )),
             Err(e) => Err(Error::io(e)),
         }
-    }
-
-    fn read(&mut self, n: usize) -> Result<Reference<'de>> {
-        self.clear_buffer();
-        self.read_to_buffer(n)?;
-
-        Ok(Reference::Copied)
     }
 
     fn clear_buffer(&mut self) {
@@ -274,11 +285,11 @@ impl<'a> Read<'a> for SliceRead<'a> {
     }
 
     #[inline]
-    fn read(&mut self, n: usize) -> Result<Reference<'a>> {
+    fn read<'b>(&'b mut self, n: usize) -> Result<EitherLifetime<'b, 'a>> {
         let end = self.end(n)?;
         let slice = &self.slice[self.index..end];
         self.index = end;
-        Ok(Reference::Borrowed(slice))
+        Ok(EitherLifetime::Long(slice))
     }
 
     fn view_buffer<'b>(&'b self) -> &'b [u8] {
@@ -387,7 +398,7 @@ impl<'a> Read<'a> for MutSliceRead<'a> {
     }
 
     #[inline]
-    fn read(&mut self, n: usize) -> Result<Reference<'a>> {
+    fn read<'b>(&'b mut self, n: usize) -> Result<EitherLifetime<'b, 'a>> {
         let end = self.end(n)?;
         let slice = &self.slice[self.index..end];
         self.index = end;
@@ -404,7 +415,7 @@ impl<'a> Read<'a> for MutSliceRead<'a> {
         // promises to never mutate data before buffer_end.
         let extended_result = unsafe { &*(slice as *const _) };
 
-        Ok(Reference::Borrowed(extended_result))
+        Ok(EitherLifetime::Long(extended_result))
     }
 
     fn view_buffer<'b>(&'b self) -> &'b [u8] {
