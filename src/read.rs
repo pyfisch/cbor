@@ -35,7 +35,7 @@ pub trait Read<'de>: private::Sealed {
         self.clear_buffer();
         self.read_to_buffer(n)?;
 
-        Ok(EitherLifetime::Short(self.view_buffer()))
+        Ok(self.view_buffer())
     }
 
     #[doc(hidden)]
@@ -46,7 +46,7 @@ pub trait Read<'de>: private::Sealed {
     fn read_to_buffer(&mut self, n: usize) -> Result<()>;
 
     #[doc(hidden)]
-    fn view_buffer<'a>(&'a self) -> &'a [u8];
+    fn view_buffer<'a>(&'a self) -> EitherLifetime<'a, 'de>;
 
     #[doc(hidden)]
     fn read_into(&mut self, buf: &mut [u8]) -> Result<()>;
@@ -175,8 +175,8 @@ where
         self.scratch.clear();
     }
 
-    fn view_buffer<'a>(&'a self) -> &'a [u8] {
-        &self.scratch
+    fn view_buffer<'a>(&'a self) -> EitherLifetime<'a, 'de> {
+        EitherLifetime::Short(&self.scratch)
     }
 
     fn read_into(&mut self, buf: &mut [u8]) -> Result<()> {
@@ -292,8 +292,8 @@ impl<'a> Read<'a> for SliceRead<'a> {
         Ok(EitherLifetime::Long(slice))
     }
 
-    fn view_buffer<'b>(&'b self) -> &'b [u8] {
-        &self.scratch
+    fn view_buffer<'b>(&'b self) -> EitherLifetime<'b, 'a> {
+        EitherLifetime::Short(&self.scratch)
     }
 
     #[inline]
@@ -418,10 +418,11 @@ impl<'a> Read<'a> for MutSliceRead<'a> {
         Ok(EitherLifetime::Long(extended_result))
     }
 
-    fn view_buffer<'b>(&'b self) -> &'b [u8] {
-        // No unsafe tricks necessary here -- we could give out a longer lifetime, because to us
-        // all data in the buffer is immutable, but the Vec<u8> based readers can't do that.
-        &self.slice[self.buffer_start..self.buffer_end]
+    fn view_buffer<'b>(&'b self) -> EitherLifetime<'b, 'a> {
+        // This would work as well, but ...
+        // EitherLifetime::Short(&self.slice[self.buffer_start..self.buffer_end])
+        // Unsafe: Same rationale as in read applies
+        EitherLifetime::Long(unsafe { &*(&self.slice[self.buffer_start..self.buffer_end] as *const _) })
     }
 
     #[inline]

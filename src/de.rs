@@ -188,7 +188,9 @@ where
         }
     }
 
-    fn parse_indefinite_bytes(&mut self) -> Result<&[u8]> {
+    fn parse_indefinite_bytes<V>(&mut self, visitor: V) -> Result<V::Value> where
+        V: de::Visitor<'de>,
+    {
         self.read.clear_buffer();
         loop {
             let byte = self.parse_u8()?;
@@ -211,7 +213,10 @@ where
             self.read.read_to_buffer(len)?;
         }
 
-        Ok(self.read.view_buffer())
+        match self.read.view_buffer() {
+            EitherLifetime::Long(buf) => visitor.visit_borrowed_bytes(buf),
+            EitherLifetime::Short(buf) => visitor.visit_bytes(buf),
+        }
     }
 
     fn convert_str<'a>(buf: &'a [u8], buf_end_offset: u64) -> Result<&'a str> {
@@ -242,7 +247,9 @@ where
         }
     }
 
-    fn parse_indefinite_str(&mut self) -> Result<&str> {
+    fn parse_indefinite_str<V>(&mut self, visitor: V) -> Result<V::Value> where
+        V: de::Visitor<'de>,
+    {
         self.read.clear_buffer();
         loop {
             let byte = self.parse_u8()?;
@@ -266,7 +273,16 @@ where
         }
 
         let offset = self.read.offset();
-        Self::convert_str(self.read.view_buffer(), offset)
+        match self.read.view_buffer() {
+            EitherLifetime::Long(buf) => {
+                let s = Self::convert_str(buf, offset)?;
+                visitor.visit_borrowed_str(s)
+            }
+            EitherLifetime::Short(buf) => {
+                let s = Self::convert_str(buf, offset)?;
+                visitor.visit_str(s)
+            }
+        }
     }
 
     fn recursion_checked<F, T>(&mut self, f: F) -> Result<T>
@@ -479,8 +495,7 @@ where
             }
             0x5c...0x5e => Err(self.error(ErrorCode::UnassignedCode)),
             0x5f => {
-                let bytes = self.parse_indefinite_bytes()?;
-                visitor.visit_bytes(bytes)
+                self.parse_indefinite_bytes(visitor)
             }
 
             // Major type 3: a text string
@@ -506,8 +521,7 @@ where
             }
             0x7c...0x7e => Err(self.error(ErrorCode::UnassignedCode)),
             0x7f => {
-                let s = self.parse_indefinite_str()?;
-                visitor.visit_str(s)
+                self.parse_indefinite_str(visitor)
             }
 
             // Major type 4: an array of data items
