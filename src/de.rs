@@ -10,7 +10,7 @@ use std::result;
 use std::marker::PhantomData;
 
 use error::{Error, Result, ErrorCode};
-use read::Reference;
+use read::EitherLifetime;
 pub use read::{Read, IoRead, SliceRead};
 
 /// Decodes a value from CBOR data in a slice.
@@ -183,8 +183,8 @@ where
         V: de::Visitor<'de>,
     {
         match self.read.read(len)? {
-            Reference::Borrowed(buf) => visitor.visit_borrowed_bytes(buf),
-            Reference::Copied => visitor.visit_bytes(self.read.view_buffer()),
+            EitherLifetime::Long(buf) => visitor.visit_borrowed_bytes(buf),
+            EitherLifetime::Short(buf) => visitor.visit_bytes(buf),
         }
     }
 
@@ -229,14 +229,14 @@ where
     where
         V: de::Visitor<'de>,
     {
+        let offset = self.read.offset() + len as u64;
         match self.read.read(len)? {
-            Reference::Borrowed(buf) => {
-                let s = Self::convert_str(buf, self.read.offset())?;
+            EitherLifetime::Long(buf) => {
+                let s = Self::convert_str(buf, offset)?;
                 visitor.visit_borrowed_str(s)
             }
-            Reference::Copied => {
-                let offset = self.read.offset();
-                let s = Self::convert_str(self.read.view_buffer(), offset)?;
+            EitherLifetime::Short(buf) => {
+                let s = Self::convert_str(buf, offset)?;
                 visitor.visit_str(s)
             }
         }
