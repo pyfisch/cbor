@@ -7,7 +7,7 @@ use std::u8;
 
 use serde_bytes::ByteBuf;
 
-use serde_cbor::{from_slice, from_reader};
+use serde_cbor::{from_slice, from_mut_slice, from_reader};
 use serde_cbor::ser::{to_vec, to_vec_packed};
 
 fn to_binary(s: &'static str) -> Vec<u8> {
@@ -24,7 +24,7 @@ macro_rules! testcase {
         #[test]
         fn $name() {
             let expr: f64 = $expr;
-            let serialized = to_binary($s);
+            let mut serialized = to_binary($s);
             assert_eq!(to_vec(&expr).unwrap(), serialized);
             let parsed: f64 = from_slice(&serialized[..]).unwrap();
             if !expr.is_nan() {
@@ -39,13 +39,20 @@ macro_rules! testcase {
             } else {
                 assert!(parsed.is_nan())
             }
+
+            let parsed: f64 = from_mut_slice(&mut serialized[..]).unwrap();
+            if !expr.is_nan() {
+                assert_eq!(expr, parsed);
+            } else {
+                assert!(parsed.is_nan())
+            }
         }
     };
     ($name:ident, $ty:ty, $expr:expr, $s:expr) => {
         #[test]
         fn $name() {
             let expr: $ty = $expr;
-            let serialized = to_binary($s);
+            let mut serialized = to_binary($s);
             assert_eq!(to_vec(&expr).unwrap(), serialized, "serialization differs");
             let parsed: $ty = from_slice(&serialized[..]).unwrap();
             assert_eq!(parsed, expr, "parsed result differs");
@@ -57,9 +64,15 @@ macro_rules! testcase {
 
             let parsed: $ty = from_reader(&mut &serialized[..]).unwrap();
             assert_eq!(parsed, expr, "parsed result differs");
-            let packed = to_vec_packed(&expr)
+            let mut packed = to_vec_packed(&expr)
                 .expect("serializing packed");
             let parsed_from_packed: $ty = from_reader(&mut &packed[..])
+                .expect("parsing packed");
+            assert_eq!(parsed_from_packed, expr, "packed roundtrip fail");
+
+            let parsed: $ty = from_mut_slice(&mut serialized[..]).unwrap();
+            assert_eq!(parsed, expr, "parsed result differs");
+            let parsed_from_packed: $ty = from_mut_slice(&mut packed[..])
                 .expect("parsing packed");
             assert_eq!(parsed_from_packed, expr, "packed roundtrip fail");
         }

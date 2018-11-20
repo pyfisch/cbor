@@ -115,8 +115,12 @@ fn test_indefinite_byte_string() {
 
 #[test]
 fn test_multiple_indefinite_strings() {
+    let input = b"\x82\x7f\x65Mary \x64Had \x62a \x67Little \x60\x64Lamb\xff\x5f\x42\x01\x23\x42\x45\x67\xff";
+    _test_multiple_indefinite_strings(de::from_slice(input));
+    _test_multiple_indefinite_strings(de::from_mut_slice(input.to_vec().as_mut()));
+}
+fn _test_multiple_indefinite_strings(value: error::Result<Value>) {
     // This assures that buffer rewinding in infinite buffers works as intended.
-    let value: error::Result<Value> = de::from_slice(b"\x82\x7f\x65Mary \x64Had \x62a \x67Little \x60\x64Lamb\xff\x5f\x42\x01\x23\x42\x45\x67\xff");
     assert_eq!(value.unwrap(), Value::Array(vec![
         Value::String("Mary Had a Little Lamb".to_owned()),
         Value::Bytes(b"\x01#Eg".to_vec())
@@ -253,6 +257,10 @@ fn stream_deserializer_eof_in_indefinite() {
     ];
     for end_of_slice in indices {
         let mut it = Deserializer::from_slice(&slice[..*end_of_slice]).into_iter::<Value>();
+        assert!(it.next().unwrap().unwrap_err().is_eof());
+
+        let mut mutcopy = slice[..*end_of_slice].to_vec();
+        let mut it = Deserializer::from_mut_slice(mutcopy.as_mut()).into_iter::<Value>();
         assert!(it.next().unwrap().unwrap_err().is_eof());
     }
 }
