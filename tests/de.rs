@@ -103,7 +103,7 @@ fn test_indefinite_list() {
 
 #[test]
 fn test_indefinite_string() {
-    let value: error::Result<Value> = de::from_slice(b"\x7f\x65Mary \x64Had \x62a \x67Little \x64Lamb\xff");
+    let value: error::Result<Value> = de::from_slice(b"\x7f\x65Mary \x64Had \x62a \x67Little \x60\x64Lamb\xff");
     assert_eq!(value.unwrap(), Value::String("Mary Had a Little Lamb".to_owned()));
 }
 
@@ -116,7 +116,7 @@ fn test_indefinite_byte_string() {
 #[test]
 fn test_multiple_indefinite_strings() {
     // This assures that buffer rewinding in infinite buffers works as intended.
-    let value: error::Result<Value> = de::from_slice(b"\x82\x7f\x65Mary \x64Had \x62a \x67Little \x64Lamb\xff\x5f\x42\x01\x23\x42\x45\x67\xff");
+    let value: error::Result<Value> = de::from_slice(b"\x82\x7f\x65Mary \x64Had \x62a \x67Little \x60\x64Lamb\xff\x5f\x42\x01\x23\x42\x45\x67\xff");
     assert_eq!(value.unwrap(), Value::Array(vec![
         Value::String("Mary Had a Little Lamb".to_owned()),
         Value::Bytes(b"\x01#Eg".to_vec())
@@ -245,7 +245,7 @@ fn stream_deserializer_eof() {
 
 #[test]
 fn stream_deserializer_eof_in_indefinite() {
-    let slice = b"\x7f\x65Mary \x64Had \x62a \x67Little \x64Lamb\xff";
+    let slice = b"\x7f\x65Mary \x64Had \x62a \x60\x67Little \x60\x64Lamb\xff";
     let indices: &[usize] = &[
         2, // announcement but no data
         10, // mid-buffer EOF
