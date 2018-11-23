@@ -117,10 +117,16 @@ where
         // defend against malicious input pretending to be huge strings by limiting growth
         scratch.reserve(cmp::min(n, 16 * 1024));
 
+        if n == 0 {
+            return Ok(Reference::Borrowed(&[]));
+        }
+
         if let Some(ch) = self.ch.take() {
             scratch.push(ch);
             n -= 1;
         }
+
+        // n == 0 is OK here and needs no further special treatment
 
         let transfer_result = {
             // Prepare for take() (which consumes its reader) by creating a reference adaptor
