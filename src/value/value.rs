@@ -1,6 +1,7 @@
 //! CBOR values and keys.
 
 use std::collections::BTreeMap;
+use std::cmp::{PartialOrd, Ord, Ordering};
 use std::fmt;
 
 use serde::de;
@@ -360,7 +361,7 @@ impl ser::Serialize for Value {
 }
 
 /// A simplified CBOR value containing only types useful for keys.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ObjectKey {
     /// An integer.
     Integer(i64),
@@ -374,7 +375,53 @@ pub enum ObjectKey {
     Null,
 }
 
+impl Ord for ObjectKey {
+    fn cmp(&self, other: &ObjectKey) -> Ordering {
+        self.canonical_sort_key().cmp(&other.canonical_sort_key())
+    }
+}
+
+impl PartialOrd for ObjectKey {
+    fn partial_cmp(&self, other: &ObjectKey) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl ObjectKey {
+    // Returns a key to sort `ObjectKey`s by major type, then byte-length, then lexicographically
+    // by content. Equivalent to sorting `ObjectKey`s __lexicographically__ by their CBOR serialization.
+    //
+    // Note: the first guidelines regarding canonicalized CBOR
+    // [located here](https://tools.ietf.org/html/rfc7049#section-3.9) sorted keys by length
+    // before sorting by major type, but a [later draft](https://tools.ietf.org/html/draft-ietf-cbor-7049bis-04#section-4.10)
+    // has moved to a purely lexicographic ordering. This newer ordering is also used by the
+    // [WebAuthn standard](https://fidoalliance.org/specs/fido-v2.0-id-20180227/fido-client-to-authenticator-protocol-v2.0-id-20180227.html#ctap2-canonical-cbor-encoding-form).
+    fn canonical_sort_key(&self) -> (u8, usize, Option<&[u8]>) {
+        use ObjectKey::*;
+        match *self {
+            Integer(i) => {
+                let major_type = if i >= 0 { 0u8 } else { 1u8 };
+                let magnitude = if i >= 0 {
+                    i
+                } else {
+                    -(i + 1)
+                };
+                (major_type, magnitude as usize, None)
+            }
+            Bytes(ref v) => {
+                (2, v.len(), Some(v))
+            }
+            String(ref s) => {
+                (3, s.len(), Some(s.as_bytes()))
+            }
+            Bool(b) => {
+                (7, if b { 21 } else { 20 }, None)
+            }
+            Null => {
+                (7, 22, None)
+            }
+        }
+    }
     /// Returns true if the ObjectKey is a byte string.
     pub fn is_bytes(&self) -> bool {
         self.as_bytes().is_some()
