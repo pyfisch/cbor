@@ -128,6 +128,16 @@ where
         }
     }
 
+    fn serialize_with_same_settings<V: Serialize>(&self, v: V) -> Result<Vec<u8>> {
+        let buf: Vec<u8> = vec![];
+        let mut s = Serializer {
+            writer: buf,
+            packed: self.packed,
+        };
+        v.serialize(&mut s)?;
+        Ok(s.writer)
+    }
+
     /// Writes a CBOR self-describe tag to the stream.
     ///
     /// Tagging allows a decoder to distinguish different file formats based on their content
@@ -439,10 +449,39 @@ where
         self.serialize_collection(5, len)
     }
 
+    fn collect_map<K, V, I>(self, iter: I) -> Result<Self::Ok>
+        where
+            K: Serialize,
+            V: Serialize,
+            I: IntoIterator<Item = (K, V)>,
+    {
+        use serde::ser::SerializeMap;
+
+        let entry_results = iter.into_iter().map(|(k, v)| {
+            (self.serialize_with_same_settings(k), self.serialize_with_same_settings(v))
+        }).collect::<Vec<_>>();
+
+        let mut entries = vec![];
+        for (k, v) in entry_results {
+            let (k, v) = (k?, v?);
+            entries.push((k, v));
+        }
+
+        entries.sort_by(|a, b| a.0.cmp(&b.0));
+
+        let serializer = self.serialize_map(Some(entries.len()))?;
+
+        for (key, value) in entries {
+            serializer.ser.writer.write_all(&key).map_err(Error::io)?;
+            serializer.ser.writer.write_all(&value).map_err(Error::io)?;
+        }
+        serializer.end()
+    }
+
     #[inline]
     fn serialize_struct(self, _name: &'static str, len: usize) -> Result<StructSerializer<'a, W>> {
         self.write_u64(5, len as u64)?;
-        Ok(StructSerializer { ser: self, idx: 0 })
+        Ok(StructSerializer { ser: self, idx: 0, entries: vec![]})
     }
 
     #[inline]
@@ -531,6 +570,7 @@ where
 pub struct StructSerializer<'a, W: 'a> {
     ser: &'a mut Serializer<W>,
     idx: u32,
+    entries: Vec<(Vec<u8>, Vec<u8>)>,
 }
 
 impl<'a, W> StructSerializer<'a, W>
@@ -542,18 +582,29 @@ where
     where
         T: ?Sized + ser::Serialize,
     {
-        if self.ser.packed {
-            self.idx.serialize(&mut *self.ser)?;
+        let key_bytes = if self.ser.packed {
+            self.ser.serialize_with_same_settings(self.idx)?
         } else {
-            key.serialize(&mut *self.ser)?;
-        }
+            self.ser.serialize_with_same_settings(key)?
+        };
         self.idx += 1;
-        value.serialize(&mut *self.ser)
+        self.entries.push((key_bytes, self.ser.serialize_with_same_settings(value)?));
+        Ok(())
     }
 
     #[inline]
     fn skip_field_inner(&mut self, _: &'static str) -> Result<()> {
         self.idx += 1;
+        Ok(())
+    }
+
+    #[inline]
+    fn end_inner(mut self) -> Result<()> {
+        self.entries.sort_by(|a, b| a.0.cmp(&b.0));
+        for (k, v) in self.entries {
+            self.ser.writer.write_all(&k).map_err(Error::io)?;
+            self.ser.writer.write_all(&v).map_err(Error::io)?;
+        }
         Ok(())
     }
 }
@@ -580,7 +631,7 @@ where
 
     #[inline]
     fn end(self) -> Result<()> {
-        Ok(())
+        self.end_inner()
     }
 }
 
@@ -606,7 +657,7 @@ where
 
     #[inline]
     fn end(self) -> Result<()> {
-        Ok(())
+        self.end_inner()
     }
 }
 
