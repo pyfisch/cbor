@@ -1,5 +1,6 @@
 use std::cmp;
 use std::io::{self, Read as StdRead};
+use std::mem;
 
 use error::{Result, Error, ErrorCode};
 
@@ -318,20 +319,15 @@ impl<'a> Read<'a> for SliceRead<'a> {
 
 /// A CBOR input source that reads from a slice of bytes, and can move data around internally to
 /// reassemble indefinite strings without the need of an allocated scratch buffer.
-///
-/// This is implemented using unsafe code, which relies on the implementation not to mutate the
-/// slice wherever immutable references have been handed out; that position is tracked in
-/// buffer_end.
 pub struct MutSliceRead<'a> {
     /// A complete view of the reader's data. It is promised that bytes before buffer_end are not
     /// mutated any more.
     slice: &'a mut [u8],
     /// Read cursor position in slice
     index: usize,
-    /// Index when clear() was last called
-    buffer_start: usize,
-    /// End of the buffer area that contains all bytes read_into_buffer. Doubles as end of
-    /// immutability guarantee.
+    /// Number of bytes already discarded from the slice
+    before: usize,
+    /// End of the buffer area that contains all bytes read_into_buffer. This is always <= index.
     buffer_end: usize,
 }
 
@@ -341,7 +337,7 @@ impl<'a> MutSliceRead<'a> {
         MutSliceRead {
             slice,
             index: 0,
-            buffer_start: 0,
+            before: 0,
             buffer_end: 0,
         }
     }
@@ -385,13 +381,15 @@ impl<'a> Read<'a> for MutSliceRead<'a> {
     }
 
     fn clear_buffer<'b>(&'b mut self) {
-        self.buffer_start = self.index;
-        self.buffer_end = self.index;
+        self.slice = &mut mem::replace(&mut self.slice, &mut [])[self.index..];
+        self.before += self.index;
+        self.index = 0;
+        self.buffer_end = 0;
     }
 
     fn read_to_buffer(&mut self, n: usize) -> Result<()> {
         let end = self.end(n)?;
-        assert!(self.buffer_end <= self.index, "MutSliceRead invariant violated: scratch buffer exceeds index");
+        debug_assert!(self.buffer_end <= self.index, "MutSliceRead invariant violated: scratch buffer exceeds index");
         self.slice[self.buffer_end..end].rotate_left(self.index - self.buffer_end);
         self.buffer_end += n;
         self.index = end;
@@ -399,32 +397,16 @@ impl<'a> Read<'a> for MutSliceRead<'a> {
         Ok(())
     }
 
-    #[inline]
-    fn read<'b>(&'b mut self, n: usize) -> Result<EitherLifetime<'b, 'a>> {
-        let end = self.end(n)?;
-        let slice = &self.slice[self.index..end];
-        self.index = end;
-
-        // Not technically required to keep track of things under realistic (ie. either read
-        // or clear_buffer+n*read_to_buffer is called) conditions, but given we don't want to rely
-        // on these condition to maintain safety, this updates the immutability contract of the
-        // slice.
-        self.buffer_start = self.index;
-        self.buffer_end = self.index;
-
-        // Unsafe: Extending the lifetime from during-the-function to 'a ("for as long as
-        // MutSliceRead is in mutable control of the data"), which is OK because MutSliceRead
-        // promises to never mutate data before buffer_end.
-        let extended_result = unsafe { &*(slice as *const _) };
-
-        Ok(EitherLifetime::Long(extended_result))
-    }
-
     fn view_buffer<'b>(&'b mut self) -> EitherLifetime<'b, 'a> {
-        // This would work as well, but ...
-        // EitherLifetime::Short(&self.slice[self.buffer_start..self.buffer_end])
-        // Unsafe: Same rationale as in read applies
-        EitherLifetime::Long(unsafe { &*(&self.slice[self.buffer_start..self.buffer_end] as *const _) })
+        let (left, right) = mem::replace(&mut self.slice, &mut []).split_at_mut(self.index);
+        self.slice = right;
+        self.before += self.index;
+        self.index = 0;
+
+        let left = &left[..self.buffer_end];
+        self.buffer_end = 0;
+
+        EitherLifetime::Long(left)
     }
 
     #[inline]
@@ -442,6 +424,6 @@ impl<'a> Read<'a> for MutSliceRead<'a> {
     }
 
     fn offset(&self) -> u64 {
-        self.index as u64
+        (self.before + self.index) as u64
     }
 }
