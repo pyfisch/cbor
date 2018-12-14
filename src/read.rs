@@ -46,7 +46,9 @@ pub trait Read<'de>: private::Sealed {
     fn read_to_buffer(&mut self, n: usize) -> Result<()>;
 
     #[doc(hidden)]
-    fn view_buffer<'a>(&'a self) -> EitherLifetime<'a, 'de>;
+    /// Read out everything accumulated in the reader's scratch buffer. This may, as a side effect,
+    /// clear it.
+    fn view_buffer<'a>(&'a mut self) -> EitherLifetime<'a, 'de>;
 
     #[doc(hidden)]
     fn read_into(&mut self, buf: &mut [u8]) -> Result<()>;
@@ -175,7 +177,7 @@ where
         self.scratch.clear();
     }
 
-    fn view_buffer<'a>(&'a self) -> EitherLifetime<'a, 'de> {
+    fn view_buffer<'a>(&'a mut self) -> EitherLifetime<'a, 'de> {
         EitherLifetime::Short(&self.scratch)
     }
 
@@ -292,7 +294,7 @@ impl<'a> Read<'a> for SliceRead<'a> {
         Ok(EitherLifetime::Long(slice))
     }
 
-    fn view_buffer<'b>(&'b self) -> EitherLifetime<'b, 'a> {
+    fn view_buffer<'b>(&'b mut self) -> EitherLifetime<'b, 'a> {
         EitherLifetime::Short(&self.scratch)
     }
 
@@ -418,7 +420,7 @@ impl<'a> Read<'a> for MutSliceRead<'a> {
         Ok(EitherLifetime::Long(extended_result))
     }
 
-    fn view_buffer<'b>(&'b self) -> EitherLifetime<'b, 'a> {
+    fn view_buffer<'b>(&'b mut self) -> EitherLifetime<'b, 'a> {
         // This would work as well, but ...
         // EitherLifetime::Short(&self.slice[self.buffer_start..self.buffer_end])
         // Unsafe: Same rationale as in read applies
