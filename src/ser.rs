@@ -568,7 +568,11 @@ where
         variant: &'static str,
         len: usize,
     ) -> Result<StructSerializer<'a, W>> {
-        self.writer.write_all(&[4 << 5 | 2]).map_err(Error::io)?;
+        if self.enum_as_map {
+            self.write_u64(5, 1u64)?;
+        } else {
+            self.writer.write_all(&[4 << 5 | 2]).map_err(Error::io)?;
+        }
         self.serialize_unit_variant(name, variant_index, variant)?;
         self.serialize_struct(name, len)
     }
