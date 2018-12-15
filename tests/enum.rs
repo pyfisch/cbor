@@ -5,7 +5,7 @@ extern crate serde_derive;
 
 use std::collections::BTreeMap;
 
-use serde_cbor::{from_slice, to_vec, to_vec_with_options, Value, ObjectKey};
+use serde_cbor::{from_slice, to_vec, Value, ObjectKey};
 
 #[derive(Debug,Serialize,Deserialize,PartialEq,Eq)]
 enum Enum {
@@ -135,28 +135,28 @@ fn test_enum_as_map() {
     assert_eq!(point_s, point_vec_s);
 
     // enum_as_map matches serde_json's default serialization for enums.
-    let opts = serde_cbor::SerializerOptions{ packed: false, enum_as_map: true };
+    let opts = serde_cbor::SerializerOptions{ enum_as_map: true, ..Default::default() };
 
     // unit variants still serialize like bare strings
-    let empty_s = to_vec_with_options(&Bar::Empty, &opts).unwrap();
+    let empty_s = opts.to_vec(&Bar::Empty).unwrap();
     assert_eq!(empty_s, empty_str_s);
 
     // 1-element tuple variants serialize like {"<variant>": value}
-    let number_s = to_vec_with_options(&Bar::Number(42), &opts).unwrap();
+    let number_s = opts.to_vec(&Bar::Number(42)).unwrap();
     let mut number_map = BTreeMap::new();
     number_map.insert("Number", 42);
     let number_map_s = to_vec(&number_map).unwrap();
     assert_eq!(number_s, number_map_s);
 
     // multi-element tuple variants serialize like {"<variant>": [values..]}
-    let flag_s = to_vec_with_options(&Bar::Flag("foo".to_string(), true), &opts).unwrap();
+    let flag_s = opts.to_vec(&Bar::Flag("foo".to_string(), true)).unwrap();
     let mut flag_map = BTreeMap::new();
     flag_map.insert("Flag", vec![Value::String("foo".to_string()), Value::Bool(true)]);
     let flag_map_s = to_vec(&flag_map).unwrap();
     assert_eq!(flag_s, flag_map_s);
 
     // struct-variants serialize like {"<variant>", {struct..}}
-    let point_s = to_vec_with_options(&Bar::Point{ x: 5, y: -5}, &opts).unwrap();
+    let point_s = opts.to_vec(&Bar::Point{ x: 5, y: -5}).unwrap();
     let mut point_map = BTreeMap::new();
     point_map.insert("Point", Value::Object(struct_map));
     let point_map_s = to_vec(&point_map).unwrap();

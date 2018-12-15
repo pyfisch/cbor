@@ -105,20 +105,9 @@ where
     let mut vec = Vec::new();
     {
         let mut ser = Serializer::new_with_options(&mut vec, options);
-        value.serialize(&mut ser)?;
-    }
-    Ok(vec)
-}
-
-/// Serializes a value to a vector and adds a CBOR self-describe tag.
-pub fn to_vec_with_options_sd<T>(value: &T, options: &SerializerOptions) -> Result<Vec<u8>>
-where
-    T: ser::Serialize,
-{
-    let mut vec = Vec::new();
-    {
-        let mut ser = Serializer::new_with_options(&mut vec, options);
-        ser.self_describe()?;
+        if options.self_describe {
+            ser.self_describe()?;
+        }
         value.serialize(&mut ser)?;
     }
     Ok(vec)
@@ -169,6 +158,15 @@ pub struct SerializerOptions {
     pub packed: bool,
     /// When set, enums are encoded as maps rather than arrays.
     pub enum_as_map: bool,
+    /// When set, `to_vec` will prepend the CBOR self-describe tag.
+    pub self_describe: bool,
+}
+
+impl SerializerOptions {
+    /// Serializes a value to a vector.
+    pub fn to_vec<T: ser::Serialize>(&self, value: &T) -> Result<Vec<u8>> {
+        to_vec_with_options(value, self)
+    }
 }
 
 /// A structure for serializing Rust values to CBOR.
