@@ -139,13 +139,49 @@ where
 }
 
 /// Options for a CBOR serializer.
+///
+/// The `enum_as_map` option determines how enums are encoded.
+///
+/// This makes no difference when encoding and decoding enums using
+/// this crate, but it shows up when decoding to a `Value` or decoding
+/// in other languages.
+///
+/// With enum_as_map true, the encoding scheme matches the default encoding
+/// scheme used by `serde_json`.
+///
+/// # Examples
+///
+/// Given the following enum
+/// ```
+/// enum Enum {
+///     Unit,
+///     NewType(i32),
+///     Tuple(String, bool),
+///     Struct{ x: i32, y: i32 },
+/// }
+/// ```
+/// we will give the `Value` with the same encoding for each case using
+/// JSON notation.
+///
+/// ## Default encodings
+///
+/// * `Enum::Unit` encodes as `"Unit"`
+/// * `Enum::NewType(10)` encodes as `["NewType", 10]`
+/// * `Enum::Tuple("x", true)` encodes as `["Tuple", "x", true]`
+/// * `Enum::Struct{ x: 5, y: -5 }` encodes as `["Struct", {"x": 5, "y": -5}]`
+///
+/// ## Encodings with enum_as_map true
+///
+/// * `Enum::Unit` encodes as `"Unit"`
+/// * `Enum::NewType(10)` encodes as `{"NewType": 10}`
+/// * `Enum::Tuple("x", true)` encodes as `{"Tuple": ["x", true]}`
+/// * `Enum::Struct{ x: 5, y: -5 }` encodes as `{"Struct": {"x": 5, "y": -5}}`
+#[derive(Default)]
 pub struct SerializerOptions {
-    /// Struct fields and enum variants are identified by their numeric indices rather than names
+    /// When set, struct fields and enum variants are identified by their numeric indices rather than names
     /// to save space.
     pub packed: bool,
-    /// When enum_as_map is set, enums are encoded as maps rather than arrays.
-    /// This makes no difference when decoding to an enum value but it shows
-    /// up when decoding to a `Value` or decoding in other languages.
+    /// When set, enums are encoded as maps rather than arrays.
     pub enum_as_map: bool,
 }
 
