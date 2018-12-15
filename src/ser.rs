@@ -52,27 +52,6 @@ where
     value.serialize(&mut ser)
 }
 
-/// Serializes a value without names to a writer.
-pub fn to_writer_with_options<W, T>(mut writer: &mut W, value: &T, options: &SerializerOptions) -> Result<()>
-where
-    W: io::Write,
-    T: ser::Serialize,
-{
-    let mut ser = Serializer::new_with_options(&mut writer, options);
-    value.serialize(&mut ser)
-}
-
-/// Serializes a value without names to a writer and adds a CBOR self-describe tag.
-pub fn to_writer_with_options_sd<W, T>(mut writer: &mut W, value: &T, options: &SerializerOptions) -> Result<()>
-where
-    W: io::Write,
-    T: ser::Serialize,
-{
-    let mut ser = Serializer::new_with_options(&mut writer, options);
-    ser.self_describe()?;
-    value.serialize(&mut ser)
-}
-
 /// Serializes a value to a vector.
 pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
@@ -124,7 +103,10 @@ where
     T: ser::Serialize,
 {
     let mut vec = Vec::new();
-    to_writer_with_options(&mut vec, value, options)?;
+    {
+        let mut ser = Serializer::new_with_options(&mut vec, options);
+        value.serialize(&mut ser)?;
+    }
     Ok(vec)
 }
 
@@ -134,7 +116,11 @@ where
     T: ser::Serialize,
 {
     let mut vec = Vec::new();
-    to_writer_with_options_sd(&mut vec, value, options)?;
+    {
+        let mut ser = Serializer::new_with_options(&mut vec, options);
+        ser.self_describe()?;
+        value.serialize(&mut ser)?;
+    }
     Ok(vec)
 }
 
