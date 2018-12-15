@@ -218,6 +218,7 @@ where
         let mut s = Serializer {
             writer: buf,
             packed: self.packed,
+            enum_as_map: self.enum_as_map,
         };
         v.serialize(&mut s)?;
         Ok(s.writer)
