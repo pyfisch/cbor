@@ -135,6 +135,10 @@ fn test_self_describing() {
         serializer.serialize_u64(9).unwrap();
     }
     assert_eq!(vec, b"\xd9\xd9\xf7\x09");
+
+    let sd = ser::SerializerOptions{ self_describe: true, ..Default::default() };
+    let vec = sd.to_vec(&9).unwrap();
+    assert_eq!(vec, b"\xd9\xd9\xf7\x09");
 }
 
 #[test]
