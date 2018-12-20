@@ -33,7 +33,7 @@ pub trait Read<'de>: private::Sealed {
         self.clear_buffer();
         self.read_to_buffer(n)?;
 
-        Ok(self.view_buffer())
+        Ok(self.take_buffer())
     }
 
     #[doc(hidden)]
@@ -46,7 +46,7 @@ pub trait Read<'de>: private::Sealed {
     #[doc(hidden)]
     /// Read out everything accumulated in the reader's scratch buffer. This may, as a side effect,
     /// clear it.
-    fn view_buffer<'a>(&'a mut self) -> EitherLifetime<'a, 'de>;
+    fn take_buffer<'a>(&'a mut self) -> EitherLifetime<'a, 'de>;
 
     #[doc(hidden)]
     fn read_into(&mut self, buf: &mut [u8]) -> Result<()>;
@@ -168,7 +168,7 @@ where
         self.scratch.clear();
     }
 
-    fn view_buffer<'a>(&'a mut self) -> EitherLifetime<'a, 'de> {
+    fn take_buffer<'a>(&'a mut self) -> EitherLifetime<'a, 'de> {
         EitherLifetime::Short(&self.scratch)
     }
 
@@ -283,7 +283,7 @@ impl<'a> Read<'a> for SliceRead<'a> {
         Ok(EitherLifetime::Long(slice))
     }
 
-    fn view_buffer<'b>(&'b mut self) -> EitherLifetime<'b, 'a> {
+    fn take_buffer<'b>(&'b mut self) -> EitherLifetime<'b, 'a> {
         EitherLifetime::Short(&self.scratch)
     }
 
@@ -386,7 +386,7 @@ impl<'a> Read<'a> for MutSliceRead<'a> {
         Ok(())
     }
 
-    fn view_buffer<'b>(&'b mut self) -> EitherLifetime<'b, 'a> {
+    fn take_buffer<'b>(&'b mut self) -> EitherLifetime<'b, 'a> {
         let (left, right) = mem::replace(&mut self.slice, &mut []).split_at_mut(self.index);
         self.slice = right;
         self.before += self.index;
