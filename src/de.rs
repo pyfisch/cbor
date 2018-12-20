@@ -239,7 +239,7 @@ where
             self.read.read_to_buffer(len)?;
         }
 
-        match self.read.view_buffer() {
+        match self.read.take_buffer() {
             EitherLifetime::Long(buf) => visitor.visit_borrowed_bytes(buf),
             EitherLifetime::Short(buf) => visitor.visit_bytes(buf),
         }
@@ -307,7 +307,7 @@ where
         }
 
         let offset = self.read.offset();
-        match self.read.view_buffer() {
+        match self.read.take_buffer() {
             EitherLifetime::Long(buf) => {
                 let s = Self::convert_str(buf, offset)?;
                 visitor.visit_borrowed_str(s)
