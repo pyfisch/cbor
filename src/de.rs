@@ -162,11 +162,11 @@ where
     }
 
     fn next(&mut self) -> Result<Option<u8>> {
-        self.read.next().map_err(Error::io)
+        self.read.next()
     }
 
     fn peek(&mut self) -> Result<Option<u8>> {
-        self.read.peek().map_err(Error::io)
+        self.read.peek()
     }
 
     fn consume(&mut self) {

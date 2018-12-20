@@ -9,9 +9,9 @@ use crate::error::{Error, ErrorCode, Result};
 /// This trait is sealed and cannot be implemented for types outside of `serde_cbor`.
 pub trait Read<'de>: private::Sealed {
     #[doc(hidden)]
-    fn next(&mut self) -> io::Result<Option<u8>>;
+    fn next(&mut self) -> Result<Option<u8>>;
     #[doc(hidden)]
-    fn peek(&mut self) -> io::Result<Option<u8>>;
+    fn peek(&mut self) -> Result<Option<u8>>;
 
     #[doc(hidden)]
     /// Read n bytes from the input.
@@ -91,14 +91,14 @@ where
     }
 
     #[inline]
-    fn next_inner(&mut self) -> io::Result<Option<u8>> {
+    fn next_inner(&mut self) -> Result<Option<u8>> {
         let mut buf = [0; 1];
         loop {
             match self.reader.read(&mut buf) {
                 Ok(0) => return Ok(None),
                 Ok(_) => return Ok(Some(buf[0])),
                 Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {}
-                Err(e) => return Err(e),
+                Err(e) => return Err(Error::io(e)),
             }
         }
     }
@@ -111,7 +111,7 @@ where
     R: io::Read,
 {
     #[inline]
-    fn next(&mut self) -> io::Result<Option<u8>> {
+    fn next(&mut self) -> Result<Option<u8>> {
         match self.ch.take() {
             Some(ch) => Ok(Some(ch)),
             None => self.next_inner(),
@@ -119,7 +119,7 @@ where
     }
 
     #[inline]
-    fn peek(&mut self) -> io::Result<Option<u8>> {
+    fn peek(&mut self) -> Result<Option<u8>> {
         match self.ch {
             Some(ch) => Ok(Some(ch)),
             None => {
@@ -243,7 +243,7 @@ impl<'a> private::Sealed for SliceRead<'a> {}
 
 impl<'a> Read<'a> for SliceRead<'a> {
     #[inline]
-    fn next(&mut self) -> io::Result<Option<u8>> {
+    fn next(&mut self) -> Result<Option<u8>> {
         Ok(if self.index < self.slice.len() {
             let ch = self.slice[self.index];
             self.index += 1;
@@ -254,7 +254,7 @@ impl<'a> Read<'a> for SliceRead<'a> {
     }
 
     #[inline]
-    fn peek(&mut self) -> io::Result<Option<u8>> {
+    fn peek(&mut self) -> Result<Option<u8>> {
         Ok(if self.index < self.slice.len() {
             Some(self.slice[self.index])
         } else {
@@ -345,7 +345,7 @@ impl<'a> private::Sealed for MutSliceRead<'a> {}
 
 impl<'a> Read<'a> for MutSliceRead<'a> {
     #[inline]
-    fn next(&mut self) -> io::Result<Option<u8>> {
+    fn next(&mut self) -> Result<Option<u8>> {
         // This is duplicated from SliceRead, can that be eased?
         Ok(if self.index < self.slice.len() {
             let ch = self.slice[self.index];
@@ -357,7 +357,7 @@ impl<'a> Read<'a> for MutSliceRead<'a> {
     }
 
     #[inline]
-    fn peek(&mut self) -> io::Result<Option<u8>> {
+    fn peek(&mut self) -> Result<Option<u8>> {
         // This is duplicated from SliceRead, can that be eased?
         Ok(if self.index < self.slice.len() {
             Some(self.slice[self.index])
