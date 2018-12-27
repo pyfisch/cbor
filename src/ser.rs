@@ -386,6 +386,7 @@ where
     }
 
     #[inline]
+    #[allow(clippy::float_cmp)]
     fn serialize_f32(self, value: f32) -> Result<()> {
         if value.is_infinite() {
             if value.is_sign_positive() {
@@ -407,8 +408,9 @@ where
     }
 
     #[inline]
+    #[allow(clippy::float_cmp)]
     fn serialize_f64(self, value: f64) -> Result<()> {
-        if !value.is_finite() || value as f32 as f64 == value {
+        if !value.is_finite() || f64::from(value as f32) == value {
             self.serialize_f32(value as f32)
         } else {
             let mut buf = [0xfb, 0, 0, 0, 0, 0, 0, 0, 0];

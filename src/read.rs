@@ -380,7 +380,7 @@ impl<'a> Read<'a> for MutSliceRead<'a> {
         })
     }
 
-    fn clear_buffer<'b>(&'b mut self) {
+    fn clear_buffer(&mut self) {
         self.slice = &mut mem::replace(&mut self.slice, &mut [])[self.index..];
         self.before += self.index;
         self.index = 0;
