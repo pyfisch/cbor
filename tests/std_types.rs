@@ -1,5 +1,5 @@
-extern crate serde_cbor;
-extern crate serde_bytes;
+
+
 #[macro_use]
 extern crate serde_derive;
 

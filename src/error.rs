@@ -104,7 +104,7 @@ impl error::Error for Error {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match self.0.code {
             ErrorCode::Io(ref err) => Some(err),
             _ => None,
@@ -113,7 +113,7 @@ impl error::Error for Error {
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.0.offset == 0 {
             fmt::Display::fmt(&self.0.code, f)
         } else {
@@ -123,7 +123,7 @@ impl fmt::Display for Error {
 }
 
 impl fmt::Debug for Error {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&*self.0, fmt)
     }
 }
@@ -139,7 +139,7 @@ impl de::Error for Error {
         }))
     }
 
-    fn invalid_type(unexp: de::Unexpected, exp: &de::Expected) -> Error {
+    fn invalid_type(unexp: de::Unexpected<'_>, exp: &dyn de::Expected) -> Error {
         if let de::Unexpected::Unit = unexp {
             Error::custom(format_args!("invalid type: null, expected {}", exp))
         } else {
@@ -185,7 +185,7 @@ pub(crate) enum ErrorCode {
 }
 
 impl fmt::Display for ErrorCode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             ErrorCode::Message(ref msg) => f.write_str(msg),
             ErrorCode::Io(ref err) => fmt::Display::fmt(err, f),

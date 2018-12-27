@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_cbor;
+use serde_cbor;
 
 use std::collections::BTreeMap;
 

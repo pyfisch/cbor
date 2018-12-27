@@ -668,7 +668,7 @@ where
 }
 
 #[doc(hidden)]
-pub struct StructSerializer<'a, W: 'a> {
+pub struct StructSerializer<'a, W> {
     ser: &'a mut Serializer<W>,
     idx: u32,
     entries: Vec<(Vec<u8>, Vec<u8>)>,
@@ -763,7 +763,7 @@ where
 }
 
 #[doc(hidden)]
-pub struct CollectionSerializer<'a, W: 'a> {
+pub struct CollectionSerializer<'a, W> {
     ser: &'a mut Serializer<W>,
     needs_eof: bool,
 }

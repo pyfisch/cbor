@@ -753,7 +753,7 @@ trait MakeError {
     fn error(&self, code: ErrorCode) -> Error;
 }
 
-struct SeqAccess<'a, R: 'a> {
+struct SeqAccess<'a, R> {
     de: &'a mut Deserializer<R>,
     len: &'a mut usize,
 }
@@ -791,7 +791,7 @@ where
     }
 }
 
-struct IndefiniteSeqAccess<'a, R: 'a> {
+struct IndefiniteSeqAccess<'a, R> {
     de: &'a mut Deserializer<R>,
 }
 
@@ -825,7 +825,7 @@ where
     }
 }
 
-struct MapAccess<'a, R: 'a> {
+struct MapAccess<'a, R> {
     de: &'a mut Deserializer<R>,
     len: &'a mut usize,
 }
@@ -870,7 +870,7 @@ where
     }
 }
 
-struct IndefiniteMapAccess<'a, R: 'a> {
+struct IndefiniteMapAccess<'a, R> {
     de: &'a mut Deserializer<R>,
 }
 
@@ -902,7 +902,7 @@ where
     }
 }
 
-struct UnitVariantAccess<'a, R: 'a> {
+struct UnitVariantAccess<'a, R> {
     de: &'a mut Deserializer<R>,
 }
 

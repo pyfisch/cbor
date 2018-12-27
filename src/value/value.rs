@@ -224,7 +224,7 @@ impl<'de> de::Deserialize<'de> for Value {
         impl<'de> de::Visitor<'de> for ValueVisitor {
             type Value = Value;
 
-            fn expecting(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+            fn expecting(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
                 fmt.write_str("any valid CBOR value")
             }
 
@@ -532,7 +532,7 @@ impl<'de> de::Deserialize<'de> for ObjectKey {
         impl<'de> de::Visitor<'de> for ObjectKeyVisitor {
             type Value = ObjectKey;
 
-            fn expecting(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+            fn expecting(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
                 fmt.write_str("any valid CBOR key")
             }
 

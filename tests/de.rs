@@ -1,5 +1,5 @@
-extern crate serde_cbor;
-extern crate serde_bytes;
+use serde_cbor;
+
 
 use serde_bytes::ByteBuf;
 use std::collections::BTreeMap;
