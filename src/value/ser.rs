@@ -143,7 +143,7 @@ impl serde::Serializer for Serializer {
         T: Serialize,
     {
         let mut values = BTreeMap::new();
-        values.insert(ObjectKey::from(variant.to_owned()), try!(to_value(&value)));
+        values.insert(ObjectKey::from(variant.to_owned()), to_value(&value)?);
         Ok(Value::Object(values))
     }
 
@@ -249,7 +249,7 @@ impl serde::ser::SerializeSeq for SerializeVec {
     where
         T: Serialize,
     {
-        self.vec.push(try!(to_value(&value)));
+        self.vec.push(to_value(&value)?);
         Ok(())
     }
 
@@ -298,7 +298,7 @@ impl serde::ser::SerializeTupleVariant for SerializeTupleVariant {
     where
         T: Serialize,
     {
-        self.vec.push(try!(to_value(&value)));
+        self.vec.push(to_value(&value)?);
         Ok(())
     }
 
@@ -319,7 +319,7 @@ impl serde::ser::SerializeMap for SerializeMap {
     where
         T: Serialize,
     {
-        self.next_key = Some(ObjectKey::from(try!(to_value(&key))));
+        self.next_key = Some(ObjectKey::from(to_value(&key)?));
         Ok(())
     }
 
@@ -331,7 +331,7 @@ impl serde::ser::SerializeMap for SerializeMap {
         // Panic because this indicates a bug in the program rather than an
         // expected failure.
         let key = key.expect("serialize_value called before serialize_key");
-        self.map.insert(key, try!(to_value(&value)));
+        self.map.insert(key, to_value(&value)?);
         Ok(())
     }
 
@@ -348,7 +348,7 @@ impl serde::ser::SerializeStruct for SerializeMap {
     where
         T: Serialize,
     {
-        try!(serde::ser::SerializeMap::serialize_key(self, key));
+        serde::ser::SerializeMap::serialize_key(self, key)?;
         serde::ser::SerializeMap::serialize_value(self, value)
     }
 
@@ -367,7 +367,7 @@ impl serde::ser::SerializeStructVariant for SerializeStructVariant {
     {
         self.map.insert(
             ObjectKey::from(String::from(key)),
-            try!(to_value(&value)),
+            to_value(&value)?,
         );
         Ok(())
     }
