@@ -1,6 +1,6 @@
 language: rust
 rust:
-  - 1.26.0
+  - 1.31.0
   - stable
   - beta
   - nightly
@@ -8,3 +8,9 @@ matrix:
   allow_failures:
     - rust: nightly
 sudo: false
+before_script:
+  - rustup component add rustfmt
+script:
+  - cargo fmt --all -- --check
+  - cargo build
+  - cargo test
