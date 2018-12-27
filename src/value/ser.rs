@@ -11,10 +11,10 @@
 use std::collections::BTreeMap;
 
 use serde::{self, Serialize};
-use error::Error;
+use crate::error::Error;
 
-use value::Value;
-use value::ObjectKey;
+use crate::value::Value;
+use crate::value::ObjectKey;
 
 struct Serializer;
 

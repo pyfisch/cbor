@@ -2,7 +2,7 @@ use std::cmp;
 use std::io::{self, Read as StdRead};
 use std::mem;
 
-use error::{Result, Error, ErrorCode};
+use crate::error::{Result, Error, ErrorCode};
 
 /// Trait used by the deserializer for iterating over input.
 ///

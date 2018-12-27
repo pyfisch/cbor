@@ -397,7 +397,7 @@ impl ObjectKey {
     // has moved to a purely lexicographic ordering. This newer ordering is also used by the
     // [WebAuthn standard](https://fidoalliance.org/specs/fido-v2.0-id-20180227/fido-client-to-authenticator-protocol-v2.0-id-20180227.html#ctap2-canonical-cbor-encoding-form).
     fn canonical_sort_key(&self) -> (u8, usize, Option<&[u8]>) {
-        use ObjectKey::*;
+        use crate::ObjectKey::*;
         match *self {
             Integer(i) => {
                 let major_type = if i >= 0 { 0u8 } else { 1u8 };
@@ -682,7 +682,7 @@ impl_from!(Value, Bool, bool);
 
 /// Convert a `serde_cbor::Value` into a type `T`
 #[allow(clippy::needless_pass_by_value)]
-pub fn from_value<T>(value: Value) -> Result<T, ::error::Error>
+pub fn from_value<T>(value: Value) -> Result<T, crate::error::Error>
 where
     T: de::DeserializeOwned,
 {
@@ -690,6 +690,6 @@ where
     // roundtrip through buffer (i.e. by implementing
     // `serde::de::Deserializer` for `Value` and then doing
     // `T::deserialize(value)`).
-    let buf = ::to_vec(&value)?;
-    ::from_slice(buf.as_slice())
+    let buf = crate::to_vec(&value)?;
+    crate::from_slice(buf.as_slice())
 }

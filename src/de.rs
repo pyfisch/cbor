@@ -9,9 +9,9 @@ use std::f32;
 use std::result;
 use std::marker::PhantomData;
 
-use error::{Error, Result, ErrorCode};
-use read::EitherLifetime;
-pub use read::{Read, IoRead, SliceRead, MutSliceRead};
+use crate::error::{Error, Result, ErrorCode};
+use crate::read::EitherLifetime;
+pub use crate::read::{Read, IoRead, SliceRead, MutSliceRead};
 
 /// Decodes a value from CBOR data in a slice.
 ///

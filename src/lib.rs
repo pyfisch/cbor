@@ -160,8 +160,8 @@ pub mod ser;
 pub mod value;
 
 #[doc(inline)]
-pub use de::{from_slice, from_mut_slice, from_reader, Deserializer, StreamDeserializer};
+pub use crate::de::{from_slice, from_mut_slice, from_reader, Deserializer, StreamDeserializer};
 #[doc(inline)]
-pub use ser::{to_writer, to_vec, to_vec_with_options, Serializer, SerializerOptions};
+pub use crate::ser::{to_writer, to_vec, to_vec_with_options, Serializer, SerializerOptions};
 #[doc(inline)]
-pub use value::{Value, ObjectKey, to_value, from_value};
+pub use crate::value::{Value, ObjectKey, to_value, from_value};

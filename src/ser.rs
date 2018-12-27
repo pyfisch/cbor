@@ -4,7 +4,7 @@ use half::f16;
 use serde::ser::{self, Serialize};
 use std::io;
 
-use error::{Error, Result};
+use crate::error::{Error, Result};
 
 /// Serializes a value to a writer.
 pub fn to_writer<W, T>(mut writer: &mut W, value: &T) -> Result<()>
