@@ -220,7 +220,7 @@ where
         loop {
             let byte = self.parse_u8()?;
             let len = match byte {
-                0x40...0x57 => byte as usize - 0x40,
+                0x40..=0x57 => byte as usize - 0x40,
                 0x58 => self.parse_u8()? as usize,
                 0x59 => self.parse_u16()? as usize,
                 0x5a => self.parse_u32()? as usize,
@@ -283,7 +283,7 @@ where
         loop {
             let byte = self.parse_u8()?;
             let len = match byte {
-                0x60...0x77 => byte as usize - 0x60,
+                0x60..=0x77 => byte as usize - 0x60,
                 0x78 => self.parse_u8()? as usize,
                 0x79 => self.parse_u16()? as usize,
                 0x7a => self.parse_u32()? as usize,
@@ -459,7 +459,7 @@ where
         let byte = self.parse_u8()?;
         match byte {
             // Major type 0: an unsigned integer
-            0x00...0x17 => visitor.visit_u8(byte),
+            0x00..=0x17 => visitor.visit_u8(byte),
             0x18 => {
                 let value = self.parse_u8()?;
                 visitor.visit_u8(value)
@@ -476,10 +476,10 @@ where
                 let value = self.parse_u64()?;
                 visitor.visit_u64(value)
             }
-            0x1c...0x1f => Err(self.error(ErrorCode::UnassignedCode)),
+            0x1c..=0x1f => Err(self.error(ErrorCode::UnassignedCode)),
 
             // Major type 1: a negative integer
-            0x20...0x37 => visitor.visit_i8(-1 - (byte - 0x20) as i8),
+            0x20..=0x37 => visitor.visit_i8(-1 - (byte - 0x20) as i8),
             0x38 => {
                 let value = self.parse_u8()?;
                 visitor.visit_i16(-1 - i16::from(value))
@@ -499,10 +499,10 @@ where
                 }
                 visitor.visit_i64(-1 - value as i64)
             }
-            0x3c...0x3f => Err(self.error(ErrorCode::UnassignedCode)),
+            0x3c..=0x3f => Err(self.error(ErrorCode::UnassignedCode)),
 
             // Major type 2: a byte string
-            0x40...0x57 => self.parse_bytes(byte as usize - 0x40, visitor),
+            0x40..=0x57 => self.parse_bytes(byte as usize - 0x40, visitor),
             0x58 => {
                 let len = self.parse_u8()?;
                 self.parse_bytes(len as usize, visitor)
@@ -522,13 +522,13 @@ where
                 }
                 self.parse_bytes(len as usize, visitor)
             }
-            0x5c...0x5e => Err(self.error(ErrorCode::UnassignedCode)),
+            0x5c..=0x5e => Err(self.error(ErrorCode::UnassignedCode)),
             0x5f => {
                 self.parse_indefinite_bytes(visitor)
             }
 
             // Major type 3: a text string
-            0x60...0x77 => self.parse_str(byte as usize - 0x60, visitor),
+            0x60..=0x77 => self.parse_str(byte as usize - 0x60, visitor),
             0x78 => {
                 let len = self.parse_u8()?;
                 self.parse_str(len as usize, visitor)
@@ -548,13 +548,13 @@ where
                 }
                 self.parse_str(len as usize, visitor)
             }
-            0x7c...0x7e => Err(self.error(ErrorCode::UnassignedCode)),
+            0x7c..=0x7e => Err(self.error(ErrorCode::UnassignedCode)),
             0x7f => {
                 self.parse_indefinite_str(visitor)
             }
 
             // Major type 4: an array of data items
-            0x80...0x97 => self.parse_array(byte as usize - 0x80, visitor),
+            0x80..=0x97 => self.parse_array(byte as usize - 0x80, visitor),
             0x98 => {
                 let len = self.parse_u8()?;
                 self.parse_array(len as usize, visitor)
@@ -574,11 +574,11 @@ where
                 }
                 self.parse_array(len as usize, visitor)
             }
-            0x9c...0x9e => Err(self.error(ErrorCode::UnassignedCode)),
+            0x9c..=0x9e => Err(self.error(ErrorCode::UnassignedCode)),
             0x9f => self.parse_indefinite_array(visitor),
 
             // Major type 5: a map of pairs of data items
-            0xa0...0xb7 => self.parse_map(byte as usize - 0xa0, visitor),
+            0xa0..=0xb7 => self.parse_map(byte as usize - 0xa0, visitor),
             0xb8 => {
                 let len = self.parse_u8()?;
                 self.parse_map(len as usize, visitor)
@@ -598,11 +598,11 @@ where
                 }
                 self.parse_map(len as usize, visitor)
             }
-            0xbc...0xbe => Err(self.error(ErrorCode::UnassignedCode)),
+            0xbc..=0xbe => Err(self.error(ErrorCode::UnassignedCode)),
             0xbf => self.parse_indefinite_map(visitor),
 
             // Major type 6: optional semantic tagging of other major types
-            0xc0...0xd7 => self.parse_value(visitor),
+            0xc0..=0xd7 => self.parse_value(visitor),
             0xd8 => {
                 self.parse_u8()?;
                 self.parse_value(visitor)
@@ -619,10 +619,10 @@ where
                 self.parse_u64()?;
                 self.parse_value(visitor)
             }
-            0xdc...0xdf => Err(self.error(ErrorCode::UnassignedCode)),
+            0xdc..=0xdf => Err(self.error(ErrorCode::UnassignedCode)),
 
             // Major type 7: floating-point numbers and other simple data types that need no content
-            0xe0...0xf3 => Err(self.error(ErrorCode::UnassignedCode)),
+            0xe0..=0xf3 => Err(self.error(ErrorCode::UnassignedCode)),
             0xf4 => visitor.visit_bool(false),
             0xf5 => visitor.visit_bool(true),
             0xf6 => visitor.visit_unit(),
@@ -640,7 +640,7 @@ where
                 let value = self.parse_f64()?;
                 visitor.visit_f64(value)
             }
-            0xfc...0xfe => Err(self.error(ErrorCode::UnassignedCode)),
+            0xfc..=0xfe => Err(self.error(ErrorCode::UnassignedCode)),
             0xff => Err(self.error(ErrorCode::UnexpectedCode)),
 
             // https://github.com/rust-lang/rust/issues/12483
@@ -699,10 +699,10 @@ where
         V: de::Visitor<'de>,
     {
         match self.peek()? {
-            Some(byte @ 0x80...0x9f) => {
+            Some(byte @ 0x80..=0x9f) => {
                 self.consume();
                 match byte {
-                    0x80...0x97 => self.parse_enum(byte as usize - 0x80, visitor),
+                    0x80..=0x97 => self.parse_enum(byte as usize - 0x80, visitor),
                     0x98 => {
                         let len = self.parse_u8()?;
                         self.parse_enum(len as usize, visitor)
@@ -722,7 +722,7 @@ where
                         }
                         self.parse_enum(len as usize, visitor)
                     }
-                    0x9c...0x9e => Err(self.error(ErrorCode::UnassignedCode)),
+                    0x9c..=0x9e => Err(self.error(ErrorCode::UnassignedCode)),
                     0x9f => self.parse_indefinite_enum(visitor),
 
                     _ => unreachable!(),
