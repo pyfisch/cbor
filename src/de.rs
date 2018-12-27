@@ -259,16 +259,20 @@ where
     where
         V: de::Visitor<'de>,
     {
-        let offset = self.read.offset() + len as u64;
-        match self.read.read(len)? {
-            EitherLifetime::Long(buf) => {
-                let s = Self::convert_str(buf, offset)?;
-                visitor.visit_borrowed_str(s)
+        if let Some(offset) = self.read.offset().checked_add(len as u64) {
+            match self.read.read(len)? {
+                EitherLifetime::Long(buf) => {
+                    let s = Self::convert_str(buf, offset)?;
+                    visitor.visit_borrowed_str(s)
+                }
+                EitherLifetime::Short(buf) => {
+                    let s = Self::convert_str(buf, offset)?;
+                    visitor.visit_str(s)
+                }
             }
-            EitherLifetime::Short(buf) => {
-                let s = Self::convert_str(buf, offset)?;
-                visitor.visit_str(s)
-            }
+        } else {
+            // An overflow would have occured.
+            Err(Error::syntax(ErrorCode::LengthOutOfRange, self.read.offset()))
         }
     }
 

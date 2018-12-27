@@ -14,6 +14,7 @@ pub struct Error(Box<ErrorImpl>);
 pub type Result<T> = result::Result<T, Error>;
 
 /// Categorizes the cause of a `serde_cbor::Error`.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Category {
     /// The error was caused by a failure to read or write bytes on an IO stream.
     Io,

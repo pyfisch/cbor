@@ -274,3 +274,10 @@ fn test_large_bytes() {
     let actual = from_reader(&v[..]).unwrap();
     assert_eq!(expected, actual);
 }
+
+#[test]
+fn crash() {
+    let file = include_bytes!("crash.cbor");
+    let value_result: error::Result<Value> = de::from_slice(file);
+    assert_eq!(value_result.unwrap_err().classify(), serde_cbor::error::Category::Syntax);
+}
