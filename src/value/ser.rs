@@ -408,7 +408,7 @@ impl serde::ser::SerializeStructVariant for SerializeStructVariant {
 ///     let v = serde_cbor::to_value(u).unwrap();
 /// }
 /// ```
-#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
+#[allow(clippy::needless_pass_by_value)]
 // Taking by value is more friendly to iterator adapters, option and result
 pub fn to_value<T>(value: T) -> Result<Value, Error>
 where

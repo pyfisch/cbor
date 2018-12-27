@@ -681,6 +681,7 @@ impl_from!(Value, F64, f64);
 impl_from!(Value, Bool, bool);
 
 /// Convert a `serde_cbor::Value` into a type `T`
+#[allow(clippy::needless_pass_by_value)]
 pub fn from_value<T>(value: Value) -> Result<T, ::error::Error>
 where
     T: de::DeserializeOwned,
