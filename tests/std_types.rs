@@ -1,5 +1,3 @@
-
-
 #[macro_use]
 extern crate serde_derive;
 
@@ -7,8 +5,8 @@ use std::u8;
 
 use serde_bytes::ByteBuf;
 
-use serde_cbor::{from_slice, from_mut_slice, from_reader};
 use serde_cbor::ser::{to_vec, to_vec_packed};
+use serde_cbor::{from_mut_slice, from_reader, from_slice};
 
 fn to_binary(s: &'static str) -> Vec<u8> {
     assert!(s.len() % 2 == 0);
@@ -56,29 +54,23 @@ macro_rules! testcase {
             assert_eq!(to_vec(&expr).unwrap(), serialized, "serialization differs");
             let parsed: $ty = from_slice(&serialized[..]).unwrap();
             assert_eq!(parsed, expr, "parsed result differs");
-            let packed = &to_vec_packed(&expr)
-                .expect("serializing packed")[..];
-            let parsed_from_packed: $ty = from_slice(packed)
-                .expect("parsing packed");
+            let packed = &to_vec_packed(&expr).expect("serializing packed")[..];
+            let parsed_from_packed: $ty = from_slice(packed).expect("parsing packed");
             assert_eq!(parsed_from_packed, expr, "packed roundtrip fail");
 
             let parsed: $ty = from_reader(&mut &serialized[..]).unwrap();
             assert_eq!(parsed, expr, "parsed result differs");
-            let mut packed = to_vec_packed(&expr)
-                .expect("serializing packed");
-            let parsed_from_packed: $ty = from_reader(&mut &packed[..])
-                .expect("parsing packed");
+            let mut packed = to_vec_packed(&expr).expect("serializing packed");
+            let parsed_from_packed: $ty = from_reader(&mut &packed[..]).expect("parsing packed");
             assert_eq!(parsed_from_packed, expr, "packed roundtrip fail");
 
             let parsed: $ty = from_mut_slice(&mut serialized[..]).unwrap();
             assert_eq!(parsed, expr, "parsed result differs");
-            let parsed_from_packed: $ty = from_mut_slice(&mut packed[..])
-                .expect("parsing packed");
+            let parsed_from_packed: $ty = from_mut_slice(&mut packed[..]).expect("parsing packed");
             assert_eq!(parsed_from_packed, expr, "packed roundtrip fail");
         }
-    }
+    };
 }
-
 
 testcase!(test_bool_false, bool, false, "f4");
 testcase!(test_bool_true, bool, true, "f5");
@@ -97,7 +89,12 @@ testcase!(test_f64_infinity, f64, ::std::f64::INFINITY, "f97c00");
 testcase!(test_f64_neg_infinity, f64, -::std::f64::INFINITY, "f9fc00");
 testcase!(test_char_null, char, '\x00', "6100");
 testcase!(test_char_broken_heart, char, '💔', "64f09f9294");
-testcase!(test_str_pangram_de, String, "aâø↓é".to_owned(), "6a61c3a2c3b8e28693c3a9");
+testcase!(
+    test_str_pangram_de,
+    String,
+    "aâø↓é".to_owned(),
+    "6a61c3a2c3b8e28693c3a9"
+);
 testcase!(test_bytes, ByteBuf, b"\x00\xab".to_vec().into(), "4200ab");
 testcase!(test_unit, (), (), "f6");
 
@@ -107,7 +104,12 @@ testcase!(test_unit_struct, UnitStruct, UnitStruct, "f6");
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 struct NewtypeStruct(bool);
-testcase!(test_newtype_struct, NewtypeStruct, NewtypeStruct(true), "f5");
+testcase!(
+    test_newtype_struct,
+    NewtypeStruct,
+    NewtypeStruct(true),
+    "f5"
+);
 
 testcase!(test_option_none, Option<u8>, None, "f6");
 testcase!(test_option_some, Option<u8>, Some(42), "182a");
@@ -151,18 +153,19 @@ enum Color {
     Blue,
     Yellow,
     Other(u64),
-    Alpha(u64, u8)
+    Alpha(u64, u8),
 }
 
-testcase!(test_color_enum,
-    Color,
-    Color::Blue,
-    "64426c7565");
-testcase!(test_color_enum_transparent,
+testcase!(test_color_enum, Color, Color::Blue, "64426c7565");
+testcase!(
+    test_color_enum_transparent,
     Color,
     Color::Other(42),
-    "82654f74686572182a");
-testcase!(test_color_enum_with_alpha,
+    "82654f74686572182a"
+);
+testcase!(
+    test_color_enum_with_alpha,
     Color,
     Color::Alpha(234567, 60),
-    "8365416c7068611a00039447183c");
+    "8365416c7068611a00039447183c"
+);

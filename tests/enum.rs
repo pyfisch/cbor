@@ -5,37 +5,36 @@ extern crate serde_derive;
 
 use std::collections::BTreeMap;
 
-use serde_cbor::{from_slice, to_vec, Value, ObjectKey};
+use serde_cbor::{from_slice, to_vec, ObjectKey, Value};
 
-#[derive(Debug,Serialize,Deserialize,PartialEq,Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 enum Enum {
     A,
     B,
 }
 
-#[derive(Debug,Serialize,Deserialize,PartialEq,Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 struct EnumStruct {
     e: Enum,
 }
 
 #[test]
 fn test_enum() {
-    let enum_struct = EnumStruct{ e: Enum::B };
+    let enum_struct = EnumStruct { e: Enum::B };
     let raw = &to_vec(&enum_struct).unwrap();
     println!("raw enum {:?}", raw);
-    let re : EnumStruct = from_slice(raw).unwrap();
+    let re: EnumStruct = from_slice(raw).unwrap();
     assert_eq!(enum_struct, re);
 }
 
-
 #[repr(u16)]
-#[derive(Debug,Serialize,Deserialize,PartialEq,Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 enum ReprEnum {
     A,
     B,
 }
 
-#[derive(Debug,Serialize,Deserialize,PartialEq,Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 struct ReprEnumStruct {
     e: ReprEnum,
 }
@@ -43,29 +42,31 @@ struct ReprEnumStruct {
 #[test]
 fn test_repr_enum() {
     let repr_enum_struct = ReprEnumStruct { e: ReprEnum::B };
-    let re : ReprEnumStruct = from_slice(&to_vec(&repr_enum_struct).unwrap()).unwrap();
+    let re: ReprEnumStruct = from_slice(&to_vec(&repr_enum_struct).unwrap()).unwrap();
     assert_eq!(repr_enum_struct, re);
 }
 
-
-#[derive(Debug,Serialize,Deserialize,PartialEq,Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 enum DataEnum {
     A(u32),
     B(bool, u8),
-    C { x: u8, y: String }
+    C { x: u8, y: String },
 }
 
 #[test]
 fn test_data_enum() {
     let data_enum_a = DataEnum::A(4);
-    let re_a : DataEnum = from_slice(&to_vec(&data_enum_a).unwrap()).unwrap();
+    let re_a: DataEnum = from_slice(&to_vec(&data_enum_a).unwrap()).unwrap();
     assert_eq!(data_enum_a, re_a);
     let data_enum_b = DataEnum::B(true, 42);
-    let re_b : DataEnum = from_slice(&to_vec(&data_enum_b).unwrap()).unwrap();
+    let re_b: DataEnum = from_slice(&to_vec(&data_enum_b).unwrap()).unwrap();
     assert_eq!(data_enum_b, re_b);
-    let data_enum_c = DataEnum::C { x: 3, y: "foo".to_owned() };
+    let data_enum_c = DataEnum::C {
+        x: 3,
+        y: "foo".to_owned(),
+    };
     println!("{:?}", &to_vec(&data_enum_c).unwrap());
-    let re_c : DataEnum = from_slice(&to_vec(&data_enum_c).unwrap()).unwrap();
+    let re_c: DataEnum = from_slice(&to_vec(&data_enum_c).unwrap()).unwrap();
     assert_eq!(data_enum_c, re_c);
 }
 
@@ -74,8 +75,10 @@ fn test_serialize() {
     assert_eq!(to_vec(&Enum::A).unwrap(), &[97, 65]);
     assert_eq!(to_vec(&Enum::B).unwrap(), &[97, 66]);
     assert_eq!(to_vec(&DataEnum::A(42)).unwrap(), &[130, 97, 65, 24, 42]);
-    assert_eq!(to_vec(&DataEnum::B(true, 9)).unwrap(),
-               &[131, 97, 66, 245, 9]);
+    assert_eq!(
+        to_vec(&DataEnum::B(true, 9)).unwrap(),
+        &[131, 97, 66, 245, 9]
+    );
 }
 
 #[test]
@@ -104,7 +107,7 @@ enum Bar {
     Empty,
     Number(i32),
     Flag(String, bool),
-    Point{x: i32, y: i32},
+    Point { x: i32, y: i32 },
 }
 
 #[test]
@@ -121,21 +124,31 @@ fn test_enum_as_map() {
     assert_eq!(number_s, number_vec_s);
 
     let flag_s = to_vec(&Bar::Flag("foo".to_string(), true)).unwrap();
-    let flag_vec = vec![Value::String("Flag".to_string()), Value::String("foo".to_string()), Value::Bool(true)];
+    let flag_vec = vec![
+        Value::String("Flag".to_string()),
+        Value::String("foo".to_string()),
+        Value::Bool(true),
+    ];
     let flag_vec_s = to_vec(&flag_vec).unwrap();
     assert_eq!(flag_s, flag_vec_s);
 
     // struct-variants serialize like ["<variant>", {struct..}]
-    let point_s = to_vec(&Bar::Point{ x: 5, y: -5}).unwrap();
+    let point_s = to_vec(&Bar::Point { x: 5, y: -5 }).unwrap();
     let mut struct_map = BTreeMap::new();
     struct_map.insert(ObjectKey::String("x".to_string()), Value::I64(5));
     struct_map.insert(ObjectKey::String("y".to_string()), Value::I64(-5));
-    let point_vec = vec![Value::String("Point".to_string()), Value::Object(struct_map.clone())];
+    let point_vec = vec![
+        Value::String("Point".to_string()),
+        Value::Object(struct_map.clone()),
+    ];
     let point_vec_s = to_vec(&point_vec).unwrap();
     assert_eq!(point_s, point_vec_s);
 
     // enum_as_map matches serde_json's default serialization for enums.
-    let opts = serde_cbor::SerializerOptions{ enum_as_map: true, ..Default::default() };
+    let opts = serde_cbor::SerializerOptions {
+        enum_as_map: true,
+        ..Default::default()
+    };
 
     // unit variants still serialize like bare strings
     let empty_s = opts.to_vec(&Bar::Empty).unwrap();
@@ -151,12 +164,15 @@ fn test_enum_as_map() {
     // multi-element tuple variants serialize like {"<variant>": [values..]}
     let flag_s = opts.to_vec(&Bar::Flag("foo".to_string(), true)).unwrap();
     let mut flag_map = BTreeMap::new();
-    flag_map.insert("Flag", vec![Value::String("foo".to_string()), Value::Bool(true)]);
+    flag_map.insert(
+        "Flag",
+        vec![Value::String("foo".to_string()), Value::Bool(true)],
+    );
     let flag_map_s = to_vec(&flag_map).unwrap();
     assert_eq!(flag_s, flag_map_s);
 
     // struct-variants serialize like {"<variant>", {struct..}}
-    let point_s = opts.to_vec(&Bar::Point{ x: 5, y: -5}).unwrap();
+    let point_s = opts.to_vec(&Bar::Point { x: 5, y: -5 }).unwrap();
     let mut point_map = BTreeMap::new();
     point_map.insert("Point", Value::Object(struct_map));
     let point_map_s = to_vec(&point_map).unwrap();
@@ -177,7 +193,7 @@ fn test_enum_as_map() {
     assert_eq!(Bar::Flag("foo".to_string(), true), flag_map_ds);
 
     let point_vec_ds = from_slice(&point_vec_s).unwrap();
-    assert_eq!(Bar::Point{ x: 5, y: -5}, point_vec_ds);
+    assert_eq!(Bar::Point { x: 5, y: -5 }, point_vec_ds);
     let point_map_ds = from_slice(&point_map_s).unwrap();
-    assert_eq!(Bar::Point{ x: 5, y: -5}, point_map_ds);
+    assert_eq!(Bar::Point { x: 5, y: -5 }, point_map_ds);
 }

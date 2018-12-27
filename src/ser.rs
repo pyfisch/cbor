@@ -1,5 +1,5 @@
 //! Serialize a Rust data structure to CBOR data.
-use byteorder::{ByteOrder, BigEndian};
+use byteorder::{BigEndian, ByteOrder};
 use half::f16;
 use serde::ser::{self, Serialize};
 use std::io;
@@ -248,7 +248,8 @@ where
         } else {
             let buf = [major << 5 | 24, value];
             self.writer.write_all(&buf)
-        }.map_err(Error::io)
+        }
+        .map_err(Error::io)
     }
 
     #[inline]
@@ -296,7 +297,9 @@ where
                 false
             }
             None => {
-                self.writer.write_all(&[major << 5 | 31]).map_err(Error::io)?;
+                self.writer
+                    .write_all(&[major << 5 | 31])
+                    .map_err(Error::io)?;
                 true
             }
         };
@@ -404,7 +407,8 @@ where
             let mut buf = [0xfa, 0, 0, 0, 0];
             BigEndian::write_f32(&mut buf[1..], value);
             self.writer.write_all(&buf)
-        }.map_err(Error::io)
+        }
+        .map_err(Error::io)
     }
 
     #[inline]
@@ -549,16 +553,22 @@ where
     }
 
     fn collect_map<K, V, I>(self, iter: I) -> Result<Self::Ok>
-        where
-            K: Serialize,
-            V: Serialize,
-            I: IntoIterator<Item = (K, V)>,
+    where
+        K: Serialize,
+        V: Serialize,
+        I: IntoIterator<Item = (K, V)>,
     {
         use serde::ser::SerializeMap;
 
-        let entry_results = iter.into_iter().map(|(k, v)| {
-            (self.serialize_with_same_settings(k), self.serialize_with_same_settings(v))
-        }).collect::<Vec<_>>();
+        let entry_results = iter
+            .into_iter()
+            .map(|(k, v)| {
+                (
+                    self.serialize_with_same_settings(k),
+                    self.serialize_with_same_settings(v),
+                )
+            })
+            .collect::<Vec<_>>();
 
         let mut entries = vec![];
         for (k, v) in entry_results {
@@ -580,7 +590,11 @@ where
     #[inline]
     fn serialize_struct(self, _name: &'static str, len: usize) -> Result<StructSerializer<'a, W>> {
         self.write_u64(5, len as u64)?;
-        Ok(StructSerializer { ser: self, idx: 0, entries: vec![]})
+        Ok(StructSerializer {
+            ser: self,
+            idx: 0,
+            entries: vec![],
+        })
     }
 
     #[inline]
@@ -691,7 +705,8 @@ where
             self.ser.serialize_with_same_settings(key)?
         };
         self.idx += 1;
-        self.entries.push((key_bytes, self.ser.serialize_with_same_settings(value)?));
+        self.entries
+            .push((key_bytes, self.ser.serialize_with_same_settings(value)?));
         Ok(())
     }
 

@@ -1,10 +1,9 @@
 use serde_cbor;
 
-
 use serde_bytes::ByteBuf;
 use std::collections::BTreeMap;
 
-use serde_cbor::{to_vec, Value, ObjectKey, error, de, Deserializer, from_reader};
+use serde_cbor::{de, error, from_reader, to_vec, Deserializer, ObjectKey, Value};
 
 #[test]
 fn test_string1() {
@@ -14,16 +13,24 @@ fn test_string1() {
 
 #[test]
 fn test_string2() {
-    let value: error::Result<Value> = de::from_slice(&[0x71, 0x49, 0x20, 0x6d, 0x65, 0x74, 0x20, 0x61, 0x20, 0x74, 0x72, 0x61, 0x76,
-        0x65, 0x6c, 0x6c, 0x65, 0x72]);
-    assert_eq!(value.unwrap(), Value::String("I met a traveller".to_owned()));
+    let value: error::Result<Value> = de::from_slice(&[
+        0x71, 0x49, 0x20, 0x6d, 0x65, 0x74, 0x20, 0x61, 0x20, 0x74, 0x72, 0x61, 0x76, 0x65, 0x6c,
+        0x6c, 0x65, 0x72,
+    ]);
+    assert_eq!(
+        value.unwrap(),
+        Value::String("I met a traveller".to_owned())
+    );
 }
 
 #[test]
 fn test_string3() {
     let slice = b"\x78\x2fI met a traveller from an antique land who said";
     let value: error::Result<Value> = de::from_slice(slice);
-    assert_eq!(value.unwrap(), Value::String("I met a traveller from an antique land who said".to_owned()));
+    assert_eq!(
+        value.unwrap(),
+        Value::String("I met a traveller from an antique land who said".to_owned())
+    );
 }
 
 #[test]
@@ -65,24 +72,48 @@ fn test_trailing_bytes() {
 #[test]
 fn test_list1() {
     let value: error::Result<Value> = de::from_slice(b"\x83\x01\x02\x03");
-    assert_eq!(value.unwrap(), Value::Array(vec![Value::U64(1), Value::U64(2), Value::U64(3)]));
+    assert_eq!(
+        value.unwrap(),
+        Value::Array(vec![Value::U64(1), Value::U64(2), Value::U64(3)])
+    );
 }
 
 #[test]
 fn test_list2() {
     let value: error::Result<Value> = de::from_slice(b"\x82\x01\x82\x02\x81\x03");
-    assert_eq!(value.unwrap(), Value::Array(vec![Value::U64(1), Value::Array(vec![Value::U64(2), Value::Array(vec![Value::U64(3)])])]));
+    assert_eq!(
+        value.unwrap(),
+        Value::Array(vec![
+            Value::U64(1),
+            Value::Array(vec![Value::U64(2), Value::Array(vec![Value::U64(3)])])
+        ])
+    );
 }
 
 #[test]
 fn test_object() {
     let value: error::Result<Value> = de::from_slice(b"\xa5aaaAabaBacaCadaDaeaE");
     let mut object = BTreeMap::new();
-    object.insert(ObjectKey::String("a".to_owned()), Value::String("A".to_owned()));
-    object.insert(ObjectKey::String("b".to_owned()), Value::String("B".to_owned()));
-    object.insert(ObjectKey::String("c".to_owned()), Value::String("C".to_owned()));
-    object.insert(ObjectKey::String("d".to_owned()), Value::String("D".to_owned()));
-    object.insert(ObjectKey::String("e".to_owned()), Value::String("E".to_owned()));
+    object.insert(
+        ObjectKey::String("a".to_owned()),
+        Value::String("A".to_owned()),
+    );
+    object.insert(
+        ObjectKey::String("b".to_owned()),
+        Value::String("B".to_owned()),
+    );
+    object.insert(
+        ObjectKey::String("c".to_owned()),
+        Value::String("C".to_owned()),
+    );
+    object.insert(
+        ObjectKey::String("d".to_owned()),
+        Value::String("D".to_owned()),
+    );
+    object.insert(
+        ObjectKey::String("e".to_owned()),
+        Value::String("E".to_owned()),
+    );
     assert_eq!(value.unwrap(), Value::Object(object));
 }
 
@@ -91,20 +122,30 @@ fn test_indefinite_object() {
     let value: error::Result<Value> = de::from_slice(b"\xbfaa\x01ab\x9f\x02\x03\xff\xff");
     let mut object = BTreeMap::new();
     object.insert(ObjectKey::String("a".to_owned()), Value::U64(1));
-    object.insert(ObjectKey::String("b".to_owned()), Value::Array(vec![Value::U64(2), Value::U64(3)]));
+    object.insert(
+        ObjectKey::String("b".to_owned()),
+        Value::Array(vec![Value::U64(2), Value::U64(3)]),
+    );
     assert_eq!(value.unwrap(), Value::Object(object));
 }
 
 #[test]
 fn test_indefinite_list() {
     let value: error::Result<Value> = de::from_slice(b"\x9f\x01\x02\x03\xff");
-    assert_eq!(value.unwrap(), Value::Array(vec![Value::U64(1), Value::U64(2), Value::U64(3)]));
+    assert_eq!(
+        value.unwrap(),
+        Value::Array(vec![Value::U64(1), Value::U64(2), Value::U64(3)])
+    );
 }
 
 #[test]
 fn test_indefinite_string() {
-    let value: error::Result<Value> = de::from_slice(b"\x7f\x65Mary \x64Had \x62a \x67Little \x60\x64Lamb\xff");
-    assert_eq!(value.unwrap(), Value::String("Mary Had a Little Lamb".to_owned()));
+    let value: error::Result<Value> =
+        de::from_slice(b"\x7f\x65Mary \x64Had \x62a \x67Little \x60\x64Lamb\xff");
+    assert_eq!(
+        value.unwrap(),
+        Value::String("Mary Had a Little Lamb".to_owned())
+    );
 }
 
 #[test]
@@ -121,10 +162,13 @@ fn test_multiple_indefinite_strings() {
 }
 fn _test_multiple_indefinite_strings(value: error::Result<Value>) {
     // This assures that buffer rewinding in infinite buffers works as intended.
-    assert_eq!(value.unwrap(), Value::Array(vec![
-        Value::String("Mary Had a Little Lamb".to_owned()),
-        Value::Bytes(b"\x01#Eg".to_vec())
-        ]));
+    assert_eq!(
+        value.unwrap(),
+        Value::Array(vec![
+            Value::String("Mary Had a Little Lamb".to_owned()),
+            Value::Bytes(b"\x01#Eg".to_vec())
+        ])
+    );
 }
 
 #[test]
@@ -133,13 +177,12 @@ fn test_float() {
     assert_eq!(value.unwrap(), Value::F64(100000.0));
 }
 
-
 #[test]
 fn test_self_describing() {
-    let value: error::Result<Value> = de::from_slice(&[0xd9, 0xd9, 0xf7, 0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72]);
+    let value: error::Result<Value> =
+        de::from_slice(&[0xd9, 0xd9, 0xf7, 0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72]);
     assert_eq!(value.unwrap(), Value::String("foobar".to_owned()));
 }
-
 
 #[test]
 fn test_f16() {
@@ -157,15 +200,19 @@ fn test_f16() {
 fn test_crazy_list() {
     let slice = b"\x88\x1b\x00\x00\x00\x1c\xbe\x99\x1d\xc7\x3b\x00\x7a\xcf\x51\xdc\x51\x70\xdb\x3a\x1b\x3a\x06\xdd\xf5\xf6\xf7\xfb\x41\x76\x5e\xb1\xf8\x00\x00\x00\xf9\x7c\x00";
     let value: Vec<Value> = de::from_slice(slice).unwrap();
-    assert_eq!(value, vec![
-        Value::U64(123456789959),
-        Value::I64(-34567897654325468),
-        Value::I64(-456787678),
-        Value::Bool(true),
-        Value::Null,
-        Value::Null,
-        Value::F64(23456543.5),
-        Value::F64(::std::f64::INFINITY)]);
+    assert_eq!(
+        value,
+        vec![
+            Value::U64(123456789959),
+            Value::I64(-34567897654325468),
+            Value::I64(-456787678),
+            Value::Bool(true),
+            Value::Null,
+            Value::Null,
+            Value::F64(23456543.5),
+            Value::F64(::std::f64::INFINITY)
+        ]
+    );
 }
 
 #[test]
@@ -216,7 +263,10 @@ fn test_variable_length_map() {
     let slice = b"\xbf\x67\x6d\x65\x73\x73\x61\x67\x65\x64\x70\x6f\x6e\x67\xff";
     let value: Value = de::from_slice(slice).unwrap();
     let mut map = BTreeMap::new();
-    map.insert(ObjectKey::String("message".to_string()), Value::String("pong".to_string()));
+    map.insert(
+        ObjectKey::String("message".to_string()),
+        Value::String("pong".to_string()),
+    );
     assert_eq!(value, Value::Object(map))
 }
 
@@ -226,7 +276,10 @@ fn test_object_determinism_roundtrip() {
 
     // 0.1% chance of not catching failure
     for _ in 0..10 {
-        assert_eq!(&to_vec(&de::from_slice::<Value>(expected).unwrap()).unwrap(), expected);
+        assert_eq!(
+            &to_vec(&de::from_slice::<Value>(expected).unwrap()).unwrap(),
+            expected
+        );
     }
 }
 
@@ -235,7 +288,10 @@ fn stream_deserializer() {
     let slice = b"\x01\x66foobar";
     let mut it = Deserializer::from_slice(slice).into_iter::<Value>();
     assert_eq!(Value::U64(1), it.next().unwrap().unwrap());
-    assert_eq!(Value::String("foobar".to_string()), it.next().unwrap().unwrap());
+    assert_eq!(
+        Value::String("foobar".to_string()),
+        it.next().unwrap().unwrap()
+    );
     assert!(it.next().is_none());
 }
 
@@ -251,7 +307,7 @@ fn stream_deserializer_eof() {
 fn stream_deserializer_eof_in_indefinite() {
     let slice = b"\x7f\x65Mary \x64Had \x62a \x60\x67Little \x60\x64Lamb\xff";
     let indices: &[usize] = &[
-        2, // announcement but no data
+        2,  // announcement but no data
         10, // mid-buffer EOF
         12, // neither new element nor end marker
     ];
@@ -267,7 +323,9 @@ fn stream_deserializer_eof_in_indefinite() {
 
 #[test]
 fn test_large_bytes() {
-    let expected = (0..2 * 1024 * 1024).map(|i| (i * 7) as u8).collect::<Vec<_>>();
+    let expected = (0..2 * 1024 * 1024)
+        .map(|i| (i * 7) as u8)
+        .collect::<Vec<_>>();
     let expected = ByteBuf::from(expected);
     let v = to_vec(&expected).unwrap();
 
@@ -279,5 +337,8 @@ fn test_large_bytes() {
 fn crash() {
     let file = include_bytes!("crash.cbor");
     let value_result: error::Result<Value> = de::from_slice(file);
-    assert_eq!(value_result.unwrap_err().classify(), serde_cbor::error::Category::Syntax);
+    assert_eq!(
+        value_result.unwrap_err().classify(),
+        serde_cbor::error::Category::Syntax
+    );
 }

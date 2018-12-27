@@ -1,13 +1,9 @@
-
-
-
-
 use std::collections::BTreeMap;
 
 use serde::Serializer;
 use serde_bytes::{ByteBuf, Bytes};
-use serde_cbor::{to_vec, from_slice};
 use serde_cbor::ser;
+use serde_cbor::{from_slice, to_vec};
 
 #[test]
 fn test_string() {
@@ -45,8 +41,12 @@ fn test_object_list_keys() {
     object.insert(vec![0i64, -1i64], ());
     let vec = to_vec(&object).unwrap();
     assert_eq!(
-        vec![166, 129, 0, 246, 129, 24, 100, 246, 129, 32, 246, 129, 33, 246, 130, 0, 0, 246, 130, 0, 32, 246],
-        vec);
+        vec![
+            166, 129, 0, 246, 129, 24, 100, 246, 129, 32, 246, 129, 33, 246, 130, 0, 0, 246, 130,
+            0, 32, 246
+        ],
+        vec
+    );
     let test_object = from_slice(&vec[..]).unwrap();
     assert_eq!(object, test_object);
 }
@@ -62,17 +62,21 @@ fn test_object_object_keys() {
         vec!["d"],
         vec!["aa"],
         vec!["a", "aa"],
-    ].into_iter().map(|v| {
-        BTreeMap::from_iter(v.into_iter().map(|s| (s.to_owned(), ())))
-    });
+    ]
+    .into_iter()
+    .map(|v| BTreeMap::from_iter(v.into_iter().map(|s| (s.to_owned(), ()))));
 
     for key in keys {
         object.insert(key, ());
     }
     let vec = to_vec(&object).unwrap();
     assert_eq!(
-        vec![166, 161, 97, 97, 246, 246, 161, 97, 98, 246, 246, 161, 97, 99, 246, 246, 161, 97, 100, 246, 246, 161, 98, 97, 97, 246, 246, 162, 97, 97, 246, 98, 97, 97, 246, 246],
-        vec);
+        vec![
+            166, 161, 97, 97, 246, 246, 161, 97, 98, 246, 246, 161, 97, 99, 246, 246, 161, 97, 100,
+            246, 246, 161, 98, 97, 97, 246, 246, 162, 97, 97, 246, 98, 97, 97, 246, 246
+        ],
+        vec
+    );
     let test_object = from_slice(&vec[..]).unwrap();
     assert_eq!(object, test_object);
 }
@@ -136,7 +140,10 @@ fn test_self_describing() {
     }
     assert_eq!(vec, b"\xd9\xd9\xf7\x09");
 
-    let sd = ser::SerializerOptions{ self_describe: true, ..Default::default() };
+    let sd = ser::SerializerOptions {
+        self_describe: true,
+        ..Default::default()
+    };
     let vec = sd.to_vec(&9).unwrap();
     assert_eq!(vec, b"\xd9\xd9\xf7\x09");
 }
@@ -166,11 +173,17 @@ fn test_byte_string() {
     assert_eq!(&short_slice_s[..], [0x44, 0, 1, 2, 255]);
 
     // byte strings > 23 bytes have 2-byte headers
-    let medium = ByteBuf::from(vec![0u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-        12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 255]);
+    let medium = ByteBuf::from(vec![
+        0u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 255,
+    ]);
     let medium_s = to_vec(&medium).unwrap();
-    assert_eq!(&medium_s[..], [0x58, 24, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-        12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 255]);
+    assert_eq!(
+        &medium_s[..],
+        [
+            0x58, 24, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+            22, 255
+        ]
+    );
 
     // byte strings > 256 bytes have 3-byte headers
     let long_vec = (0..256).map(|i| (i & 0xFF) as u8).collect::<Vec<_>>();

@@ -20,8 +20,8 @@ struct Struct<'a> {
     unit_array: Vec<UnitStruct>,
 }
 
-use std::iter::FromIterator;
 use serde_cbor::Value;
+use std::iter::FromIterator;
 
 #[test]
 fn serde() {
@@ -35,8 +35,9 @@ fn serde() {
             (format!("key2"), format!("value2")),
             (format!("key3"), format!("value3")),
             (format!("key4"), format!("value4")),
-        ].into_iter()
-            .cloned(),
+        ]
+        .into_iter()
+        .cloned(),
     );
 
     let bytes = b"test byte string";
@@ -59,13 +60,11 @@ fn serde() {
     let data_ser = serde_cbor::to_vec(&value).unwrap();
     let data_de_value: Value = serde_cbor::from_slice(&data_ser).unwrap();
 
-    for ((k1, v1), (k2, v2)) in
-        value.as_object().unwrap().iter().zip(
-            data_de_value
-                .as_object()
-                .unwrap()
-                .iter(),
-        )
+    for ((k1, v1), (k2, v2)) in value
+        .as_object()
+        .unwrap()
+        .iter()
+        .zip(data_de_value.as_object().unwrap().iter())
     {
         assert_eq!(k1, k2);
         assert_eq!(v1, v2);

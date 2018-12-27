@@ -1,7 +1,7 @@
 //! CBOR values and keys.
 
+use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::BTreeMap;
-use std::cmp::{PartialOrd, Ord, Ordering};
 use std::fmt;
 
 use serde::de;
@@ -44,7 +44,6 @@ impl Value {
             None
         }
     }
-
 
     /// If the value is an object, returns the associated mutable BTreeMap. Returns None otherwise.
     pub fn as_object_mut(&mut self) -> Option<&mut BTreeMap<ObjectKey, Value>> {
@@ -401,25 +400,13 @@ impl ObjectKey {
         match *self {
             Integer(i) => {
                 let major_type = if i >= 0 { 0u8 } else { 1u8 };
-                let magnitude = if i >= 0 {
-                    i
-                } else {
-                    -(i + 1)
-                };
+                let magnitude = if i >= 0 { i } else { -(i + 1) };
                 (major_type, magnitude as usize, None)
             }
-            Bytes(ref v) => {
-                (2, v.len(), Some(v))
-            }
-            String(ref s) => {
-                (3, s.len(), Some(s.as_bytes()))
-            }
-            Bool(b) => {
-                (7, if b { 21 } else { 20 }, None)
-            }
-            Null => {
-                (7, 22, None)
-            }
+            Bytes(ref v) => (2, v.len(), Some(v)),
+            String(ref s) => (3, s.len(), Some(s.as_bytes())),
+            Bool(b) => (7, if b { 21 } else { 20 }, None),
+            Null => (7, 22, None),
         }
     }
     /// Returns true if the ObjectKey is a byte string.
@@ -655,13 +642,13 @@ impl From<Value> for ObjectKey {
 }
 
 macro_rules! impl_from {
-    ($for_enum:ident, $variant:ident, $for_type:ty) => (
+    ($for_enum:ident, $variant:ident, $for_type:ty) => {
         impl From<$for_type> for $for_enum {
-            fn from (v: $for_type) -> $for_enum {
+            fn from(v: $for_type) -> $for_enum {
                 $for_enum::$variant(v)
             }
         }
-    )
+    };
 }
 
 // All except &'a str and Cow<'a, str>

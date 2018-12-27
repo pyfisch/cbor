@@ -1,17 +1,17 @@
 //! Deserialization.
 
-use byteorder::{ByteOrder, BigEndian};
+use byteorder::{BigEndian, ByteOrder};
 use half::f16;
 use serde::de;
-use std::io;
-use std::str;
 use std::f32;
-use std::result;
+use std::io;
 use std::marker::PhantomData;
+use std::result;
+use std::str;
 
-use crate::error::{Error, Result, ErrorCode};
+use crate::error::{Error, ErrorCode, Result};
 use crate::read::EitherLifetime;
-pub use crate::read::{Read, IoRead, SliceRead, MutSliceRead};
+pub use crate::read::{IoRead, MutSliceRead, Read, SliceRead};
 
 /// Decodes a value from CBOR data in a slice.
 ///
@@ -213,7 +213,8 @@ where
         }
     }
 
-    fn parse_indefinite_bytes<V>(&mut self, visitor: V) -> Result<V::Value> where
+    fn parse_indefinite_bytes<V>(&mut self, visitor: V) -> Result<V::Value>
+    where
         V: de::Visitor<'de>,
     {
         self.read.clear_buffer();
@@ -272,11 +273,15 @@ where
             }
         } else {
             // An overflow would have occured.
-            Err(Error::syntax(ErrorCode::LengthOutOfRange, self.read.offset()))
+            Err(Error::syntax(
+                ErrorCode::LengthOutOfRange,
+                self.read.offset(),
+            ))
         }
     }
 
-    fn parse_indefinite_str<V>(&mut self, visitor: V) -> Result<V::Value> where
+    fn parse_indefinite_str<V>(&mut self, visitor: V) -> Result<V::Value>
+    where
         V: de::Visitor<'de>,
     {
         self.read.clear_buffer();
@@ -425,9 +430,9 @@ where
         V: de::Visitor<'de>,
     {
         self.recursion_checked(|de| {
-            let value = visitor.visit_enum(
-                VariantAccess { seq: IndefiniteSeqAccess { de } },
-            )?;
+            let value = visitor.visit_enum(VariantAccess {
+                seq: IndefiniteSeqAccess { de },
+            })?;
             match de.next()? {
                 Some(0xff) => Ok(value),
                 Some(_) => Err(de.error(ErrorCode::TrailingData)),
@@ -523,9 +528,7 @@ where
                 self.parse_bytes(len as usize, visitor)
             }
             0x5c..=0x5e => Err(self.error(ErrorCode::UnassignedCode)),
-            0x5f => {
-                self.parse_indefinite_bytes(visitor)
-            }
+            0x5f => self.parse_indefinite_bytes(visitor),
 
             // Major type 3: a text string
             0x60..=0x77 => self.parse_str(byte as usize - 0x60, visitor),
@@ -549,9 +552,7 @@ where
                 self.parse_str(len as usize, visitor)
             }
             0x7c..=0x7e => Err(self.error(ErrorCode::UnassignedCode)),
-            0x7f => {
-                self.parse_indefinite_str(visitor)
-            }
+            0x7f => self.parse_indefinite_str(visitor),
 
             // Major type 4: an array of data items
             0x80..=0x97 => self.parse_array(byte as usize - 0x80, visitor),
@@ -989,8 +990,7 @@ where
 
 impl<'de, T> de::VariantAccess<'de> for VariantAccess<T>
 where
-    T: de::SeqAccess<'de, Error = Error>
-        + MakeError,
+    T: de::SeqAccess<'de, Error = Error> + MakeError,
 {
     type Error = Error;
 
@@ -1124,8 +1124,7 @@ where
 
 impl<'de, T> de::VariantAccess<'de> for VariantAccessMap<T>
 where
-    T: de::MapAccess<'de, Error = Error>
-        + MakeError,
+    T: de::MapAccess<'de, Error = Error> + MakeError,
 {
     type Error = Error;
 

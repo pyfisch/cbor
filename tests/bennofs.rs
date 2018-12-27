@@ -1,4 +1,3 @@
-
 #[macro_use]
 extern crate serde_derive;
 use serde_cbor;
@@ -36,4 +35,3 @@ fn test() {
     let deserialized: Example = serde_cbor::from_slice(&serialized).unwrap();
     assert_eq!(example, deserialized);
 }
-

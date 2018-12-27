@@ -2,7 +2,7 @@ use std::cmp;
 use std::io::{self, Read as StdRead};
 use std::mem;
 
-use crate::error::{Result, Error, ErrorCode};
+use crate::error::{Error, ErrorCode, Result};
 
 /// Trait used by the deserializer for iterating over input.
 ///
@@ -29,10 +29,7 @@ pub trait Read<'de>: private::Sealed {
     /// EitherLifetime<'r, 'de>>`, which borrows self mutably for the duration of the function and
     /// downgrates that reference to an immutable one that outlives the result (protecting the
     /// scratch buffer from changes), but alas, that can't be expressed (yet?).
-    fn read<'a>(
-        &'a mut self,
-        n: usize,
-    ) -> Result<EitherLifetime<'a, 'de>> {
+    fn read<'a>(&'a mut self, n: usize) -> Result<EitherLifetime<'a, 'de>> {
         self.clear_buffer();
         self.read_to_buffer(n)?;
 
@@ -87,10 +84,7 @@ where
     /// Creates a new CBOR input source to read from a std::io input stream.
     pub fn new(reader: R) -> IoRead<R> {
         IoRead {
-            reader: OffsetReader {
-                reader,
-                offset: 0,
-            },
+            reader: OffsetReader { reader, offset: 0 },
             scratch: vec![],
             ch: None,
         }
@@ -110,11 +104,7 @@ where
     }
 }
 
-impl<R> private::Sealed for IoRead<R>
-where
-    R: io::Read,
-{
-}
+impl<R> private::Sealed for IoRead<R> where R: io::Read {}
 
 impl<'de, R> Read<'de> for IoRead<R>
 where
@@ -144,7 +134,7 @@ where
         self.scratch.reserve(cmp::min(n, 16 * 1024));
 
         if n == 0 {
-            return Ok(())
+            return Ok(());
         }
 
         if let Some(ch) = self.ch.take() {
@@ -167,9 +157,9 @@ where
         match transfer_result {
             Ok(r) if r == n => Ok(()),
             Ok(_) => Err(Error::syntax(
-                    ErrorCode::EofWhileParsingValue,
-                    self.offset(),
-                )),
+                ErrorCode::EofWhileParsingValue,
+                self.offset(),
+            )),
             Err(e) => Err(Error::io(e)),
         }
     }
@@ -241,12 +231,10 @@ impl<'a> SliceRead<'a> {
     fn end(&self, n: usize) -> Result<usize> {
         match self.index.checked_add(n) {
             Some(end) if end <= self.slice.len() => Ok(end),
-            _ => {
-                Err(Error::syntax(
-                    ErrorCode::EofWhileParsingValue,
-                    self.slice.len() as u64,
-                ))
-            }
+            _ => Err(Error::syntax(
+                ErrorCode::EofWhileParsingValue,
+                self.slice.len() as u64,
+            )),
         }
     }
 }
@@ -345,12 +333,10 @@ impl<'a> MutSliceRead<'a> {
     fn end(&self, n: usize) -> Result<usize> {
         match self.index.checked_add(n) {
             Some(end) if end <= self.slice.len() => Ok(end),
-            _ => {
-                Err(Error::syntax(
-                    ErrorCode::EofWhileParsingValue,
-                    self.slice.len() as u64,
-                ))
-            }
+            _ => Err(Error::syntax(
+                ErrorCode::EofWhileParsingValue,
+                self.slice.len() as u64,
+            )),
         }
     }
 }
@@ -389,7 +375,10 @@ impl<'a> Read<'a> for MutSliceRead<'a> {
 
     fn read_to_buffer(&mut self, n: usize) -> Result<()> {
         let end = self.end(n)?;
-        debug_assert!(self.buffer_end <= self.index, "MutSliceRead invariant violated: scratch buffer exceeds index");
+        debug_assert!(
+            self.buffer_end <= self.index,
+            "MutSliceRead invariant violated: scratch buffer exceeds index"
+        );
         self.slice[self.buffer_end..end].rotate_left(self.index - self.buffer_end);
         self.buffer_end += n;
         self.index = end;

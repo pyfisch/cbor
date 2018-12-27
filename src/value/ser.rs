@@ -10,11 +10,11 @@
 
 use std::collections::BTreeMap;
 
-use serde::{self, Serialize};
 use crate::error::Error;
+use serde::{self, Serialize};
 
-use crate::value::Value;
 use crate::value::ObjectKey;
+use crate::value::Value;
 
 struct Serializer;
 
@@ -161,7 +161,9 @@ impl serde::Serializer for Serializer {
     }
 
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Error> {
-        Ok(SerializeVec { vec: Vec::with_capacity(len.unwrap_or(0)) })
+        Ok(SerializeVec {
+            vec: Vec::with_capacity(len.unwrap_or(0)),
+        })
     }
 
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple, Error> {
@@ -365,10 +367,8 @@ impl serde::ser::SerializeStructVariant for SerializeStructVariant {
     where
         T: Serialize,
     {
-        self.map.insert(
-            ObjectKey::from(String::from(key)),
-            to_value(&value)?,
-        );
+        self.map
+            .insert(ObjectKey::from(String::from(key)), to_value(&value)?);
         Ok(())
     }
 

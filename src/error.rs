@@ -48,18 +48,18 @@ impl Error {
         match self.0.code {
             ErrorCode::Message(_) => Category::Data,
             ErrorCode::Io(_) => Category::Io,
-            ErrorCode::EofWhileParsingValue |
-            ErrorCode::EofWhileParsingArray |
-            ErrorCode::EofWhileParsingMap => Category::Eof,
-            ErrorCode::NumberOutOfRange |
-            ErrorCode::LengthOutOfRange |
-            ErrorCode::InvalidUtf8 |
-            ErrorCode::UnassignedCode |
-            ErrorCode::UnexpectedCode |
-            ErrorCode::TrailingData |
-            ErrorCode::ArrayTooShort |
-            ErrorCode::ArrayTooLong |
-            ErrorCode::RecursionLimitExceeded => Category::Syntax,
+            ErrorCode::EofWhileParsingValue
+            | ErrorCode::EofWhileParsingArray
+            | ErrorCode::EofWhileParsingMap => Category::Eof,
+            ErrorCode::NumberOutOfRange
+            | ErrorCode::LengthOutOfRange
+            | ErrorCode::InvalidUtf8
+            | ErrorCode::UnassignedCode
+            | ErrorCode::UnexpectedCode
+            | ErrorCode::TrailingData
+            | ErrorCode::ArrayTooShort
+            | ErrorCode::ArrayTooLong
+            | ErrorCode::RecursionLimitExceeded => Category::Syntax,
         }
     }
 
