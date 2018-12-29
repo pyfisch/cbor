@@ -457,6 +457,9 @@ where
         Ok(BigEndian::read_f64(&buf))
     }
 
+    // Don't warn about the `unreachable!` in case
+    // exhaustive integer pattern matching is enabled.
+    #[allow(unreachable_patterns)]
     fn parse_value<V>(&mut self, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
@@ -644,7 +647,6 @@ where
             0xfc..=0xfe => Err(self.error(ErrorCode::UnassignedCode)),
             0xff => Err(self.error(ErrorCode::UnexpectedCode)),
 
-            // https://github.com/rust-lang/rust/issues/12483
             _ => unreachable!(),
         }
     }
