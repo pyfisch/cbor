@@ -144,6 +144,28 @@
 //! assert!(serialized_byte_string.len() < serialized_array.len());
 //! # }
 //! ```
+//!
+//! # Limitations
+//!
+//! While Serde CBOR strives to support all features of Serde and CBOR
+//! there are a few limitations.
+//!
+//! * [Tags] are ignored during deserialization and can't be emitted during
+//!     serialization. This is because Serde has no concept of tagged
+//!     values. See:&nbsp;[#3]
+//! * Unknown [simple values] cause an `UnassignedCode` error.
+//!     The simple values *False* and *True* are recognized and parsed as bool.
+//!     *Null* and *Undefined* are both deserialized as *unit*.
+//!     The *unit* type is serialized as *Null*. See:&nbsp;[#86]
+//! * [128-bit integers] can't be directly encoded in CBOR. If you need them
+//!     store them as a byte string. See:&nbsp;[#77]
+//!
+//! [Tags]: https://tools.ietf.org/html/rfc7049#section-2.4.4
+//! [#3]: https://github.com/pyfisch/cbor/issues/3
+//! [simple values]: https://tools.ietf.org/html/rfc7049#section-3.5
+//! [#86]: https://github.com/pyfisch/cbor/issues/86
+//! [128-bit integers]: https://doc.rust-lang.org/std/primitive.u128.html
+//! [#77]: https://github.com/pyfisch/cbor/issues/77
 
 #![deny(missing_docs)]
 
