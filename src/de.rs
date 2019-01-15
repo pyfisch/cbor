@@ -1067,7 +1067,7 @@ where
     ///
     /// Typically it is more convenient to use one of these methods instead:
     ///
-    /// * `Deserializer::from_bytes(...).into_iter()`
+    /// * `Deserializer::from_slice(...).into_iter()`
     /// * `Deserializer::from_reader(...).into_iter()`
     pub fn new(read: R) -> StreamDeserializer<'de, R, T> {
         StreamDeserializer {
