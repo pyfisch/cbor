@@ -4,7 +4,7 @@ use half::f16;
 use serde::ser::{self, Serialize};
 use std::io;
 
-use crate::error::{Error, Result};
+use crate::error::{Error, ErrorCode, Result};
 
 /// Serializes a value to a writer.
 pub fn to_writer<W, T>(mut writer: &mut W, value: &T) -> Result<()>
@@ -364,6 +364,21 @@ where
         if value < 0 {
             self.write_u64(1, -(value + 1) as u64)
         } else {
+            self.write_u64(0, value as u64)
+        }
+    }
+
+    #[inline]
+    fn serialize_i128(self, value: i128) -> Result<()> {
+        if value < 0 {
+            if -(value + 1) > std::u64::MAX as i128 {
+                return Err(Error::syntax(ErrorCode::NumberOutOfRange, 0))
+            }
+            self.write_u64(1, -(value + 1) as u64)
+        } else {
+            if value > std::u64::MAX as i128 {
+                return Err(Error::syntax(ErrorCode::NumberOutOfRange, 0))
+            }
             self.write_u64(0, value as u64)
         }
     }

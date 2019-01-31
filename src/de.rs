@@ -503,7 +503,7 @@ where
             0x3b => {
                 let value = self.parse_u64()?;
                 if value > i64::max_value() as u64 {
-                    return Err(self.error(ErrorCode::NumberOutOfRange));
+                    return visitor.visit_i128(-1 - value as i128)
                 }
                 visitor.visit_i64(-1 - value as i64)
             }
