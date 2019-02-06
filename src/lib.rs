@@ -20,7 +20,8 @@
 //!     "PhoneNumbers": [
 //!         "+44 1234567",
 //!         "+44 2345678"
-//!     ]
+//!     ],
+//!     "DateOfBirth": 0("1977-08-20T14:29:00Z")
 //! }
 //! ```
 //!
@@ -61,10 +62,15 @@
 //!          2b34342031323334353637         # "+44 1234567"
 //!       6b                                # text(11)
 //!          2b34342032333435363738         # "+44 2345678"
+//!    6b                                   # text(11)
+//!       446174654f664269727468            # "DateOfBirth"
+//!    c0                                   # date tag
+//!       74                                # text(20)
+//!          313937372d30382d32305431343a32393a30305a # "1977-08-20T14:29:00Z"
 //! ```
-//! While the JSON encoding is 174 bytes long the CBOR representation is only 141 bytes long.
-//! This is 19% shorter! Sometimes compression will even better, but never CBOR will be longer
-//! than the corresponding JSON. More importantly CBOR supports binary data, custom data tyes,
+//! While the JSON encoding is 214 bytes long the CBOR representation is only 163 bytes long.
+//! This is 24% shorter! Sometimes compression will be even better, but CBOR will never be longer
+//! than the corresponding JSON. More importantly CBOR supports binary data, custom data types,
 //! annotations for dates, times and expected encoding and is faster to serialize and deserialize.
 //! It can even be used on embedded devices.
 //!
