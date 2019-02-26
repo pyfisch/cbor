@@ -170,7 +170,7 @@ impl de::Error for Error {
 
 #[cfg(feature = "std")]
 impl ser::Error for Error {
-    fn custom<T>(_msg: T) -> Error
+    fn custom<T>(msg: T) -> Error
     where
         T: fmt::Display,
     {
@@ -195,6 +195,13 @@ impl ser::Error for Error {
     }
 }
 
+#[cfg(feature = "std")]
+impl From<io::Error> for Error {
+    fn from(e: io::Error) -> Error {
+        Error::io(e)
+    }
+}
+
 #[derive(Debug)]
 struct ErrorImpl {
     code: ErrorCode,
@@ -207,6 +214,7 @@ pub(crate) enum ErrorCode {
     Message(String),
     #[cfg(feature = "std")]
     Io(io::Error),
+    #[cfg(not(feature = "std"))]
     Custom,
     EofWhileParsingValue,
     EofWhileParsingArray,
