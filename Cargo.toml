@@ -28,3 +28,4 @@ serde_derive = { version = "1.0.14", default-features = false }
 [features]
 default = ["std"]
 std = ["serde/std", "serde_bytes/std" ]
+unsealed_read_write = []

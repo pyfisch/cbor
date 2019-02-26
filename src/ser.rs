@@ -1,16 +1,15 @@
 //! Serialize a Rust data structure to CBOR data.
-use crate::write::Write;
+
+#[cfg(feature = "std")]
+pub use crate::write::StdWriter;
+pub use crate::write::Write;
+
+use crate::error::{Error, Result};
 use byteorder::{BigEndian, ByteOrder};
 use half::f16;
 use serde::ser::{self, Serialize};
-
 #[cfg(feature = "std")]
 use std::io;
-
-#[cfg(feature = "std")]
-use crate::write::StdWriter;
-
-use crate::error::{Error, Result};
 
 /// Serializes a value to a writer.
 #[cfg(feature = "std")]

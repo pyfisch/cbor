@@ -7,15 +7,12 @@ use std::io::{self, Read as StdRead};
 
 use crate::error::{Error, ErrorCode, Result};
 
+#[cfg(not(feature = "unsealed_read_write"))]
 /// Trait used by the deserializer for iterating over input.
 ///
-/// This trait is sealed and cannot be implemented for types outside of `serde_cbor`.
+/// This trait is sealed by default, enabling the `unsealed_read_write` feature removes this bound
+/// to allow objects outside of this crate to implement this trait.
 pub trait Read<'de>: private::Sealed {
-    #[doc(hidden)]
-    fn next(&mut self) -> Result<Option<u8>>;
-    #[doc(hidden)]
-    fn peek(&mut self) -> Result<Option<u8>>;
-
     #[doc(hidden)]
     /// Read n bytes from the input.
     ///
@@ -27,11 +24,11 @@ pub trait Read<'de>: private::Sealed {
     /// This may, as a side effect, clear the reader's scratch buffer (as the provided
     /// implementation does).
     ///
-    /// A more appropriate lifetime setup for this (that would allow the Deserializer::convert_str
-    /// to stay a function) would be something like `fn read<'a, 'r: 'a>(&'a mut 'r immut self, ...) -> ...
-    /// EitherLifetime<'r, 'de>>`, which borrows self mutably for the duration of the function and
-    /// downgrates that reference to an immutable one that outlives the result (protecting the
-    /// scratch buffer from changes), but alas, that can't be expressed (yet?).
+    // A more appropriate lifetime setup for this (that would allow the Deserializer::convert_str
+    // to stay a function) would be something like `fn read<'a, 'r: 'a>(&'a mut 'r immut self, ...) -> ...
+    // EitherLifetime<'r, 'de>>`, which borrows self mutably for the duration of the function and
+    // downgrates that reference to an immutable one that outlives the result (protecting the
+    // scratch buffer from changes), but alas, that can't be expressed (yet?).
     fn read<'a>(&'a mut self, n: usize) -> Result<EitherLifetime<'a, 'de>> {
         self.clear_buffer();
         self.read_to_buffer(n)?;
@@ -40,15 +37,18 @@ pub trait Read<'de>: private::Sealed {
     }
 
     #[doc(hidden)]
+    fn next(&mut self) -> Result<Option<u8>>;
+
+    #[doc(hidden)]
+    fn peek(&mut self) -> Result<Option<u8>>;
+
+    #[doc(hidden)]
     fn clear_buffer(&mut self);
 
     #[doc(hidden)]
-    /// Append n bytes from the reader to the reader's scratch buffer (without clearing it)
     fn read_to_buffer(&mut self, n: usize) -> Result<()>;
 
     #[doc(hidden)]
-    /// Read out everything accumulated in the reader's scratch buffer. This may, as a side effect,
-    /// clear it.
     fn take_buffer<'a>(&'a mut self) -> EitherLifetime<'a, 'de>;
 
     #[doc(hidden)]
@@ -61,11 +61,64 @@ pub trait Read<'de>: private::Sealed {
     fn offset(&self) -> u64;
 }
 
+#[cfg(feature = "unsealed_read_write")]
+/// Trait used by the deserializer for iterating over input.
+pub trait Read<'de> {
+    /// Read n bytes from the input.
+    ///
+    /// Implementations that can are asked to return a slice with a Long lifetime that outlives the
+    /// decoder, but others (eg. ones that need to allocate the data into a temporary buffer) can
+    /// return it with a Short lifetime that just lives for the time of read's mutable borrow of
+    /// the reader.
+    ///
+    /// This may, as a side effect, clear the reader's scratch buffer (as the provided
+    /// implementation does).
+    ///
+    // A more appropriate lifetime setup for this (that would allow the Deserializer::convert_str
+    // to stay a function) would be something like `fn read<'a, 'r: 'a>(&'a mut 'r immut self, ...) -> ...
+    // EitherLifetime<'r, 'de>>`, which borrows self mutably for the duration of the function and
+    // downgrates that reference to an immutable one that outlives the result (protecting the
+    // scratch buffer from changes), but alas, that can't be expressed (yet?).
+    fn read<'a>(&'a mut self, n: usize) -> Result<EitherLifetime<'a, 'de>> {
+        self.clear_buffer();
+        self.read_to_buffer(n)?;
+
+        Ok(self.take_buffer())
+    }
+
+    /// Read the next byte from the input, if any.
+    fn next(&mut self) -> Result<Option<u8>>;
+
+    /// Peek at the next byte of the input, if any. This does not advance the reader, so the result
+    /// of this function will remain the same until a read or clear occurs.
+    fn peek(&mut self) -> Result<Option<u8>>;
+
+    /// Clear the underlying scratch buffer
+    fn clear_buffer(&mut self);
+
+    /// Append n bytes from the reader to the reader's scratch buffer (without clearing it)
+    fn read_to_buffer(&mut self, n: usize) -> Result<()>;
+
+    /// Read out everything accumulated in the reader's scratch buffer. This may, as a side effect,
+    /// clear it.
+    fn take_buffer<'a>(&'a mut self) -> EitherLifetime<'a, 'de>;
+
+    /// Read from the input until `buf` is full or end of input is encountered.
+    fn read_into(&mut self, buf: &mut [u8]) -> Result<()>;
+
+    /// Discard any data read by `peek`.
+    fn discard(&mut self);
+
+    /// Returns the offset from the start of the reader.
+    fn offset(&self) -> u64;
+}
+
 pub enum EitherLifetime<'short, 'long> {
     Short(&'short [u8]),
     Long(&'long [u8]),
 }
 
+#[cfg(not(feature = "unsealed_read_write"))]
 mod private {
     pub trait Sealed {}
 }
@@ -109,7 +162,7 @@ where
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", not(feature = "unsealed_read_write")))]
 impl<R> private::Sealed for IoRead<R> where R: io::Read {}
 
 #[cfg(feature = "std")]
@@ -250,7 +303,7 @@ impl<'a> SliceRead<'a> {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", not(feature = "unsealed_read_write")))]
 impl<'a> private::Sealed for SliceRead<'a> {}
 
 #[cfg(feature = "std")]
@@ -354,6 +407,7 @@ impl<'a> MutSliceRead<'a> {
     }
 }
 
+#[cfg(not(feature = "unsealed_read_write"))]
 impl<'a> private::Sealed for MutSliceRead<'a> {}
 
 impl<'a> Read<'a> for MutSliceRead<'a> {
