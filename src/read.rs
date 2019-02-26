@@ -371,6 +371,114 @@ impl<'a> Read<'a> for SliceRead<'a> {
     }
 }
 
+/// A CBOR input source that reads from a slice of bytes using a fixed size scratch buffer.
+///
+/// [`SliceRead`](struct.SliceRead.html) and [`MutSliceRead`](struct.MutSliceRead.html) are usually
+/// preferred over this, as they can handle indefinite length items.
+pub struct SliceReadFixed<'a, 'b> {
+    slice: &'a [u8],
+    scratch: &'b mut [u8],
+    index: usize,
+    scratch_index: usize,
+}
+
+impl<'a, 'b> SliceReadFixed<'a, 'b> {
+    /// Creates a CBOR input source to read from a slice of bytes, backed by a scratch buffer.
+    pub fn new(slice: &'a [u8], scratch: &'b mut [u8]) -> SliceReadFixed<'a, 'b> {
+        SliceReadFixed {
+            slice,
+            scratch,
+            index: 0,
+            scratch_index: 0,
+        }
+    }
+
+    fn end(&self, n: usize) -> Result<usize> {
+        match self.index.checked_add(n) {
+            Some(end) if end <= self.slice.len() => Ok(end),
+            _ => Err(Error::syntax(
+                ErrorCode::EofWhileParsingValue,
+                self.slice.len() as u64,
+            )),
+        }
+    }
+
+    fn scratch_end(&self, n: usize) -> Result<usize> {
+        match self.scratch_index.checked_add(n) {
+            Some(end) if end <= self.scratch.len() => Ok(end),
+            _ => Err(Error::scratch_too_small()),
+        }
+    }
+}
+
+#[cfg(not(feature = "unsealed_read_write"))]
+impl<'a, 'b> private::Sealed for SliceReadFixed<'a, 'b> {}
+
+impl<'a, 'b> Read<'a> for SliceReadFixed<'a, 'b> {
+    #[inline]
+    fn next(&mut self) -> Result<Option<u8>> {
+        Ok(if self.index < self.slice.len() {
+            let ch = self.slice[self.index];
+            self.index += 1;
+            Some(ch)
+        } else {
+            None
+        })
+    }
+
+    #[inline]
+    fn peek(&mut self) -> Result<Option<u8>> {
+        Ok(if self.index < self.slice.len() {
+            Some(self.slice[self.index])
+        } else {
+            None
+        })
+    }
+
+    fn clear_buffer(&mut self) {
+        self.scratch_index = 0;
+    }
+
+    fn read_to_buffer(&mut self, n: usize) -> Result<()> {
+        let end = self.end(n)?;
+        let scratch_end = self.scratch_end(n)?;
+        let slice = &self.slice[self.index..end];
+        self.scratch[self.scratch_index..scratch_end].copy_from_slice(&slice);
+        self.index = end;
+        self.scratch_index = scratch_end;
+
+        Ok(())
+    }
+
+    fn read<'c>(&'c mut self, n: usize) -> Result<EitherLifetime<'c, 'a>> {
+        let end = self.end(n)?;
+        let slice = &self.slice[self.index..end];
+        self.index = end;
+        Ok(EitherLifetime::Long(slice))
+    }
+
+    fn take_buffer<'c>(&'c mut self) -> EitherLifetime<'c, 'a> {
+        EitherLifetime::Short(&self.scratch[0..self.scratch_index])
+    }
+
+    #[inline]
+    fn read_into(&mut self, buf: &mut [u8]) -> Result<()> {
+        let end = self.end(buf.len())?;
+        buf.copy_from_slice(&self.slice[self.index..end]);
+        self.index = end;
+        Ok(())
+    }
+
+    #[inline]
+    fn discard(&mut self) {
+        self.index += 1;
+    }
+
+    fn offset(&self) -> u64 {
+        self.index as u64
+    }
+}
+
 /// A CBOR input source that reads from a slice of bytes, and can move data around internally to
 /// reassemble indefinite strings without the need of an allocated scratch buffer.
 pub struct MutSliceRead<'a> {

@@ -159,6 +159,8 @@ fn test_multiple_indefinite_strings() {
     let input = b"\x82\x7f\x65Mary \x64Had \x62a \x67Little \x60\x64Lamb\xff\x5f\x42\x01\x23\x42\x45\x67\xff";
     _test_multiple_indefinite_strings(de::from_slice(input));
     _test_multiple_indefinite_strings(de::from_mut_slice(input.to_vec().as_mut()));
+    let mut buf = [0u8; 64];
+    _test_multiple_indefinite_strings(de::from_slice_with_scratch(input, &mut buf));
 }
 fn _test_multiple_indefinite_strings(value: error::Result<Value>) {
     // This assures that buffer rewinding in infinite buffers works as intended.
@@ -317,6 +319,11 @@ fn stream_deserializer_eof_in_indefinite() {
 
         let mut mutcopy = slice[..*end_of_slice].to_vec();
         let mut it = Deserializer::from_mut_slice(mutcopy.as_mut()).into_iter::<Value>();
+        assert!(it.next().unwrap().unwrap_err().is_eof());
+
+        let mut buf = [0u8; 64];
+        let mut it = Deserializer::from_slice_with_scratch(&slice[..*end_of_slice], &mut buf)
+            .into_iter::<Value>();
         assert!(it.next().unwrap().unwrap_err().is_eof());
     }
 }

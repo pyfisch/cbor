@@ -46,6 +46,13 @@ impl Error {
         })
     }
 
+    pub(crate) fn scratch_too_small() -> Error {
+        Error(ErrorImpl {
+            code: ErrorCode::ScratchTooSmall,
+            offset: 0,
+        })
+    }
+
     /// Categorizes the cause of this error.
     pub fn classify(&self) -> Category {
         match self.0.code {
@@ -55,6 +62,7 @@ impl Error {
             ErrorCode::Io(_) => Category::Io,
             #[cfg(not(feature = "std"))]
             ErrorCode::Custom => Category::Io,
+            ErrorCode::ScratchTooSmall => Category::Io,
             ErrorCode::EofWhileParsingValue
             | ErrorCode::EofWhileParsingArray
             | ErrorCode::EofWhileParsingMap => Category::Eof,
@@ -216,6 +224,7 @@ pub(crate) enum ErrorCode {
     Io(io::Error),
     #[cfg(not(feature = "std"))]
     Custom,
+    ScratchTooSmall,
     EofWhileParsingValue,
     EofWhileParsingArray,
     EofWhileParsingMap,
@@ -239,6 +248,7 @@ impl fmt::Display for ErrorCode {
             ErrorCode::Io(ref err) => fmt::Display::fmt(err, f),
             #[cfg(not(feature = "std"))]
             ErrorCode::Custom => f.write_str("Unknown error"),
+            ErrorCode::ScratchTooSmall => f.write_str("Scratch buffer too small"),
             ErrorCode::EofWhileParsingValue => f.write_str("EOF while parsing a value"),
             ErrorCode::EofWhileParsingArray => f.write_str("EOF while parsing an array"),
             ErrorCode::EofWhileParsingMap => f.write_str("EOF while parsing a map"),

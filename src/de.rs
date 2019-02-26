@@ -14,7 +14,7 @@ use crate::error::{Error, ErrorCode, Result};
 use crate::read::EitherLifetime;
 #[cfg(feature = "std")]
 pub use crate::read::{IoRead, SliceRead};
-pub use crate::read::{MutSliceRead, Read};
+pub use crate::read::{MutSliceRead, Read, SliceReadFixed};
 
 /// Decodes a value from CBOR data in a slice.
 ///
@@ -58,6 +58,17 @@ where
     T: de::Deserialize<'a>,
 {
     let mut deserializer = Deserializer::from_mut_slice(slice);
+    let value = de::Deserialize::deserialize(&mut deserializer)?;
+    deserializer.end()?;
+    Ok(value)
+}
+
+#[doc(hidden)]
+pub fn from_slice_with_scratch<'a, 'b, T>(slice: &'a [u8], scratch: &'b mut [u8]) -> Result<T>
+where
+    T: de::Deserialize<'a>,
+{
+    let mut deserializer = Deserializer::from_slice_with_scratch(slice, scratch);
     let value = de::Deserialize::deserialize(&mut deserializer)?;
     deserializer.end()?;
     Ok(value)
@@ -130,6 +141,16 @@ impl<'a> Deserializer<MutSliceRead<'a>> {
     /// Borrowed strings and byte slices will be provided even for indefinite strings.
     pub fn from_mut_slice(bytes: &'a mut [u8]) -> Deserializer<MutSliceRead<'a>> {
         Deserializer::new(MutSliceRead::new(bytes))
+    }
+}
+
+impl<'a, 'b> Deserializer<SliceReadFixed<'a, 'b>> {
+    #[doc(hidden)]
+    pub fn from_slice_with_scratch(
+        bytes: &'a [u8],
+        scratch: &'b mut [u8],
+    ) -> Deserializer<SliceReadFixed<'a, 'b>> {
+        Deserializer::new(SliceReadFixed::new(bytes, scratch))
     }
 }
 
