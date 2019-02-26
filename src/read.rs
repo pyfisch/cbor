@@ -23,7 +23,7 @@ pub trait Read<'de>: private::Sealed {
     ///
     /// This may, as a side effect, clear the reader's scratch buffer (as the provided
     /// implementation does).
-    ///
+
     // A more appropriate lifetime setup for this (that would allow the Deserializer::convert_str
     // to stay a function) would be something like `fn read<'a, 'r: 'a>(&'a mut 'r immut self, ...) -> ...
     // EitherLifetime<'r, 'de>>`, which borrows self mutably for the duration of the function and
@@ -73,7 +73,7 @@ pub trait Read<'de> {
     ///
     /// This may, as a side effect, clear the reader's scratch buffer (as the provided
     /// implementation does).
-    ///
+
     // A more appropriate lifetime setup for this (that would allow the Deserializer::convert_str
     // to stay a function) would be something like `fn read<'a, 'r: 'a>(&'a mut 'r immut self, ...) -> ...
     // EitherLifetime<'r, 'de>>`, which borrows self mutably for the duration of the function and

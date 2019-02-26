@@ -10,7 +10,7 @@ use crate::error;
 /// but has a smaller and more general API.
 ///
 /// Any object implementing `std::io::Write`
-/// can be wrapped in an [`StdWriter`](../write/struct.StdWriter.html) that implements
+/// can be wrapped in an [`IoWrite`](../write/struct.IoWrite.html) that implements
 /// this trait for the underlying object.
 pub trait Write: private::Sealed {
     /// The type of error returned when a write operation fails.
@@ -29,7 +29,7 @@ pub trait Write: private::Sealed {
 /// but has a smaller and more general API.
 ///
 /// Any object implementing `std::io::Write`
-/// can be wrapped in an [`StdWriter`](../write/struct.StdWriter.html) that implements
+/// can be wrapped in an [`IoWrite`](../write/struct.IoWrite.html) that implements
 /// this trait for the underlying object.
 ///
 /// This trait is sealed by default, enabling the `unsealed_read_write` feature removes this bound
@@ -65,18 +65,18 @@ impl<W> private::Sealed for &mut W where W: Write {}
 /// A wrapper for types that implement
 /// [`std::io::Write`](https://doc.rust-lang.org/std/io/trait.Write.html) to implement the local
 /// [`Write`](trait.Write.html) trait.
-pub struct StdWriter<'a, W>(&'a mut W);
+pub struct IoWrite<'a, W>(&'a mut W);
 
 #[cfg(feature = "std")]
-impl<'a, W: io::Write> StdWriter<'a, W> {
+impl<'a, W: io::Write> IoWrite<'a, W> {
     /// Wraps an `io::Write` writer to make it compatible with [`Write`](trait.Write.html)
-    pub fn new(w: &'a mut W) -> StdWriter<'a, W> {
-        StdWriter(w)
+    pub fn new(w: &'a mut W) -> IoWrite<'a, W> {
+        IoWrite(w)
     }
 }
 
 #[cfg(feature = "std")]
-impl<'a, W: io::Write> Write for StdWriter<'a, W> {
+impl<'a, W: io::Write> Write for IoWrite<'a, W> {
     type Error = io::Error;
 
     fn write_all(&mut self, buf: &[u8]) -> Result<(), Self::Error> {
@@ -85,7 +85,7 @@ impl<'a, W: io::Write> Write for StdWriter<'a, W> {
 }
 
 #[cfg(all(feature = "std", not(feature = "unsealed_read_write")))]
-impl<'a, W> private::Sealed for StdWriter<'a, W> where W: io::Write {}
+impl<'a, W> private::Sealed for IoWrite<'a, W> where W: io::Write {}
 
 // TODO this should be possible with just alloc
 #[cfg(feature = "std")]
@@ -97,5 +97,5 @@ impl Write for Vec<u8> {
     }
 }
 
-#[cfg(not(feature = "unsealed_read_write"))]
+#[cfg(all(feature = "std", not(feature = "unsealed_read_write")))]
 impl private::Sealed for Vec<u8> {}

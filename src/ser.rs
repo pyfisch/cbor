@@ -1,7 +1,7 @@
 //! Serialize a Rust data structure to CBOR data.
 
 #[cfg(feature = "std")]
-pub use crate::write::StdWriter;
+pub use crate::write::IoWrite;
 pub use crate::write::Write;
 
 use crate::error::{Error, Result};
@@ -18,7 +18,7 @@ where
     W: io::Write,
     T: ser::Serialize,
 {
-    value.serialize(&mut Serializer::new(&mut StdWriter::new(writer)))
+    value.serialize(&mut Serializer::new(&mut IoWrite::new(writer)))
 }
 
 /// Serializes a value to a writer and adds a CBOR self-describe tag.
@@ -28,7 +28,7 @@ where
     W: io::Write,
     T: ser::Serialize,
 {
-    let mut writer = StdWriter::new(writer);
+    let mut writer = IoWrite::new(writer);
     let mut ser = Serializer::new(&mut writer);
     ser.self_describe()?;
     value.serialize(&mut ser)
@@ -44,7 +44,7 @@ where
     W: io::Write,
     T: ser::Serialize,
 {
-    value.serialize(&mut Serializer::packed(&mut StdWriter::new(writer)))
+    value.serialize(&mut Serializer::packed(&mut IoWrite::new(writer)))
 }
 
 /// Serializes a value without names to a writer and adds a CBOR self-describe tag.
@@ -57,7 +57,7 @@ where
     W: io::Write,
     T: ser::Serialize,
 {
-    let mut writer = StdWriter::new(writer);
+    let mut writer = IoWrite::new(writer);
     let mut ser = Serializer::packed(&mut writer);
     ser.self_describe()?;
     value.serialize(&mut ser)
@@ -197,10 +197,12 @@ where
     W: Write,
 {
     /// Creates a new CBOR serializer.
+    ///
+    /// `to_vec` and `to_writer` should normally be used instead of this method.
     #[inline]
     pub fn new(writer: W) -> Serializer<W> {
         Serializer {
-            writer,
+            writer: writer.into(),
             packed: false,
             enum_as_map: false,
         }
