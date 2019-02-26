@@ -1,5 +1,8 @@
+#[cfg(feature = "std")]
 use core::cmp;
 use core::mem;
+
+#[cfg(feature = "std")]
 use std::io::{self, Read as StdRead};
 
 use crate::error::{Error, ErrorCode, Result};
@@ -68,6 +71,7 @@ mod private {
 }
 
 /// CBOR input source that reads from a std::io input stream.
+#[cfg(feature = "std")]
 pub struct IoRead<R>
 where
     R: io::Read,
@@ -77,6 +81,7 @@ where
     ch: Option<u8>,
 }
 
+#[cfg(feature = "std")]
 impl<R> IoRead<R>
 where
     R: io::Read,
@@ -104,8 +109,10 @@ where
     }
 }
 
+#[cfg(feature = "std")]
 impl<R> private::Sealed for IoRead<R> where R: io::Read {}
 
+#[cfg(feature = "std")]
 impl<'de, R> Read<'de> for IoRead<R>
 where
     R: io::Read,
@@ -192,11 +199,13 @@ where
     }
 }
 
+#[cfg(feature = "std")]
 struct OffsetReader<R> {
     reader: R,
     offset: u64,
 }
 
+#[cfg(feature = "std")]
 impl<R> io::Read for OffsetReader<R>
 where
     R: io::Read,
@@ -212,12 +221,14 @@ where
 }
 
 /// A CBOR input source that reads from a slice of bytes.
+#[cfg(feature = "std")]
 pub struct SliceRead<'a> {
     slice: &'a [u8],
     scratch: Vec<u8>,
     index: usize,
 }
 
+#[cfg(feature = "std")]
 impl<'a> SliceRead<'a> {
     /// Creates a CBOR input source to read from a slice of bytes.
     pub fn new(slice: &'a [u8]) -> SliceRead<'a> {
@@ -239,8 +250,10 @@ impl<'a> SliceRead<'a> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<'a> private::Sealed for SliceRead<'a> {}
 
+#[cfg(feature = "std")]
 impl<'a> Read<'a> for SliceRead<'a> {
     #[inline]
     fn next(&mut self) -> Result<Option<u8>> {

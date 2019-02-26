@@ -3,7 +3,9 @@ use core::fmt;
 use core::result;
 use serde::de;
 use serde::ser;
+#[cfg(feature = "std")]
 use std::error;
+#[cfg(feature = "std")]
 use std::io;
 
 /// This type represents all possible errors that can occur when serializing or deserializing CBOR
@@ -36,6 +38,7 @@ impl Error {
         Error(ErrorImpl { code, offset })
     }
 
+    #[cfg(feature = "std")]
     pub(crate) fn io(error: io::Error) -> Error {
         Error(ErrorImpl {
             code: ErrorCode::Io(error),
@@ -46,8 +49,12 @@ impl Error {
     /// Categorizes the cause of this error.
     pub fn classify(&self) -> Category {
         match self.0.code {
+            #[cfg(feature = "std")]
             ErrorCode::Message(_) => Category::Data,
+            #[cfg(feature = "std")]
             ErrorCode::Io(_) => Category::Io,
+            #[cfg(not(feature = "std"))]
+            ErrorCode::Custom => Category::Io,
             ErrorCode::EofWhileParsingValue
             | ErrorCode::EofWhileParsingArray
             | ErrorCode::EofWhileParsingMap => Category::Eof,
@@ -96,6 +103,7 @@ impl Error {
     }
 }
 
+#[cfg(feature = "std")]
 impl error::Error for Error {
     fn description(&self) -> &str {
         match self.0.code {
@@ -129,12 +137,24 @@ impl fmt::Debug for Error {
 }
 
 impl de::Error for Error {
+    #[cfg(feature = "std")]
     fn custom<T>(msg: T) -> Error
     where
         T: fmt::Display,
     {
         Error(ErrorImpl {
             code: ErrorCode::Message(msg.to_string()),
+            offset: 0,
+        })
+    }
+
+    #[cfg(not(feature = "std"))]
+    fn custom<T>(_msg: T) -> Error
+    where
+        T: fmt::Display,
+    {
+        Error(ErrorImpl {
+            code: ErrorCode::Custom,
             offset: 0,
         })
     }
@@ -148,13 +168,28 @@ impl de::Error for Error {
     }
 }
 
+#[cfg(feature = "std")]
 impl ser::Error for Error {
-    fn custom<T>(msg: T) -> Error
+    fn custom<T>(_msg: T) -> Error
     where
         T: fmt::Display,
     {
         Error(ErrorImpl {
             code: ErrorCode::Message(msg.to_string()),
+            offset: 0,
+        })
+    }
+}
+
+#[cfg(not(feature = "std"))]
+impl ser::Error for Error {
+    fn custom<T>(_msg: T) -> Error
+    where
+        T: fmt::Display,
+    {
+        // TODO propagate at least something
+        Error(ErrorImpl {
+            code: ErrorCode::Custom,
             offset: 0,
         })
     }
@@ -168,8 +203,11 @@ struct ErrorImpl {
 
 #[derive(Debug)]
 pub(crate) enum ErrorCode {
+    #[cfg(feature = "std")]
     Message(String),
+    #[cfg(feature = "std")]
     Io(io::Error),
+    Custom,
     EofWhileParsingValue,
     EofWhileParsingArray,
     EofWhileParsingMap,
@@ -187,8 +225,12 @@ pub(crate) enum ErrorCode {
 impl fmt::Display for ErrorCode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            #[cfg(feature = "std")]
             ErrorCode::Message(ref msg) => f.write_str(msg),
+            #[cfg(feature = "std")]
             ErrorCode::Io(ref err) => fmt::Display::fmt(err, f),
+            #[cfg(not(feature = "std"))]
+            ErrorCode::Custom => f.write_str("Unknown error"),
             ErrorCode::EofWhileParsingValue => f.write_str("EOF while parsing a value"),
             ErrorCode::EofWhileParsingArray => f.write_str("EOF while parsing an array"),
             ErrorCode::EofWhileParsingMap => f.write_str("EOF while parsing a map"),

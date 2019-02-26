@@ -1,0 +1,2 @@
+[alias]
+build_no_std = ["build", "--target", "thumbv7em-none-eabihf", "--no-default-features"]
