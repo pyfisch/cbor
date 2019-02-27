@@ -103,7 +103,16 @@ impl error::Error for Error {
         }
     }
 
+    #[cfg(not(error_source))]
     fn cause(&self) -> Option<&error::Error> {
+        match self.0.code {
+            ErrorCode::Io(ref err) => Some(err),
+            _ => None,
+        }
+    }
+
+    #[cfg(error_source)]
+    fn source(&self) -> Option<&(error::Error + 'static)> {
         match self.0.code {
             ErrorCode::Io(ref err) => Some(err),
             _ => None,
