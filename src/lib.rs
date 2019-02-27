@@ -156,7 +156,6 @@ pub mod error;
 mod read;
 mod write;
 
-// TODO re-enable
 #[cfg(feature = "std")]
 pub mod ser;
 

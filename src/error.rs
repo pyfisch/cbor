@@ -161,6 +161,7 @@ impl de::Error for Error {
     where
         T: fmt::Display,
     {
+        // TODO propagate at least something
         Error(ErrorImpl {
             code: ErrorCode::Custom,
             offset: 0,
