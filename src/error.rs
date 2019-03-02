@@ -97,14 +97,7 @@ impl Error {
 }
 
 impl error::Error for Error {
-    fn description(&self) -> &str {
-        match self.0.code {
-            ErrorCode::Io(ref err) => error::Error::description(err),
-            _ => "CBOR error",
-        }
-    }
-
-    fn cause(&self) -> Option<&dyn error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self.0.code {
             ErrorCode::Io(ref err) => Some(err),
             _ => None,
