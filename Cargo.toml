@@ -17,10 +17,15 @@ travis-ci = { repository = "pyfisch/cbor" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-byteorder = "1.0.0"
+byteorder = { version = "1.0.0", default-features = false }
 half = "1.2.0"
-serde = "1.0.14"
+serde = { version = "1.0.14", default-features = false }
 
 [dev-dependencies]
-serde_bytes = "0.10"
-serde_derive = "1.0.14"
+serde_bytes = { version = "0.10", default-features = false }
+serde_derive = { version = "1.0.14", default-features = false }
+
+[features]
+default = ["std"]
+std = ["serde/std", "serde_bytes/std" ]
+unsealed_read_write = []

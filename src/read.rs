@@ -1,18 +1,18 @@
+#[cfg(feature = "std")]
 use core::cmp;
 use core::mem;
+
+#[cfg(feature = "std")]
 use std::io::{self, Read as StdRead};
 
 use crate::error::{Error, ErrorCode, Result};
 
+#[cfg(not(feature = "unsealed_read_write"))]
 /// Trait used by the deserializer for iterating over input.
 ///
-/// This trait is sealed and cannot be implemented for types outside of `serde_cbor`.
+/// This trait is sealed by default, enabling the `unsealed_read_write` feature removes this bound
+/// to allow objects outside of this crate to implement this trait.
 pub trait Read<'de>: private::Sealed {
-    #[doc(hidden)]
-    fn next(&mut self) -> Result<Option<u8>>;
-    #[doc(hidden)]
-    fn peek(&mut self) -> Result<Option<u8>>;
-
     #[doc(hidden)]
     /// Read n bytes from the input.
     ///
@@ -23,12 +23,12 @@ pub trait Read<'de>: private::Sealed {
     ///
     /// This may, as a side effect, clear the reader's scratch buffer (as the provided
     /// implementation does).
-    ///
-    /// A more appropriate lifetime setup for this (that would allow the Deserializer::convert_str
-    /// to stay a function) would be something like `fn read<'a, 'r: 'a>(&'a mut 'r immut self, ...) -> ...
-    /// EitherLifetime<'r, 'de>>`, which borrows self mutably for the duration of the function and
-    /// downgrates that reference to an immutable one that outlives the result (protecting the
-    /// scratch buffer from changes), but alas, that can't be expressed (yet?).
+
+    // A more appropriate lifetime setup for this (that would allow the Deserializer::convert_str
+    // to stay a function) would be something like `fn read<'a, 'r: 'a>(&'a mut 'r immut self, ...) -> ...
+    // EitherLifetime<'r, 'de>>`, which borrows self mutably for the duration of the function and
+    // downgrates that reference to an immutable one that outlives the result (protecting the
+    // scratch buffer from changes), but alas, that can't be expressed (yet?).
     fn read<'a>(&'a mut self, n: usize) -> Result<EitherLifetime<'a, 'de>> {
         self.clear_buffer();
         self.read_to_buffer(n)?;
@@ -37,15 +37,18 @@ pub trait Read<'de>: private::Sealed {
     }
 
     #[doc(hidden)]
+    fn next(&mut self) -> Result<Option<u8>>;
+
+    #[doc(hidden)]
+    fn peek(&mut self) -> Result<Option<u8>>;
+
+    #[doc(hidden)]
     fn clear_buffer(&mut self);
 
     #[doc(hidden)]
-    /// Append n bytes from the reader to the reader's scratch buffer (without clearing it)
     fn read_to_buffer(&mut self, n: usize) -> Result<()>;
 
     #[doc(hidden)]
-    /// Read out everything accumulated in the reader's scratch buffer. This may, as a side effect,
-    /// clear it.
     fn take_buffer<'a>(&'a mut self) -> EitherLifetime<'a, 'de>;
 
     #[doc(hidden)]
@@ -58,16 +61,73 @@ pub trait Read<'de>: private::Sealed {
     fn offset(&self) -> u64;
 }
 
+#[cfg(feature = "unsealed_read_write")]
+/// Trait used by the deserializer for iterating over input.
+pub trait Read<'de> {
+    /// Read n bytes from the input.
+    ///
+    /// Implementations that can are asked to return a slice with a Long lifetime that outlives the
+    /// decoder, but others (eg. ones that need to allocate the data into a temporary buffer) can
+    /// return it with a Short lifetime that just lives for the time of read's mutable borrow of
+    /// the reader.
+    ///
+    /// This may, as a side effect, clear the reader's scratch buffer (as the provided
+    /// implementation does).
+
+    // A more appropriate lifetime setup for this (that would allow the Deserializer::convert_str
+    // to stay a function) would be something like `fn read<'a, 'r: 'a>(&'a mut 'r immut self, ...) -> ...
+    // EitherLifetime<'r, 'de>>`, which borrows self mutably for the duration of the function and
+    // downgrates that reference to an immutable one that outlives the result (protecting the
+    // scratch buffer from changes), but alas, that can't be expressed (yet?).
+    fn read<'a>(&'a mut self, n: usize) -> Result<EitherLifetime<'a, 'de>> {
+        self.clear_buffer();
+        self.read_to_buffer(n)?;
+
+        Ok(self.take_buffer())
+    }
+
+    /// Read the next byte from the input, if any.
+    fn next(&mut self) -> Result<Option<u8>>;
+
+    /// Peek at the next byte of the input, if any. This does not advance the reader, so the result
+    /// of this function will remain the same until a read or clear occurs.
+    fn peek(&mut self) -> Result<Option<u8>>;
+
+    /// Clear the underlying scratch buffer
+    fn clear_buffer(&mut self);
+
+    /// Append n bytes from the reader to the reader's scratch buffer (without clearing it)
+    fn read_to_buffer(&mut self, n: usize) -> Result<()>;
+
+    /// Read out everything accumulated in the reader's scratch buffer. This may, as a side effect,
+    /// clear it.
+    fn take_buffer<'a>(&'a mut self) -> EitherLifetime<'a, 'de>;
+
+    /// Read from the input until `buf` is full or end of input is encountered.
+    fn read_into(&mut self, buf: &mut [u8]) -> Result<()>;
+
+    /// Discard any data read by `peek`.
+    fn discard(&mut self);
+
+    /// Returns the offset from the start of the reader.
+    fn offset(&self) -> u64;
+}
+
+/// Represents a buffer with one of two lifetimes.
 pub enum EitherLifetime<'short, 'long> {
+    /// The short lifetime
     Short(&'short [u8]),
+    /// The long lifetime
     Long(&'long [u8]),
 }
 
+#[cfg(not(feature = "unsealed_read_write"))]
 mod private {
     pub trait Sealed {}
 }
 
 /// CBOR input source that reads from a std::io input stream.
+#[cfg(feature = "std")]
 pub struct IoRead<R>
 where
     R: io::Read,
@@ -77,6 +137,7 @@ where
     ch: Option<u8>,
 }
 
+#[cfg(feature = "std")]
 impl<R> IoRead<R>
 where
     R: io::Read,
@@ -104,8 +165,10 @@ where
     }
 }
 
+#[cfg(all(feature = "std", not(feature = "unsealed_read_write")))]
 impl<R> private::Sealed for IoRead<R> where R: io::Read {}
 
+#[cfg(feature = "std")]
 impl<'de, R> Read<'de> for IoRead<R>
 where
     R: io::Read,
@@ -192,11 +255,13 @@ where
     }
 }
 
+#[cfg(feature = "std")]
 struct OffsetReader<R> {
     reader: R,
     offset: u64,
 }
 
+#[cfg(feature = "std")]
 impl<R> io::Read for OffsetReader<R>
 where
     R: io::Read,
@@ -212,12 +277,14 @@ where
 }
 
 /// A CBOR input source that reads from a slice of bytes.
+#[cfg(feature = "std")]
 pub struct SliceRead<'a> {
     slice: &'a [u8],
     scratch: Vec<u8>,
     index: usize,
 }
 
+#[cfg(feature = "std")]
 impl<'a> SliceRead<'a> {
     /// Creates a CBOR input source to read from a slice of bytes.
     pub fn new(slice: &'a [u8]) -> SliceRead<'a> {
@@ -239,8 +306,10 @@ impl<'a> SliceRead<'a> {
     }
 }
 
+#[cfg(all(feature = "std", not(feature = "unsealed_read_write")))]
 impl<'a> private::Sealed for SliceRead<'a> {}
 
+#[cfg(feature = "std")]
 impl<'a> Read<'a> for SliceRead<'a> {
     #[inline]
     fn next(&mut self) -> Result<Option<u8>> {
@@ -305,6 +374,114 @@ impl<'a> Read<'a> for SliceRead<'a> {
     }
 }
 
+/// A CBOR input source that reads from a slice of bytes using a fixed size scratch buffer.
+///
+/// [`SliceRead`](struct.SliceRead.html) and [`MutSliceRead`](struct.MutSliceRead.html) are usually
+/// preferred over this, as they can handle indefinite length items.
+pub struct SliceReadFixed<'a, 'b> {
+    slice: &'a [u8],
+    scratch: &'b mut [u8],
+    index: usize,
+    scratch_index: usize,
+}
+
+impl<'a, 'b> SliceReadFixed<'a, 'b> {
+    /// Creates a CBOR input source to read from a slice of bytes, backed by a scratch buffer.
+    pub fn new(slice: &'a [u8], scratch: &'b mut [u8]) -> SliceReadFixed<'a, 'b> {
+        SliceReadFixed {
+            slice,
+            scratch,
+            index: 0,
+            scratch_index: 0,
+        }
+    }
+
+    fn end(&self, n: usize) -> Result<usize> {
+        match self.index.checked_add(n) {
+            Some(end) if end <= self.slice.len() => Ok(end),
+            _ => Err(Error::syntax(
+                ErrorCode::EofWhileParsingValue,
+                self.slice.len() as u64,
+            )),
+        }
+    }
+
+    fn scratch_end(&self, n: usize) -> Result<usize> {
+        match self.scratch_index.checked_add(n) {
+            Some(end) if end <= self.scratch.len() => Ok(end),
+            _ => Err(Error::scratch_too_small(self.index as u64)),
+        }
+    }
+}
+
+#[cfg(not(feature = "unsealed_read_write"))]
+impl<'a, 'b> private::Sealed for SliceReadFixed<'a, 'b> {}
+
+impl<'a, 'b> Read<'a> for SliceReadFixed<'a, 'b> {
+    #[inline]
+    fn next(&mut self) -> Result<Option<u8>> {
+        Ok(if self.index < self.slice.len() {
+            let ch = self.slice[self.index];
+            self.index += 1;
+            Some(ch)
+        } else {
+            None
+        })
+    }
+
+    #[inline]
+    fn peek(&mut self) -> Result<Option<u8>> {
+        Ok(if self.index < self.slice.len() {
+            Some(self.slice[self.index])
+        } else {
+            None
+        })
+    }
+
+    fn clear_buffer(&mut self) {
+        self.scratch_index = 0;
+    }
+
+    fn read_to_buffer(&mut self, n: usize) -> Result<()> {
+        let end = self.end(n)?;
+        let scratch_end = self.scratch_end(n)?;
+        let slice = &self.slice[self.index..end];
+        self.scratch[self.scratch_index..scratch_end].copy_from_slice(&slice);
+        self.index = end;
+        self.scratch_index = scratch_end;
+
+        Ok(())
+    }
+
+    fn read<'c>(&'c mut self, n: usize) -> Result<EitherLifetime<'c, 'a>> {
+        let end = self.end(n)?;
+        let slice = &self.slice[self.index..end];
+        self.index = end;
+        Ok(EitherLifetime::Long(slice))
+    }
+
+    fn take_buffer<'c>(&'c mut self) -> EitherLifetime<'c, 'a> {
+        EitherLifetime::Short(&self.scratch[0..self.scratch_index])
+    }
+
+    #[inline]
+    fn read_into(&mut self, buf: &mut [u8]) -> Result<()> {
+        let end = self.end(buf.len())?;
+        buf.copy_from_slice(&self.slice[self.index..end]);
+        self.index = end;
+        Ok(())
+    }
+
+    #[inline]
+    fn discard(&mut self) {
+        self.index += 1;
+    }
+
+    fn offset(&self) -> u64 {
+        self.index as u64
+    }
+}
+
 /// A CBOR input source that reads from a slice of bytes, and can move data around internally to
 /// reassemble indefinite strings without the need of an allocated scratch buffer.
 pub struct MutSliceRead<'a> {
@@ -341,6 +518,7 @@ impl<'a> MutSliceRead<'a> {
     }
 }
 
+#[cfg(not(feature = "unsealed_read_write"))]
 impl<'a> private::Sealed for MutSliceRead<'a> {}
 
 impl<'a> Read<'a> for MutSliceRead<'a> {

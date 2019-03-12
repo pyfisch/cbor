@@ -146,6 +146,12 @@
 //! ```
 
 #![deny(missing_docs)]
+#![cfg_attr(not(feature = "std"), no_std)]
+
+// When we are running tests in no_std mode we need to explicitly link std, because `cargo test`
+// will not work without it.
+#[cfg(all(not(feature = "std"), test))]
+extern crate std;
 
 #[macro_use]
 extern crate serde;
@@ -154,11 +160,21 @@ pub mod de;
 pub mod error;
 mod read;
 pub mod ser;
+mod write;
+
+#[cfg(feature = "std")]
 pub mod value;
 
 #[doc(inline)]
-pub use crate::de::{from_mut_slice, from_reader, from_slice, Deserializer, StreamDeserializer};
+pub use crate::de::{from_mut_slice, from_slice_with_scratch, Deserializer, StreamDeserializer};
 #[doc(inline)]
-pub use crate::ser::{to_vec, to_vec_with_options, to_writer, Serializer, SerializerOptions};
+#[cfg(feature = "std")]
+pub use crate::de::{from_reader, from_slice};
+
 #[doc(inline)]
+#[cfg(feature = "std")]
+pub use crate::ser::{to_vec, to_vec_with_options, to_writer};
+pub use crate::ser::{Serializer, SerializerOptions};
+#[doc(inline)]
+#[cfg(feature = "std")]
 pub use crate::value::{from_value, to_value, ObjectKey, Value};
