@@ -1,11 +1,10 @@
-use std::collections::BTreeMap;
-
 #[cfg(feature = "std")]
 mod std_tests {
     use serde::Serializer;
     use serde_bytes::{ByteBuf, Bytes};
     use serde_cbor::ser;
     use serde_cbor::{from_slice, to_vec};
+    use std::collections::BTreeMap;
 
     #[test]
     fn test_string() {
