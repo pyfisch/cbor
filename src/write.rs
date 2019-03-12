@@ -1,3 +1,5 @@
+#[cfg(not(feature = "std"))]
+use core::fmt;
 #[cfg(feature = "std")]
 use std::io;
 
@@ -99,3 +101,24 @@ impl Write for Vec<u8> {
 
 #[cfg(all(feature = "std", not(feature = "unsealed_read_write")))]
 impl private::Sealed for Vec<u8> {}
+
+#[cfg(not(feature = "std"))]
+pub struct FmtWrite<'a, W: Write>(&'a mut W);
+
+#[cfg(not(feature = "std"))]
+impl<'a, W: Write> FmtWrite<'a, W> {
+    /// Wraps an `fmt::Write` writer to make it compatible with [`Write`](trait.Write.html)
+    pub fn new(w: &'a mut W) -> FmtWrite<'a, W> {
+        FmtWrite(w)
+    }
+}
+
+#[cfg(not(feature = "std"))]
+impl<'a, W: Write> fmt::Write for FmtWrite<'a, W> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.0.write_all(s.as_bytes()).map_err(|_| fmt::Error)
+    }
+}
+
+#[cfg(all(not(feature = "std"), not(feature = "unsealed_read_write")))]
+impl<'a, W> private::Sealed for FmtWrite<'a, W> where W: Write {}

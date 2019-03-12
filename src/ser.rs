@@ -178,6 +178,7 @@ pub struct SerializerOptions {
     pub self_describe: bool,
 }
 
+#[cfg(feature = "std")]
 impl SerializerOptions {
     /// Serializes a value to a vector.
     pub fn to_vec<T: ser::Serialize>(&self, value: &T) -> Result<Vec<u8>> {
@@ -202,7 +203,7 @@ where
     #[inline]
     pub fn new(writer: W) -> Serializer<W> {
         Serializer {
-            writer: writer.into(),
+            writer: writer,
             packed: false,
             enum_as_map: false,
         }
@@ -231,6 +232,7 @@ where
         }
     }
 
+    #[cfg(feature = "std")]
     fn serialize_with_same_settings<V: Serialize>(&self, v: V) -> Result<Vec<u8>> {
         let buf: Vec<u8> = vec![];
         let mut s = Serializer {
@@ -240,6 +242,17 @@ where
         };
         v.serialize(&mut s)?;
         Ok(s.writer)
+    }
+
+    #[cfg(not(feature = "std"))]
+    fn serialize_with_same_settings<V: Serialize>(&mut self, v: V) -> Result<()> {
+        let mut s = Serializer {
+            writer: &mut self.writer,
+            packed: self.packed,
+            enum_as_map: self.enum_as_map,
+        };
+        v.serialize(&mut s)?;
+        Ok(())
     }
 
     /// Writes a CBOR self-describe tag to the stream.
@@ -572,6 +585,7 @@ where
         self.serialize_collection(5, len)
     }
 
+    #[cfg(feature = "std")]
     fn collect_map<K, V, I>(self, iter: I) -> Result<Self::Ok>
     where
         K: Serialize,
@@ -615,12 +629,26 @@ where
         serializer.end()
     }
 
+    #[cfg(not(feature = "std"))]
+    fn collect_str<T: ?Sized>(self, value: &T) -> Result<()>
+    where
+        T: core::fmt::Display,
+    {
+        use crate::write::FmtWrite;
+        use core::fmt::Write;
+
+        let mut w = FmtWrite::new(&mut self.writer);
+        write!(w, "{}", value)?;
+        Ok(())
+    }
+
     #[inline]
     fn serialize_struct(self, _name: &'static str, len: usize) -> Result<StructSerializer<'a, W>> {
         self.write_u64(5, len as u64)?;
         Ok(StructSerializer {
             ser: self,
             idx: 0,
+            #[cfg(feature = "std")]
             entries: vec![],
         })
     }
@@ -711,6 +739,7 @@ where
     }
 }
 
+#[cfg(feature = "std")]
 #[doc(hidden)]
 pub struct StructSerializer<'a, W> {
     ser: &'a mut Serializer<W>,
@@ -718,6 +747,14 @@ pub struct StructSerializer<'a, W> {
     entries: Vec<(Vec<u8>, Vec<u8>)>,
 }
 
+#[cfg(not(feature = "std"))]
+#[doc(hidden)]
+pub struct StructSerializer<'a, W> {
+    ser: &'a mut Serializer<W>,
+    idx: u32,
+}
+
+#[cfg(feature = "std")]
 impl<'a, W> StructSerializer<'a, W>
 where
     W: Write,
@@ -751,6 +788,40 @@ where
             self.ser.writer.write_all(&k).map_err(|e| e.into())?;
             self.ser.writer.write_all(&v).map_err(|e| e.into())?;
         }
+        Ok(())
+    }
+}
+
+// Version of `StructSerializer` that does not canonicalize its output, suitable for embedded
+// platforms.
+#[cfg(not(feature = "std"))]
+impl<'a, W> StructSerializer<'a, W>
+where
+    W: Write,
+{
+    #[inline]
+    fn serialize_field_inner<T>(&mut self, key: &'static str, value: &T) -> Result<()>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        if self.ser.packed {
+            self.ser.serialize_with_same_settings(self.idx)?;
+        } else {
+            self.ser.serialize_with_same_settings(key)?;
+        }
+        self.ser.serialize_with_same_settings(value)?;
+        self.idx += 1;
+        Ok(())
+    }
+
+    #[inline]
+    fn skip_field_inner(&mut self, _: &'static str) -> Result<()> {
+        self.idx += 1;
+        Ok(())
+    }
+
+    #[inline]
+    fn end_inner(self) -> Result<()> {
         Ok(())
     }
 }

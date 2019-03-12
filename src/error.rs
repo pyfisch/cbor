@@ -211,6 +211,16 @@ impl From<io::Error> for Error {
     }
 }
 
+#[cfg(not(feature = "std"))]
+impl From<core::fmt::Error> for Error {
+    fn from(_: core::fmt::Error) -> Error {
+        Error(ErrorImpl {
+            code: ErrorCode::Custom,
+            offset: 0,
+        })
+    }
+}
+
 #[derive(Debug)]
 struct ErrorImpl {
     code: ErrorCode,
