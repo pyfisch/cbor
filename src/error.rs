@@ -46,11 +46,56 @@ impl Error {
         })
     }
 
+    #[cfg(feature = "unsealed_read_write")]
+    pub fn scratch_too_small(offset: u64) -> Error {
+        Error(ErrorImpl {
+            code: ErrorCode::ScratchTooSmall,
+            offset: offset,
+        })
+    }
+
+    #[cfg(not(feature = "unsealed_read_write"))]
     pub(crate) fn scratch_too_small(offset: u64) -> Error {
         Error(ErrorImpl {
             code: ErrorCode::ScratchTooSmall,
             offset: offset,
         })
+    }
+
+    #[cfg(feature = "unsealed_read_write")]
+    pub fn message<T: fmt::Display>(_msg: T) -> Error {
+        #[cfg(not(feature = "std"))]
+        {
+            Error(ErrorImpl {
+                code: ErrorCode::Custom,
+                offset: 0,
+            })
+        }
+        #[cfg(feature = "std")]
+        {
+            Error(ErrorImpl {
+                code: ErrorCode::Message(_msg.to_string()),
+                offset: 0,
+            })
+        }
+    }
+
+    #[cfg(not(feature = "unsealed_read_write"))]
+    pub(crate) fn message<T: fmt::Display>(_msg: T) -> Error {
+        #[cfg(not(feature = "std"))]
+        {
+            Error(ErrorImpl {
+                code: ErrorCode::Custom,
+                offset: 0,
+            })
+        }
+        #[cfg(feature = "std")]
+        {
+            Error(ErrorImpl {
+                code: ErrorCode::Message(_msg.to_string()),
+                offset: 0,
+            })
+        }
     }
 
     /// Categorizes the cause of this error.
@@ -145,27 +190,8 @@ impl fmt::Debug for Error {
 }
 
 impl de::Error for Error {
-    #[cfg(feature = "std")]
-    fn custom<T>(msg: T) -> Error
-    where
-        T: fmt::Display,
-    {
-        Error(ErrorImpl {
-            code: ErrorCode::Message(msg.to_string()),
-            offset: 0,
-        })
-    }
-
-    #[cfg(not(feature = "std"))]
-    fn custom<T>(_msg: T) -> Error
-    where
-        T: fmt::Display,
-    {
-        // TODO propagate at least something
-        Error(ErrorImpl {
-            code: ErrorCode::Custom,
-            offset: 0,
-        })
+    fn custom<T: fmt::Display>(msg: T) -> Error {
+        Error::message(msg)
     }
 
     fn invalid_type(unexp: de::Unexpected<'_>, exp: &dyn de::Expected) -> Error {
@@ -177,30 +203,9 @@ impl de::Error for Error {
     }
 }
 
-#[cfg(feature = "std")]
 impl ser::Error for Error {
-    fn custom<T>(msg: T) -> Error
-    where
-        T: fmt::Display,
-    {
-        Error(ErrorImpl {
-            code: ErrorCode::Message(msg.to_string()),
-            offset: 0,
-        })
-    }
-}
-
-#[cfg(not(feature = "std"))]
-impl ser::Error for Error {
-    fn custom<T>(_msg: T) -> Error
-    where
-        T: fmt::Display,
-    {
-        // TODO propagate at least something
-        Error(ErrorImpl {
-            code: ErrorCode::Custom,
-            offset: 0,
-        })
+    fn custom<T: fmt::Display>(msg: T) -> Error {
+        Error::message(msg)
     }
 }
 

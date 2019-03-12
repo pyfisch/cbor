@@ -122,3 +122,46 @@ impl<'a, W: Write> fmt::Write for FmtWrite<'a, W> {
 
 #[cfg(all(not(feature = "std"), not(feature = "unsealed_read_write")))]
 impl<'a, W> private::Sealed for FmtWrite<'a, W> where W: Write {}
+
+/// Implements [`Write`](trait.Write.html) for mutable byte slices (`&mut [u8]`).
+///
+/// Returns an error if the value to serialize is too large to fit in the slice.
+pub struct SliceWrite<'a> {
+    slice: &'a mut [u8],
+    index: usize,
+}
+
+impl<'a> SliceWrite<'a> {
+    /// Wraps a mutable slice so it can be used as a `Write`.
+    pub fn new(slice: &'a mut [u8]) -> SliceWrite<'a> {
+        SliceWrite { slice, index: 0 }
+    }
+
+    /// Returns the number of bytes written to the underlying slice.
+    pub fn bytes_written(&self) -> usize {
+        self.index
+    }
+
+    /// Returns the underlying slice.
+    pub fn into_inner(self) -> &'a mut [u8] {
+        self.slice
+    }
+}
+
+impl<'a> Write for SliceWrite<'a> {
+    type Error = error::Error;
+
+    fn write_all(&mut self, buf: &[u8]) -> Result<(), Self::Error> {
+        if self.slice.len() - self.index < buf.len() {
+            // This buffer will not fit in our slice
+            return Err(error::Error::scratch_too_small(self.index as u64));
+        }
+        let end = self.index + buf.len();
+        self.slice[self.index..end].copy_from_slice(buf);
+        self.index = end;
+        Ok(())
+    }
+}
+
+#[cfg(not(feature = "unsealed_read_write"))]
+impl<'a> private::Sealed for SliceWrite<'a> {}

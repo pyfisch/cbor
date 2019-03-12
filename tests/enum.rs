@@ -1,7 +1,31 @@
+use serde::Serialize;
 use serde_cbor;
+use serde_cbor::ser::{Serializer, SliceWrite};
 
 #[macro_use]
 extern crate serde_derive;
+
+#[test]
+fn test_simple_data_enum_roundtrip() {
+    #[derive(Debug, Serialize, Deserialize, PartialEq)]
+    enum DataEnum {
+        A(u32),
+        B(f32),
+    }
+
+    let a = DataEnum::A(42);
+
+    let mut slice = [0u8; 64];
+    let writer = SliceWrite::new(&mut slice);
+    let mut serializer = Serializer::new(writer);
+    a.serialize(&mut serializer).unwrap();
+    let writer = serializer.into_inner();
+    let end = writer.bytes_written();
+    let slice = writer.into_inner();
+    let deserialized: DataEnum =
+        serde_cbor::from_slice_with_scratch(&slice[..end], &mut []).unwrap();
+    assert_eq!(a, deserialized);
+}
 
 #[cfg(feature = "std")]
 mod std_tests {

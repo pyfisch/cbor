@@ -1,4 +1,47 @@
+#[macro_use]
+extern crate serde_derive;
+
 use serde_cbor;
+use serde_cbor::de;
+
+#[test]
+fn test_str() {
+    let s: &str =
+        de::from_slice_with_scratch(&[0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72], &mut []).unwrap();
+    assert_eq!(s, "foobar");
+}
+
+#[test]
+fn test_bytes() {
+    let s: &[u8] =
+        de::from_slice_with_scratch(&[0x46, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72], &mut []).unwrap();
+    assert_eq!(s, b"foobar");
+}
+
+#[test]
+fn test_int() {
+    let num: i64 = de::from_slice_with_scratch(&[0x39, 0x07, 0xde], &mut []).unwrap();
+    assert_eq!(num, -2015);
+}
+
+#[test]
+fn test_float() {
+    let float: f64 = de::from_slice_with_scratch(b"\xfa\x47\xc3\x50\x00", &mut []).unwrap();
+    assert_eq!(float, 100000.0);
+}
+
+#[test]
+fn test_indefinite_object() {
+    #[derive(Debug, Deserialize, PartialEq)]
+    struct Foo {
+        a: u64,
+        b: [u64; 2],
+    }
+    let expected = Foo { a: 1, b: [2, 3] };
+    let actual: Foo =
+        de::from_slice_with_scratch(b"\xbfaa\x01ab\x9f\x02\x03\xff\xff", &mut []).unwrap();
+    assert_eq!(expected, actual);
+}
 
 #[cfg(feature = "std")]
 mod std_tests {

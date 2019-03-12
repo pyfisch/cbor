@@ -2,7 +2,7 @@
 
 #[cfg(feature = "std")]
 pub use crate::write::IoWrite;
-pub use crate::write::Write;
+pub use crate::write::{SliceWrite, Write};
 
 use crate::error::{Error, Result};
 use byteorder::{BigEndian, ByteOrder};
@@ -98,6 +98,7 @@ where
     to_writer_packed(&mut vec, value)?;
     Ok(vec)
 }
+
 /// Serializes a value without names to a vector and adds a CBOR self-describe tag.
 ///
 /// Struct fields and enum variants are identified by their numeric indices rather than names to

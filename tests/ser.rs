@@ -1,3 +1,46 @@
+use serde::Serialize;
+use serde_cbor::ser::{Serializer, SliceWrite};
+
+#[test]
+fn test_str() {
+    serialize_and_compare("foobar", b"ffoobar");
+}
+
+#[test]
+fn test_list() {
+    serialize_and_compare(&[1, 2, 3], b"\x83\x01\x02\x03");
+}
+
+#[test]
+fn test_float() {
+    serialize_and_compare(12.3f64, b"\xfb@(\x99\x99\x99\x99\x99\x9a");
+}
+
+#[test]
+fn test_integer() {
+    // u8
+    serialize_and_compare(24, b"\x18\x18");
+    // i8
+    serialize_and_compare(-5, b"\x24");
+    // i16
+    serialize_and_compare(-300, b"\x39\x01\x2b");
+    // i32
+    serialize_and_compare(-23567997, b"\x3a\x01\x67\x9e\x7c");
+    // u64
+    serialize_and_compare(::core::u64::MAX, b"\x1b\xff\xff\xff\xff\xff\xff\xff\xff");
+}
+
+fn serialize_and_compare<T: Serialize>(value: T, expected: &[u8]) {
+    let mut slice = [0u8; 64];
+    let writer = SliceWrite::new(&mut slice);
+    let mut serializer = Serializer::new(writer);
+    value.serialize(&mut serializer).unwrap();
+    let writer = serializer.into_inner();
+    let end = writer.bytes_written();
+    let slice = writer.into_inner();
+    assert_eq!(&slice[..end], expected);
+}
+
 #[cfg(feature = "std")]
 mod std_tests {
     use serde::Serializer;

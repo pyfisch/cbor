@@ -48,6 +48,9 @@ where
     Ok(value)
 }
 
+// When the "std" feature is enabled there should be little to no need to ever use this function,
+// as `from_slice` covers all use cases (at the expense of being less efficient).
+#[cfg_attr(feature = "std", doc(hidden))]
 /// Decode a value from CBOR data in a mutable slice.
 ///
 /// This can be used in analogy to `from_slice`. Unlike `from_slice`, this will use the slice's
@@ -63,7 +66,17 @@ where
     Ok(value)
 }
 
-#[doc(hidden)]
+// When the "std" feature is enabled there should be little to no need to ever use this function,
+// as `from_slice` covers all use cases and is much more reliable (at the expense of being less
+// efficient).
+#[cfg_attr(feature = "std", doc(hidden))]
+/// Decode a value from CBOR data using a scratch buffer.
+///
+/// Users should generally prefer to use `from_slice` or `from_mut_slice` over this function,
+/// as decoding may fail when the scratch buffer turns out to be too small.
+///
+/// A realistic use case for this method would be decoding in a `no_std` environment from an
+/// immutable slice that is too large to copy.
 pub fn from_slice_with_scratch<'a, 'b, T>(slice: &'a [u8], scratch: &'b mut [u8]) -> Result<T>
 where
     T: de::Deserialize<'a>,
