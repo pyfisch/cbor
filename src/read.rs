@@ -406,7 +406,7 @@ impl<'a, 'b> SliceReadFixed<'a, 'b> {
     fn scratch_end(&self, n: usize) -> Result<usize> {
         match self.scratch_index.checked_add(n) {
             Some(end) if end <= self.scratch.len() => Ok(end),
-            _ => Err(Error::scratch_too_small()),
+            _ => Err(Error::scratch_too_small(self.index as u64)),
         }
     }
 }

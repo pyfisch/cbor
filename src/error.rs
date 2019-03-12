@@ -46,10 +46,10 @@ impl Error {
         })
     }
 
-    pub(crate) fn scratch_too_small() -> Error {
+    pub(crate) fn scratch_too_small(offset: u64) -> Error {
         Error(ErrorImpl {
             code: ErrorCode::ScratchTooSmall,
-            offset: 0,
+            offset: offset,
         })
     }
 
