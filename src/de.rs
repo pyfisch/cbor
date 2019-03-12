@@ -11,7 +11,10 @@ use serde::de;
 use std::io;
 
 use crate::error::{Error, ErrorCode, Result};
+#[cfg(not(feature = "unsealed_read_write"))]
 use crate::read::EitherLifetime;
+#[cfg(feature = "unsealed_read_write")]
+pub use crate::read::EitherLifetime;
 #[cfg(feature = "std")]
 pub use crate::read::{IoRead, SliceRead};
 pub use crate::read::{MutSliceRead, Read, SliceReadFixed};

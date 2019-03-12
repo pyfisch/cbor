@@ -24,7 +24,7 @@ pub enum Category {
     Syntax,
     /// The error was caused by input data that was semantically incorrect.
     Data,
-    /// The error was causeed by prematurely reaching the end of the input data.
+    /// The error was caused by prematurely reaching the end of the input data.
     Eof,
 }
 
@@ -47,6 +47,7 @@ impl Error {
     }
 
     #[cfg(feature = "unsealed_read_write")]
+    /// Creates an error signalling that the scratch buffer was too small to fit the data.
     pub fn scratch_too_small(offset: u64) -> Error {
         Error(ErrorImpl {
             code: ErrorCode::ScratchTooSmall,
@@ -58,11 +59,14 @@ impl Error {
     pub(crate) fn scratch_too_small(offset: u64) -> Error {
         Error(ErrorImpl {
             code: ErrorCode::ScratchTooSmall,
-            offset: offset,
+            offset,
         })
     }
 
     #[cfg(feature = "unsealed_read_write")]
+    /// Creates an error with a custom message.
+    ///
+    /// **Note**: When the "std" feature is disabled, the message will be discarded.
     pub fn message<T: fmt::Display>(_msg: T) -> Error {
         #[cfg(not(feature = "std"))]
         {
@@ -151,6 +155,16 @@ impl Error {
     pub fn is_eof(&self) -> bool {
         match self.classify() {
             Category::Eof => true,
+            _ => false,
+        }
+    }
+
+    /// Returns true if this error was caused by the scratch buffer being too small.
+    ///
+    /// Note this being `true` implies that `is_io()` is also `true`.
+    pub fn is_scratch_too_small(&self) -> bool {
+        match self.0.code {
+            ErrorCode::ScratchTooSmall => true,
             _ => false,
         }
     }

@@ -113,8 +113,11 @@ pub trait Read<'de> {
     fn offset(&self) -> u64;
 }
 
+/// Represents a buffer with one of two lifetimes.
 pub enum EitherLifetime<'short, 'long> {
+    /// The short lifetime
     Short(&'short [u8]),
+    /// The long lifetime
     Long(&'long [u8]),
 }
 
