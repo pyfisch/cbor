@@ -21,17 +21,22 @@ enum Color {
     Yellow(u8),
 }
 
-#[test]
-fn test() {
-    let foo = Foo {
-        x: 0xAA,
-        color: Color::Yellow(40),
-    };
-    let example = Example {
-        foo: foo,
-        payload: 0xCC,
-    };
-    let serialized = serde_cbor::ser::to_vec_packed(&example).unwrap();
-    let deserialized: Example = serde_cbor::from_slice(&serialized).unwrap();
-    assert_eq!(example, deserialized);
+#[cfg(feature = "std")]
+mod std_tests {
+    use super::*;
+
+    #[test]
+    fn test() {
+        let foo = Foo {
+            x: 0xAA,
+            color: Color::Yellow(40),
+        };
+        let example = Example {
+            foo: foo,
+            payload: 0xCC,
+        };
+        let serialized = serde_cbor::ser::to_vec_packed(&example).unwrap();
+        let deserialized: Example = serde_cbor::from_slice(&serialized).unwrap();
+        assert_eq!(example, deserialized);
+    }
 }

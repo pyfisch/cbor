@@ -148,6 +148,11 @@
 #![deny(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+// When we are running tests in no_std mode we need to explicitly link std, because `cargo test`
+// will not work without it.
+#[cfg(all(not(feature = "std"), test))]
+extern crate std;
+
 #[macro_use]
 extern crate serde;
 
