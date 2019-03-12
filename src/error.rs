@@ -46,6 +46,15 @@ impl Error {
         })
     }
 
+    #[cfg(all(not(feature = "std"), feature = "unsealed_read_write"))]
+    /// Creates an error signalling that the underlying `Read` encountered an I/O error.
+    pub fn io() -> Error {
+        Error(ErrorImpl {
+            code: ErrorCode::Io,
+            offset: 0,
+        })
+    }
+
     #[cfg(feature = "unsealed_read_write")]
     /// Creates an error signalling that the scratch buffer was too small to fit the data.
     pub fn scratch_too_small(offset: u64) -> Error {
@@ -71,7 +80,7 @@ impl Error {
         #[cfg(not(feature = "std"))]
         {
             Error(ErrorImpl {
-                code: ErrorCode::Custom,
+                code: ErrorCode::Message,
                 offset: 0,
             })
         }
@@ -89,7 +98,7 @@ impl Error {
         #[cfg(not(feature = "std"))]
         {
             Error(ErrorImpl {
-                code: ErrorCode::Custom,
+                code: ErrorCode::Message,
                 offset: 0,
             })
         }
@@ -102,15 +111,27 @@ impl Error {
         }
     }
 
+    #[cfg(feature = "unsealed_read_write")]
+    /// Creates an error signalling that the underlying read
+    /// encountered an end of input.
+    pub fn eof(offset: u64) -> Error {
+        Error(ErrorImpl {
+            code: ErrorCode::EofWhileParsingValue,
+            offset,
+        })
+    }
+
     /// Categorizes the cause of this error.
     pub fn classify(&self) -> Category {
         match self.0.code {
             #[cfg(feature = "std")]
             ErrorCode::Message(_) => Category::Data,
+            #[cfg(not(feature = "std"))]
+            ErrorCode::Message => Category::Data,
             #[cfg(feature = "std")]
             ErrorCode::Io(_) => Category::Io,
             #[cfg(not(feature = "std"))]
-            ErrorCode::Custom => Category::Io,
+            ErrorCode::Io => Category::Io,
             ErrorCode::ScratchTooSmall => Category::Io,
             ErrorCode::EofWhileParsingValue
             | ErrorCode::EofWhileParsingArray
@@ -234,7 +255,7 @@ impl From<io::Error> for Error {
 impl From<core::fmt::Error> for Error {
     fn from(_: core::fmt::Error) -> Error {
         Error(ErrorImpl {
-            code: ErrorCode::Custom,
+            code: ErrorCode::Message,
             offset: 0,
         })
     }
@@ -250,10 +271,12 @@ struct ErrorImpl {
 pub(crate) enum ErrorCode {
     #[cfg(feature = "std")]
     Message(String),
+    #[cfg(not(feature = "std"))]
+    Message,
     #[cfg(feature = "std")]
     Io(io::Error),
     #[cfg(not(feature = "std"))]
-    Custom,
+    Io,
     ScratchTooSmall,
     EofWhileParsingValue,
     EofWhileParsingArray,
@@ -274,10 +297,12 @@ impl fmt::Display for ErrorCode {
         match *self {
             #[cfg(feature = "std")]
             ErrorCode::Message(ref msg) => f.write_str(msg),
+            #[cfg(not(feature = "std"))]
+            ErrorCode::Message => f.write_str("Unknown error"),
             #[cfg(feature = "std")]
             ErrorCode::Io(ref err) => fmt::Display::fmt(err, f),
             #[cfg(not(feature = "std"))]
-            ErrorCode::Custom => f.write_str("Unknown error"),
+            ErrorCode::Io => f.write_str("Unknown I/O error"),
             ErrorCode::ScratchTooSmall => f.write_str("Scratch buffer too small"),
             ErrorCode::EofWhileParsingValue => f.write_str("EOF while parsing a value"),
             ErrorCode::EofWhileParsingArray => f.write_str("EOF while parsing an array"),
