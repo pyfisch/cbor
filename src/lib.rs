@@ -160,7 +160,7 @@ pub mod ser;
 pub mod value;
 
 #[doc(inline)]
-pub use de::{from_slice, from_mut_slice, from_reader, Deserializer, StreamDeserializer};
+pub use de::{from_slice, from_mut_slice, from_reader, Deserializer, StreamDeserializer, from_slice_stream};
 #[doc(inline)]
 pub use ser::{to_writer, to_vec, to_vec_with_options, Serializer, SerializerOptions};
 #[doc(inline)]

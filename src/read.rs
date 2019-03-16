@@ -225,7 +225,8 @@ where
 pub struct SliceRead<'a> {
     slice: &'a [u8],
     scratch: Vec<u8>,
-    index: usize,
+    /// Reader position in the slice
+    pub index: usize,
 }
 
 impl<'a> SliceRead<'a> {

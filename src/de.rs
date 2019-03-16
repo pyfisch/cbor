@@ -44,6 +44,34 @@ where
     Ok(value)
 }
 
+/// Decodes a value from CBOR data in a longer than necessary slice.
+///
+/// This is used when mixed data are packed together
+///
+/// # Examples
+///
+/// Deserialize a `String`
+///
+/// ```
+/// # use serde_cbor::de;
+/// let v: Vec<u8> = vec![0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72,
+///                       0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72];
+/// let (rest, value): (&[u8], String) = de::from_slice_stream(&v[..]).unwrap();
+/// assert_eq!(value, "foobar");
+/// assert_eq!(rest, &[0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72]);
+/// let (rest, value): (&[u8], String) = de::from_slice_stream(rest).unwrap();
+/// assert_eq!(value, "foobar");
+/// assert_eq!(rest, &[]);
+/// ```
+pub fn from_slice_stream<'a, T>(slice: &'a [u8]) -> Result<(&'a[u8], T)>
+where
+    T: de::Deserialize<'a>,
+{
+    let mut deserializer = Deserializer::from_slice(slice);
+    let value = de::Deserialize::deserialize(&mut deserializer)?;
+    Ok((&slice[deserializer.read.index..], value))
+}
+
 /// Decode a value from CBOR data in a mutable slice.
 ///
 /// This can be used in analogy to `from_slice`. Unlike `from_slice`, this will use the slice's
