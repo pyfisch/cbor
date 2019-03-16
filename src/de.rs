@@ -15,6 +15,7 @@ use crate::error::{Error, ErrorCode, Result};
 use crate::read::EitherLifetime;
 #[cfg(feature = "unsealed_read_write")]
 pub use crate::read::EitherLifetime;
+use crate::read::Offset;
 #[cfg(feature = "std")]
 pub use crate::read::{IoRead, SliceRead};
 pub use crate::read::{MutSliceRead, Read, SliceReadFixed};
@@ -793,6 +794,17 @@ where
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string unit
         unit_struct seq tuple tuple_struct map struct identifier ignored_any
         bytes byte_buf
+    }
+}
+
+impl<R> Deserializer<R>
+where
+    R: Offset,
+{
+    /// Return the current offset in the reader
+    #[inline]
+    pub fn byte_offset(&self) -> usize {
+        self.read.byte_offset()
     }
 }
 

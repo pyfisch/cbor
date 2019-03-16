@@ -113,6 +113,11 @@ pub trait Read<'de> {
     fn offset(&self) -> u64;
 }
 
+/// Represents a reader that can return its current position
+pub trait Offset {
+    fn byte_offset(&self) -> usize;
+}
+
 /// Represents a buffer with one of two lifetimes.
 pub enum EitherLifetime<'short, 'long> {
     /// The short lifetime
@@ -303,6 +308,14 @@ impl<'a> SliceRead<'a> {
                 self.slice.len() as u64,
             )),
         }
+    }
+}
+
+#[cfg(feature = "std")]
+impl<'a> Offset for SliceRead<'a> {
+    #[inline]
+    fn byte_offset(&self) -> usize {
+        self.index
     }
 }
 

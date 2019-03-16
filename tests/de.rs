@@ -48,6 +48,7 @@ mod std_tests {
     use serde_bytes::ByteBuf;
     use std::collections::BTreeMap;
 
+    use serde::de as serde_de;
     use serde_cbor::{de, error, from_reader, to_vec, Deserializer, ObjectKey, Value};
 
     #[test]
@@ -395,5 +396,29 @@ mod std_tests {
             value_result.unwrap_err().classify(),
             serde_cbor::error::Category::Syntax
         );
+    }
+
+    fn from_slice_stream<'a, T>(slice: &'a [u8]) -> error::Result<(&'a [u8], T)>
+    where
+        T: serde_de::Deserialize<'a>,
+    {
+        let mut deserializer = Deserializer::from_slice(slice);
+        let value = serde_de::Deserialize::deserialize(&mut deserializer)?;
+        let rest = &slice[deserializer.byte_offset()..];
+
+        Ok((rest, value))
+    }
+
+    #[test]
+    fn test_slice_offset() {
+        let v: Vec<u8> = vec![
+            0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72, 0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72,
+        ];
+        let (rest, value): (&[u8], String) = from_slice_stream(&v[..]).unwrap();
+        assert_eq!(value, "foobar");
+        assert_eq!(rest, &[0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72]);
+        let (rest, value): (&[u8], String) = from_slice_stream(rest).unwrap();
+        assert_eq!(value, "foobar");
+        assert_eq!(rest, &[]);
     }
 }
