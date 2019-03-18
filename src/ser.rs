@@ -401,6 +401,21 @@ where
     }
 
     #[inline]
+    fn serialize_i128(self, value: i128) -> Result<()> {
+        if value < 0 {
+            if -(value + 1) > u64::max_value() as i128 {
+                return Err(Error::message("The number can't be stored in CBOR"));
+            }
+            self.write_u64(1, -(value + 1) as u64)
+        } else {
+            if value > u64::max_value() as i128 {
+                return Err(Error::message("The number can't be stored in CBOR"));
+            }
+            self.write_u64(0, value as u64)
+        }
+    }
+
+    #[inline]
     fn serialize_u8(self, value: u8) -> Result<()> {
         self.write_u8(0, value)
     }
@@ -418,6 +433,14 @@ where
     #[inline]
     fn serialize_u64(self, value: u64) -> Result<()> {
         self.write_u64(0, value)
+    }
+
+    #[inline]
+    fn serialize_u128(self, value: u128) -> Result<()> {
+        if value > u64::max_value() as u128 {
+            return Err(Error::message("The number can't be stored in CBOR"));
+        }
+        self.write_u64(0, value as u64)
     }
 
     #[inline]

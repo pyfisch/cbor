@@ -547,7 +547,7 @@ where
             0x3b => {
                 let value = self.parse_u64()?;
                 if value > i64::max_value() as u64 {
-                    return Err(self.error(ErrorCode::NumberOutOfRange));
+                    return visitor.visit_i128(-1 - value as i128);
                 }
                 visitor.visit_i64(-1 - value as i64)
             }
@@ -790,7 +790,7 @@ where
     }
 
     serde::forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string unit
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string unit
         unit_struct seq tuple tuple_struct map struct identifier ignored_any
         bytes byte_buf
     }
