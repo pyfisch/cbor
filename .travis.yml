@@ -10,7 +10,11 @@ matrix:
 sudo: false
 before_script:
   - rustup component add rustfmt
+  - rustup target add thumbv7em-none-eabihf     # Any target that does not have a standard library will do
 script:
   - cargo fmt --all -- --check
   - cargo build
   - cargo test
+  - cargo build --no-default-features --target thumbv7em-none-eabihf # Test we can build a platform that does not have std.
+  - cargo test --no-default-features --lib --tests # Run no_std tests
+  - cargo build --features unsealed_read_write # The crate should still build when the unsealed_read_write feature is enabled.
