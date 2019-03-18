@@ -1,7 +1,7 @@
 //! CBOR values and keys.
 
+use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::BTreeMap;
-use std::cmp::{PartialOrd, Ord, Ordering};
 use std::fmt;
 
 use serde::de;
@@ -44,7 +44,6 @@ impl Value {
             None
         }
     }
-
 
     /// If the value is an object, returns the associated mutable BTreeMap. Returns None otherwise.
     pub fn as_object_mut(&mut self) -> Option<&mut BTreeMap<ObjectKey, Value>> {
@@ -224,7 +223,7 @@ impl<'de> de::Deserialize<'de> for Value {
         impl<'de> de::Visitor<'de> for ValueVisitor {
             type Value = Value;
 
-            fn expecting(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+            fn expecting(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
                 fmt.write_str("any valid CBOR value")
             }
 
@@ -397,29 +396,17 @@ impl ObjectKey {
     // has moved to a purely lexicographic ordering. This newer ordering is also used by the
     // [WebAuthn standard](https://fidoalliance.org/specs/fido-v2.0-id-20180227/fido-client-to-authenticator-protocol-v2.0-id-20180227.html#ctap2-canonical-cbor-encoding-form).
     fn canonical_sort_key(&self) -> (u8, usize, Option<&[u8]>) {
-        use ObjectKey::*;
+        use crate::ObjectKey::*;
         match *self {
             Integer(i) => {
                 let major_type = if i >= 0 { 0u8 } else { 1u8 };
-                let magnitude = if i >= 0 {
-                    i
-                } else {
-                    -(i + 1)
-                };
+                let magnitude = if i >= 0 { i } else { -(i + 1) };
                 (major_type, magnitude as usize, None)
             }
-            Bytes(ref v) => {
-                (2, v.len(), Some(v))
-            }
-            String(ref s) => {
-                (3, s.len(), Some(s.as_bytes()))
-            }
-            Bool(b) => {
-                (7, if b { 21 } else { 20 }, None)
-            }
-            Null => {
-                (7, 22, None)
-            }
+            Bytes(ref v) => (2, v.len(), Some(v)),
+            String(ref s) => (3, s.len(), Some(s.as_bytes())),
+            Bool(b) => (7, if b { 21 } else { 20 }, None),
+            Null => (7, 22, None),
         }
     }
     /// Returns true if the ObjectKey is a byte string.
@@ -532,7 +519,7 @@ impl<'de> de::Deserialize<'de> for ObjectKey {
         impl<'de> de::Visitor<'de> for ObjectKeyVisitor {
             type Value = ObjectKey;
 
-            fn expecting(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+            fn expecting(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
                 fmt.write_str("any valid CBOR key")
             }
 
@@ -655,13 +642,13 @@ impl From<Value> for ObjectKey {
 }
 
 macro_rules! impl_from {
-    ($for_enum:ident, $variant:ident, $for_type:ty) => (
+    ($for_enum:ident, $variant:ident, $for_type:ty) => {
         impl From<$for_type> for $for_enum {
-            fn from (v: $for_type) -> $for_enum {
+            fn from(v: $for_type) -> $for_enum {
                 $for_enum::$variant(v)
             }
         }
-    )
+    };
 }
 
 // All except &'a str and Cow<'a, str>
@@ -681,7 +668,8 @@ impl_from!(Value, F64, f64);
 impl_from!(Value, Bool, bool);
 
 /// Convert a `serde_cbor::Value` into a type `T`
-pub fn from_value<T>(value: Value) -> Result<T, ::error::Error>
+#[allow(clippy::needless_pass_by_value)]
+pub fn from_value<T>(value: Value) -> Result<T, crate::error::Error>
 where
     T: de::DeserializeOwned,
 {
@@ -689,6 +677,6 @@ where
     // roundtrip through buffer (i.e. by implementing
     // `serde::de::Deserializer` for `Value` and then doing
     // `T::deserialize(value)`).
-    let buf = ::to_vec(&value)?;
-    ::from_slice(buf.as_slice())
+    let buf = crate::to_vec(&value)?;
+    crate::from_slice(buf.as_slice())
 }

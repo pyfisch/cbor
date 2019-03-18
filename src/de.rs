@@ -1,17 +1,23 @@
 //! Deserialization.
 
-use byteorder::{ByteOrder, BigEndian};
+use byteorder::{BigEndian, ByteOrder};
+use core::f32;
+use core::marker::PhantomData;
+use core::result;
+use core::str;
 use half::f16;
 use serde::de;
+#[cfg(feature = "std")]
 use std::io;
-use std::str;
-use std::f32;
-use std::result;
-use std::marker::PhantomData;
 
-use error::{Error, Result, ErrorCode};
-use read::EitherLifetime;
-pub use read::{Read, IoRead, SliceRead, MutSliceRead};
+use crate::error::{Error, ErrorCode, Result};
+#[cfg(not(feature = "unsealed_read_write"))]
+use crate::read::EitherLifetime;
+#[cfg(feature = "unsealed_read_write")]
+pub use crate::read::EitherLifetime;
+#[cfg(feature = "std")]
+pub use crate::read::{IoRead, SliceRead};
+pub use crate::read::{MutSliceRead, Read, SliceReadFixed};
 
 /// Decodes a value from CBOR data in a slice.
 ///
@@ -34,6 +40,7 @@ pub use read::{Read, IoRead, SliceRead, MutSliceRead};
 /// let value: &str = de::from_slice(&v[..]).unwrap();
 /// assert_eq!(value, "foobar");
 /// ```
+#[cfg(feature = "std")]
 pub fn from_slice<'a, T>(slice: &'a [u8]) -> Result<T>
 where
     T: de::Deserialize<'a>,
@@ -44,6 +51,9 @@ where
     Ok(value)
 }
 
+// When the "std" feature is enabled there should be little to no need to ever use this function,
+// as `from_slice` covers all use cases (at the expense of being less efficient).
+#[cfg_attr(feature = "std", doc(hidden))]
 /// Decode a value from CBOR data in a mutable slice.
 ///
 /// This can be used in analogy to `from_slice`. Unlike `from_slice`, this will use the slice's
@@ -54,6 +64,27 @@ where
     T: de::Deserialize<'a>,
 {
     let mut deserializer = Deserializer::from_mut_slice(slice);
+    let value = de::Deserialize::deserialize(&mut deserializer)?;
+    deserializer.end()?;
+    Ok(value)
+}
+
+// When the "std" feature is enabled there should be little to no need to ever use this function,
+// as `from_slice` covers all use cases and is much more reliable (at the expense of being less
+// efficient).
+#[cfg_attr(feature = "std", doc(hidden))]
+/// Decode a value from CBOR data using a scratch buffer.
+///
+/// Users should generally prefer to use `from_slice` or `from_mut_slice` over this function,
+/// as decoding may fail when the scratch buffer turns out to be too small.
+///
+/// A realistic use case for this method would be decoding in a `no_std` environment from an
+/// immutable slice that is too large to copy.
+pub fn from_slice_with_scratch<'a, 'b, T>(slice: &'a [u8], scratch: &'b mut [u8]) -> Result<T>
+where
+    T: de::Deserialize<'a>,
+{
+    let mut deserializer = Deserializer::from_slice_with_scratch(slice, scratch);
     let value = de::Deserialize::deserialize(&mut deserializer)?;
     deserializer.end()?;
     Ok(value)
@@ -80,6 +111,7 @@ where
 /// let value: &str = de::from_reader(&v[..]).unwrap();
 /// assert_eq!(value, "foobar");
 /// ```
+#[cfg(feature = "std")]
 pub fn from_reader<T, R>(reader: R) -> Result<T>
 where
     T: de::DeserializeOwned,
@@ -97,6 +129,7 @@ pub struct Deserializer<R> {
     remaining_depth: u8,
 }
 
+#[cfg(feature = "std")]
 impl<R> Deserializer<IoRead<R>>
 where
     R: io::Read,
@@ -107,6 +140,7 @@ where
     }
 }
 
+#[cfg(feature = "std")]
 impl<'a> Deserializer<SliceRead<'a>> {
     /// Constructs a `Deserializer` which reads from a slice.
     ///
@@ -123,6 +157,16 @@ impl<'a> Deserializer<MutSliceRead<'a>> {
     /// Borrowed strings and byte slices will be provided even for indefinite strings.
     pub fn from_mut_slice(bytes: &'a mut [u8]) -> Deserializer<MutSliceRead<'a>> {
         Deserializer::new(MutSliceRead::new(bytes))
+    }
+}
+
+impl<'a, 'b> Deserializer<SliceReadFixed<'a, 'b>> {
+    #[doc(hidden)]
+    pub fn from_slice_with_scratch(
+        bytes: &'a [u8],
+        scratch: &'b mut [u8],
+    ) -> Deserializer<SliceReadFixed<'a, 'b>> {
+        Deserializer::new(SliceReadFixed::new(bytes, scratch))
     }
 }
 
@@ -162,11 +206,11 @@ where
     }
 
     fn next(&mut self) -> Result<Option<u8>> {
-        self.read.next().map_err(Error::io)
+        self.read.next()
     }
 
     fn peek(&mut self) -> Result<Option<u8>> {
-        self.read.peek().map_err(Error::io)
+        self.read.peek()
     }
 
     fn consume(&mut self) {
@@ -213,14 +257,15 @@ where
         }
     }
 
-    fn parse_indefinite_bytes<V>(&mut self, visitor: V) -> Result<V::Value> where
+    fn parse_indefinite_bytes<V>(&mut self, visitor: V) -> Result<V::Value>
+    where
         V: de::Visitor<'de>,
     {
         self.read.clear_buffer();
         loop {
             let byte = self.parse_u8()?;
             let len = match byte {
-                0x40...0x57 => byte as usize - 0x40,
+                0x40..=0x57 => byte as usize - 0x40,
                 0x58 => self.parse_u8()? as usize,
                 0x59 => self.parse_u16()? as usize,
                 0x5a => self.parse_u32()? as usize,
@@ -238,7 +283,7 @@ where
             self.read.read_to_buffer(len)?;
         }
 
-        match self.read.view_buffer() {
+        match self.read.take_buffer() {
             EitherLifetime::Long(buf) => visitor.visit_borrowed_bytes(buf),
             EitherLifetime::Short(buf) => visitor.visit_bytes(buf),
         }
@@ -259,27 +304,35 @@ where
     where
         V: de::Visitor<'de>,
     {
-        let offset = self.read.offset() + len as u64;
-        match self.read.read(len)? {
-            EitherLifetime::Long(buf) => {
-                let s = Self::convert_str(buf, offset)?;
-                visitor.visit_borrowed_str(s)
+        if let Some(offset) = self.read.offset().checked_add(len as u64) {
+            match self.read.read(len)? {
+                EitherLifetime::Long(buf) => {
+                    let s = Self::convert_str(buf, offset)?;
+                    visitor.visit_borrowed_str(s)
+                }
+                EitherLifetime::Short(buf) => {
+                    let s = Self::convert_str(buf, offset)?;
+                    visitor.visit_str(s)
+                }
             }
-            EitherLifetime::Short(buf) => {
-                let s = Self::convert_str(buf, offset)?;
-                visitor.visit_str(s)
-            }
+        } else {
+            // An overflow would have occured.
+            Err(Error::syntax(
+                ErrorCode::LengthOutOfRange,
+                self.read.offset(),
+            ))
         }
     }
 
-    fn parse_indefinite_str<V>(&mut self, visitor: V) -> Result<V::Value> where
+    fn parse_indefinite_str<V>(&mut self, visitor: V) -> Result<V::Value>
+    where
         V: de::Visitor<'de>,
     {
         self.read.clear_buffer();
         loop {
             let byte = self.parse_u8()?;
             let len = match byte {
-                0x60...0x77 => byte as usize - 0x60,
+                0x60..=0x77 => byte as usize - 0x60,
                 0x78 => self.parse_u8()? as usize,
                 0x79 => self.parse_u16()? as usize,
                 0x7a => self.parse_u32()? as usize,
@@ -298,7 +351,7 @@ where
         }
 
         let offset = self.read.offset();
-        match self.read.view_buffer() {
+        match self.read.take_buffer() {
             EitherLifetime::Long(buf) => {
                 let s = Self::convert_str(buf, offset)?;
                 visitor.visit_borrowed_str(s)
@@ -421,9 +474,9 @@ where
         V: de::Visitor<'de>,
     {
         self.recursion_checked(|de| {
-            let value = visitor.visit_enum(
-                VariantAccess { seq: IndefiniteSeqAccess { de } },
-            )?;
+            let value = visitor.visit_enum(VariantAccess {
+                seq: IndefiniteSeqAccess { de },
+            })?;
             match de.next()? {
                 Some(0xff) => Ok(value),
                 Some(_) => Err(de.error(ErrorCode::TrailingData)),
@@ -448,6 +501,9 @@ where
         Ok(BigEndian::read_f64(&buf))
     }
 
+    // Don't warn about the `unreachable!` in case
+    // exhaustive integer pattern matching is enabled.
+    #[allow(unreachable_patterns)]
     fn parse_value<V>(&mut self, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
@@ -455,7 +511,7 @@ where
         let byte = self.parse_u8()?;
         match byte {
             // Major type 0: an unsigned integer
-            0x00...0x17 => visitor.visit_u8(byte),
+            0x00..=0x17 => visitor.visit_u8(byte),
             0x18 => {
                 let value = self.parse_u8()?;
                 visitor.visit_u8(value)
@@ -472,10 +528,10 @@ where
                 let value = self.parse_u64()?;
                 visitor.visit_u64(value)
             }
-            0x1c...0x1f => Err(self.error(ErrorCode::UnassignedCode)),
+            0x1c..=0x1f => Err(self.error(ErrorCode::UnassignedCode)),
 
             // Major type 1: a negative integer
-            0x20...0x37 => visitor.visit_i8(-1 - (byte - 0x20) as i8),
+            0x20..=0x37 => visitor.visit_i8(-1 - (byte - 0x20) as i8),
             0x38 => {
                 let value = self.parse_u8()?;
                 visitor.visit_i16(-1 - i16::from(value))
@@ -495,10 +551,10 @@ where
                 }
                 visitor.visit_i64(-1 - value as i64)
             }
-            0x3c...0x3f => Err(self.error(ErrorCode::UnassignedCode)),
+            0x3c..=0x3f => Err(self.error(ErrorCode::UnassignedCode)),
 
             // Major type 2: a byte string
-            0x40...0x57 => self.parse_bytes(byte as usize - 0x40, visitor),
+            0x40..=0x57 => self.parse_bytes(byte as usize - 0x40, visitor),
             0x58 => {
                 let len = self.parse_u8()?;
                 self.parse_bytes(len as usize, visitor)
@@ -518,13 +574,11 @@ where
                 }
                 self.parse_bytes(len as usize, visitor)
             }
-            0x5c...0x5e => Err(self.error(ErrorCode::UnassignedCode)),
-            0x5f => {
-                self.parse_indefinite_bytes(visitor)
-            }
+            0x5c..=0x5e => Err(self.error(ErrorCode::UnassignedCode)),
+            0x5f => self.parse_indefinite_bytes(visitor),
 
             // Major type 3: a text string
-            0x60...0x77 => self.parse_str(byte as usize - 0x60, visitor),
+            0x60..=0x77 => self.parse_str(byte as usize - 0x60, visitor),
             0x78 => {
                 let len = self.parse_u8()?;
                 self.parse_str(len as usize, visitor)
@@ -544,13 +598,11 @@ where
                 }
                 self.parse_str(len as usize, visitor)
             }
-            0x7c...0x7e => Err(self.error(ErrorCode::UnassignedCode)),
-            0x7f => {
-                self.parse_indefinite_str(visitor)
-            }
+            0x7c..=0x7e => Err(self.error(ErrorCode::UnassignedCode)),
+            0x7f => self.parse_indefinite_str(visitor),
 
             // Major type 4: an array of data items
-            0x80...0x97 => self.parse_array(byte as usize - 0x80, visitor),
+            0x80..=0x97 => self.parse_array(byte as usize - 0x80, visitor),
             0x98 => {
                 let len = self.parse_u8()?;
                 self.parse_array(len as usize, visitor)
@@ -570,11 +622,11 @@ where
                 }
                 self.parse_array(len as usize, visitor)
             }
-            0x9c...0x9e => Err(self.error(ErrorCode::UnassignedCode)),
+            0x9c..=0x9e => Err(self.error(ErrorCode::UnassignedCode)),
             0x9f => self.parse_indefinite_array(visitor),
 
             // Major type 5: a map of pairs of data items
-            0xa0...0xb7 => self.parse_map(byte as usize - 0xa0, visitor),
+            0xa0..=0xb7 => self.parse_map(byte as usize - 0xa0, visitor),
             0xb8 => {
                 let len = self.parse_u8()?;
                 self.parse_map(len as usize, visitor)
@@ -594,11 +646,11 @@ where
                 }
                 self.parse_map(len as usize, visitor)
             }
-            0xbc...0xbe => Err(self.error(ErrorCode::UnassignedCode)),
+            0xbc..=0xbe => Err(self.error(ErrorCode::UnassignedCode)),
             0xbf => self.parse_indefinite_map(visitor),
 
             // Major type 6: optional semantic tagging of other major types
-            0xc0...0xd7 => self.parse_value(visitor),
+            0xc0..=0xd7 => self.parse_value(visitor),
             0xd8 => {
                 self.parse_u8()?;
                 self.parse_value(visitor)
@@ -615,10 +667,10 @@ where
                 self.parse_u64()?;
                 self.parse_value(visitor)
             }
-            0xdc...0xdf => Err(self.error(ErrorCode::UnassignedCode)),
+            0xdc..=0xdf => Err(self.error(ErrorCode::UnassignedCode)),
 
             // Major type 7: floating-point numbers and other simple data types that need no content
-            0xe0...0xf3 => Err(self.error(ErrorCode::UnassignedCode)),
+            0xe0..=0xf3 => Err(self.error(ErrorCode::UnassignedCode)),
             0xf4 => visitor.visit_bool(false),
             0xf5 => visitor.visit_bool(true),
             0xf6 => visitor.visit_unit(),
@@ -636,10 +688,9 @@ where
                 let value = self.parse_f64()?;
                 visitor.visit_f64(value)
             }
-            0xfc...0xfe => Err(self.error(ErrorCode::UnassignedCode)),
+            0xfc..=0xfe => Err(self.error(ErrorCode::UnassignedCode)),
             0xff => Err(self.error(ErrorCode::UnexpectedCode)),
 
-            // https://github.com/rust-lang/rust/issues/12483
             _ => unreachable!(),
         }
     }
@@ -695,10 +746,10 @@ where
         V: de::Visitor<'de>,
     {
         match self.peek()? {
-            Some(byte @ 0x80...0x9f) => {
+            Some(byte @ 0x80..=0x9f) => {
                 self.consume();
                 match byte {
-                    0x80...0x97 => self.parse_enum(byte as usize - 0x80, visitor),
+                    0x80..=0x97 => self.parse_enum(byte as usize - 0x80, visitor),
                     0x98 => {
                         let len = self.parse_u8()?;
                         self.parse_enum(len as usize, visitor)
@@ -718,7 +769,7 @@ where
                         }
                         self.parse_enum(len as usize, visitor)
                     }
-                    0x9c...0x9e => Err(self.error(ErrorCode::UnassignedCode)),
+                    0x9c..=0x9e => Err(self.error(ErrorCode::UnassignedCode)),
                     0x9f => self.parse_indefinite_enum(visitor),
 
                     _ => unreachable!(),
@@ -738,7 +789,7 @@ where
         false
     }
 
-    forward_to_deserialize_any! {
+    serde::forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string unit
         unit_struct seq tuple tuple_struct map struct identifier ignored_any
         bytes byte_buf
@@ -749,7 +800,7 @@ trait MakeError {
     fn error(&self, code: ErrorCode) -> Error;
 }
 
-struct SeqAccess<'a, R: 'a> {
+struct SeqAccess<'a, R> {
     de: &'a mut Deserializer<R>,
     len: &'a mut usize,
 }
@@ -787,7 +838,7 @@ where
     }
 }
 
-struct IndefiniteSeqAccess<'a, R: 'a> {
+struct IndefiniteSeqAccess<'a, R> {
     de: &'a mut Deserializer<R>,
 }
 
@@ -821,7 +872,7 @@ where
     }
 }
 
-struct MapAccess<'a, R: 'a> {
+struct MapAccess<'a, R> {
     de: &'a mut Deserializer<R>,
     len: &'a mut usize,
 }
@@ -866,7 +917,7 @@ where
     }
 }
 
-struct IndefiniteMapAccess<'a, R: 'a> {
+struct IndefiniteMapAccess<'a, R> {
     de: &'a mut Deserializer<R>,
 }
 
@@ -898,7 +949,7 @@ where
     }
 }
 
-struct UnitVariantAccess<'a, R: 'a> {
+struct UnitVariantAccess<'a, R> {
     de: &'a mut Deserializer<R>,
 }
 
@@ -985,8 +1036,7 @@ where
 
 impl<'de, T> de::VariantAccess<'de> for VariantAccess<T>
 where
-    T: de::SeqAccess<'de, Error = Error>
-        + MakeError,
+    T: de::SeqAccess<'de, Error = Error> + MakeError,
 {
     type Error = Error;
 
@@ -1120,8 +1170,7 @@ where
 
 impl<'de, T> de::VariantAccess<'de> for VariantAccessMap<T>
 where
-    T: de::MapAccess<'de, Error = Error>
-        + MakeError,
+    T: de::MapAccess<'de, Error = Error> + MakeError,
 {
     type Error = Error;
 

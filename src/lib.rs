@@ -144,24 +144,56 @@
 //! assert!(serialized_byte_string.len() < serialized_array.len());
 //! # }
 //! ```
+//!
+//! # Limitations
+//!
+//! While Serde CBOR strives to support all features of Serde and CBOR
+//! there are a few limitations.
+//!
+//! * [Tags] are ignored during deserialization and can't be emitted during
+//!     serialization. This is because Serde has no concept of tagged
+//!     values. See:&nbsp;[#3]
+//! * Unknown [simple values] cause an `UnassignedCode` error.
+//!     The simple values *False* and *True* are recognized and parsed as bool.
+//!     *Null* and *Undefined* are both deserialized as *unit*.
+//!     The *unit* type is serialized as *Null*. See:&nbsp;[#86]
+//! * [128-bit integers] can't be directly encoded in CBOR. If you need them
+//!     store them as a byte string. See:&nbsp;[#77]
+//!
+//! [Tags]: https://tools.ietf.org/html/rfc7049#section-2.4.4
+//! [#3]: https://github.com/pyfisch/cbor/issues/3
+//! [simple values]: https://tools.ietf.org/html/rfc7049#section-3.5
+//! [#86]: https://github.com/pyfisch/cbor/issues/86
+//! [128-bit integers]: https://doc.rust-lang.org/std/primitive.u128.html
+//! [#77]: https://github.com/pyfisch/cbor/issues/77
 
 #![deny(missing_docs)]
+#![cfg_attr(not(feature = "std"), no_std)]
 
-extern crate byteorder;
-extern crate half;
+// When we are running tests in no_std mode we need to explicitly link std, because `cargo test`
+// will not work without it.
+#[cfg(all(not(feature = "std"), test))]
+extern crate std;
 
-#[macro_use]
-extern crate serde;
-
-mod read;
 pub mod de;
 pub mod error;
+mod read;
 pub mod ser;
+mod write;
+
+#[cfg(feature = "std")]
 pub mod value;
 
 #[doc(inline)]
-pub use de::{from_slice, from_mut_slice, from_reader, Deserializer, StreamDeserializer};
+pub use crate::de::{from_mut_slice, from_slice_with_scratch, Deserializer, StreamDeserializer};
 #[doc(inline)]
-pub use ser::{to_writer, to_vec, to_vec_with_options, Serializer, SerializerOptions};
+#[cfg(feature = "std")]
+pub use crate::de::{from_reader, from_slice};
+
 #[doc(inline)]
-pub use value::{Value, ObjectKey, to_value, from_value};
+#[cfg(feature = "std")]
+pub use crate::ser::{to_vec, to_vec_with_options, to_writer};
+pub use crate::ser::{Serializer, SerializerOptions};
+#[doc(inline)]
+#[cfg(feature = "std")]
+pub use crate::value::{from_value, to_value, ObjectKey, Value};
