@@ -1,17 +1,23 @@
 //! Deserialization.
 
 use byteorder::{BigEndian, ByteOrder};
+use core::f32;
+use core::marker::PhantomData;
+use core::result;
+use core::str;
 use half::f16;
 use serde::de;
-use std::f32;
+#[cfg(feature = "std")]
 use std::io;
-use std::marker::PhantomData;
-use std::result;
-use std::str;
 
 use crate::error::{Error, ErrorCode, Result};
+#[cfg(not(feature = "unsealed_read_write"))]
 use crate::read::EitherLifetime;
-pub use crate::read::{IoRead, MutSliceRead, Read, SliceRead};
+#[cfg(feature = "unsealed_read_write")]
+pub use crate::read::EitherLifetime;
+#[cfg(feature = "std")]
+pub use crate::read::{IoRead, SliceRead};
+pub use crate::read::{MutSliceRead, Read, SliceReadFixed};
 
 /// Decodes a value from CBOR data in a slice.
 ///
@@ -34,6 +40,7 @@ pub use crate::read::{IoRead, MutSliceRead, Read, SliceRead};
 /// let value: &str = de::from_slice(&v[..]).unwrap();
 /// assert_eq!(value, "foobar");
 /// ```
+#[cfg(feature = "std")]
 pub fn from_slice<'a, T>(slice: &'a [u8]) -> Result<T>
 where
     T: de::Deserialize<'a>,
@@ -44,6 +51,9 @@ where
     Ok(value)
 }
 
+// When the "std" feature is enabled there should be little to no need to ever use this function,
+// as `from_slice` covers all use cases (at the expense of being less efficient).
+#[cfg_attr(feature = "std", doc(hidden))]
 /// Decode a value from CBOR data in a mutable slice.
 ///
 /// This can be used in analogy to `from_slice`. Unlike `from_slice`, this will use the slice's
@@ -54,6 +64,27 @@ where
     T: de::Deserialize<'a>,
 {
     let mut deserializer = Deserializer::from_mut_slice(slice);
+    let value = de::Deserialize::deserialize(&mut deserializer)?;
+    deserializer.end()?;
+    Ok(value)
+}
+
+// When the "std" feature is enabled there should be little to no need to ever use this function,
+// as `from_slice` covers all use cases and is much more reliable (at the expense of being less
+// efficient).
+#[cfg_attr(feature = "std", doc(hidden))]
+/// Decode a value from CBOR data using a scratch buffer.
+///
+/// Users should generally prefer to use `from_slice` or `from_mut_slice` over this function,
+/// as decoding may fail when the scratch buffer turns out to be too small.
+///
+/// A realistic use case for this method would be decoding in a `no_std` environment from an
+/// immutable slice that is too large to copy.
+pub fn from_slice_with_scratch<'a, 'b, T>(slice: &'a [u8], scratch: &'b mut [u8]) -> Result<T>
+where
+    T: de::Deserialize<'a>,
+{
+    let mut deserializer = Deserializer::from_slice_with_scratch(slice, scratch);
     let value = de::Deserialize::deserialize(&mut deserializer)?;
     deserializer.end()?;
     Ok(value)
@@ -80,6 +111,7 @@ where
 /// let value: &str = de::from_reader(&v[..]).unwrap();
 /// assert_eq!(value, "foobar");
 /// ```
+#[cfg(feature = "std")]
 pub fn from_reader<T, R>(reader: R) -> Result<T>
 where
     T: de::DeserializeOwned,
@@ -97,6 +129,7 @@ pub struct Deserializer<R> {
     remaining_depth: u8,
 }
 
+#[cfg(feature = "std")]
 impl<R> Deserializer<IoRead<R>>
 where
     R: io::Read,
@@ -107,6 +140,7 @@ where
     }
 }
 
+#[cfg(feature = "std")]
 impl<'a> Deserializer<SliceRead<'a>> {
     /// Constructs a `Deserializer` which reads from a slice.
     ///
@@ -123,6 +157,16 @@ impl<'a> Deserializer<MutSliceRead<'a>> {
     /// Borrowed strings and byte slices will be provided even for indefinite strings.
     pub fn from_mut_slice(bytes: &'a mut [u8]) -> Deserializer<MutSliceRead<'a>> {
         Deserializer::new(MutSliceRead::new(bytes))
+    }
+}
+
+impl<'a, 'b> Deserializer<SliceReadFixed<'a, 'b>> {
+    #[doc(hidden)]
+    pub fn from_slice_with_scratch(
+        bytes: &'a [u8],
+        scratch: &'b mut [u8],
+    ) -> Deserializer<SliceReadFixed<'a, 'b>> {
+        Deserializer::new(SliceReadFixed::new(bytes, scratch))
     }
 }
 
@@ -162,11 +206,11 @@ where
     }
 
     fn next(&mut self) -> Result<Option<u8>> {
-        self.read.next().map_err(Error::io)
+        self.read.next()
     }
 
     fn peek(&mut self) -> Result<Option<u8>> {
-        self.read.peek().map_err(Error::io)
+        self.read.peek()
     }
 
     fn consume(&mut self) {
@@ -239,7 +283,7 @@ where
             self.read.read_to_buffer(len)?;
         }
 
-        match self.read.view_buffer() {
+        match self.read.take_buffer() {
             EitherLifetime::Long(buf) => visitor.visit_borrowed_bytes(buf),
             EitherLifetime::Short(buf) => visitor.visit_bytes(buf),
         }
@@ -307,7 +351,7 @@ where
         }
 
         let offset = self.read.offset();
-        match self.read.view_buffer() {
+        match self.read.take_buffer() {
             EitherLifetime::Long(buf) => {
                 let s = Self::convert_str(buf, offset)?;
                 visitor.visit_borrowed_str(s)
