@@ -27,7 +27,7 @@ impl serde::Serializer for Serializer {
     type SerializeTupleStruct = SerializeVec;
     type SerializeTupleVariant = SerializeTupleVariant;
     type SerializeMap = SerializeMap;
-    type SerializeStruct = SerializeMap;
+    type SerializeStruct = SerializeStruct;
     type SerializeStructVariant = SerializeStructVariant;
 
     #[inline]
@@ -201,9 +201,11 @@ impl serde::Serializer for Serializer {
     fn serialize_struct(
         self,
         _name: &'static str,
-        len: usize,
+        _len: usize,
     ) -> Result<Self::SerializeStruct, Error> {
-        self.serialize_map(Some(len))
+        Ok(SerializeStruct {
+            map: BTreeMap::new(),
+        })
     }
 
     fn serialize_struct_variant(
@@ -235,6 +237,11 @@ pub struct SerializeTupleVariant {
 pub struct SerializeMap {
     map: BTreeMap<ObjectKey, Value>,
     next_key: Option<ObjectKey>,
+}
+
+#[doc(hidden)]
+pub struct SerializeStruct {
+    map: BTreeMap<ObjectKey, Value>,
 }
 
 #[doc(hidden)]
@@ -342,7 +349,7 @@ impl serde::ser::SerializeMap for SerializeMap {
     }
 }
 
-impl serde::ser::SerializeStruct for SerializeMap {
+impl serde::ser::SerializeStruct for SerializeStruct {
     type Ok = Value;
     type Error = Error;
 
@@ -350,12 +357,12 @@ impl serde::ser::SerializeStruct for SerializeMap {
     where
         T: Serialize,
     {
-        serde::ser::SerializeMap::serialize_key(self, key)?;
-        serde::ser::SerializeMap::serialize_value(self, value)
+        self.map.insert(ObjectKey::from(String::from(key)), to_value(value)?);
+        Ok(())
     }
 
     fn end(self) -> Result<Value, Error> {
-        serde::ser::SerializeMap::end(self)
+        Ok(Value::Object(self.map))
     }
 }
 
