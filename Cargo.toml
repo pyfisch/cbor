@@ -20,9 +20,9 @@ maintenance = { status = "actively-developed" }
 byteorder = { version = "1.0.0", default-features = false }
 half = "1.2.0"
 serde = { version = "1.0.14", default-features = false }
+serde_bytes = { version = "0.10", default-features = false, optional = true }
 
 [dev-dependencies]
-serde_bytes = { version = "0.10", default-features = false }
 serde_derive = { version = "1.0.14", default-features = false }
 
 [features]
