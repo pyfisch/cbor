@@ -145,6 +145,25 @@
 //! # }
 //! ```
 //!
+//! Deserializing data in the middle of a slice
+//! ```
+//! # extern crate serde_cbor;
+//! use serde_cbor::Deserializer;
+//!
+//! # fn main() {
+//! let data: Vec<u8> = vec![
+//!     0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72, 0x66, 0x66, 0x6f, 0x6f, 0x62,
+//!     0x61, 0x72,
+//! ];
+//! let mut deserializer = Deserializer::from_slice(&data);
+//! let value: &str = serde::de::Deserialize::deserialize(&mut deserializer)
+//!     .unwrap();
+//! let rest = &data[deserializer.byte_offset()..];
+//! assert_eq!(value, "foobar");
+//! assert_eq!(rest, &[0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72]);
+//! # }
+//! ```
+//!
 //! # Limitations
 //!
 //! While Serde CBOR strives to support all features of Serde and CBOR
