@@ -136,8 +136,7 @@ impl Error {
             ErrorCode::EofWhileParsingValue
             | ErrorCode::EofWhileParsingArray
             | ErrorCode::EofWhileParsingMap => Category::Eof,
-            ErrorCode::NumberOutOfRange
-            | ErrorCode::LengthOutOfRange
+            ErrorCode::LengthOutOfRange
             | ErrorCode::InvalidUtf8
             | ErrorCode::UnassignedCode
             | ErrorCode::UnexpectedCode
@@ -274,7 +273,6 @@ pub(crate) enum ErrorCode {
     EofWhileParsingValue,
     EofWhileParsingArray,
     EofWhileParsingMap,
-    NumberOutOfRange,
     LengthOutOfRange,
     InvalidUtf8,
     UnassignedCode,
@@ -300,7 +298,6 @@ impl fmt::Display for ErrorCode {
             ErrorCode::EofWhileParsingValue => f.write_str("EOF while parsing a value"),
             ErrorCode::EofWhileParsingArray => f.write_str("EOF while parsing an array"),
             ErrorCode::EofWhileParsingMap => f.write_str("EOF while parsing a map"),
-            ErrorCode::NumberOutOfRange => f.write_str("number out of range"),
             ErrorCode::LengthOutOfRange => f.write_str("length out of range"),
             ErrorCode::InvalidUtf8 => f.write_str("invalid UTF-8"),
             ErrorCode::UnassignedCode => f.write_str("unassigned type"),

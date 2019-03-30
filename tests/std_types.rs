@@ -53,8 +53,12 @@ mod std_tests {
             fn $name() {
                 let expr: $ty = $expr;
                 let mut serialized = to_binary($s);
-                assert_eq!(to_vec(&expr).unwrap(), serialized, "serialization differs");
-                let parsed: $ty = from_slice(&serialized[..]).unwrap();
+                assert_eq!(
+                    to_vec(&expr).expect("ser1 works"),
+                    serialized,
+                    "serialization differs"
+                );
+                let parsed: $ty = from_slice(&serialized[..]).expect("de1 works");
                 assert_eq!(parsed, expr, "parsed result differs");
                 let packed = &to_vec_packed(&expr).expect("serializing packed")[..];
                 let parsed_from_packed: $ty = from_slice(packed).expect("parsing packed");
@@ -173,4 +177,12 @@ mod std_tests {
         Color::Alpha(234567, 60),
         "8365416c7068611a00039447183c"
     );
+    testcase!(test_i128_a, i128, -1i128, "20");
+    testcase!(
+        test_i128_b,
+        i128,
+        -18446744073709551616i128,
+        "3BFFFFFFFFFFFFFFFF"
+    );
+    testcase!(test_u128, u128, 17, "11");
 }
