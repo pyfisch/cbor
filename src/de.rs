@@ -1140,6 +1140,18 @@ where
     }
 }
 
+impl<'de, R, T> StreamDeserializer<'de, R, T>
+where
+    R: Offset,
+    T: de::Deserialize<'de>,
+{
+    /// Return the current offset in the reader
+    #[inline]
+    pub fn byte_offset(&self) -> usize {
+        self.de.byte_offset()
+    }
+}
+
 impl<'de, R, T> Iterator for StreamDeserializer<'de, R, T>
 where
     R: Read<'de>,
