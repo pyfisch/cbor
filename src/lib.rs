@@ -64,7 +64,7 @@
 //! ```
 //! While the JSON encoding is 174 bytes long the CBOR representation is only 141 bytes long.
 //! This is 19% shorter! Sometimes compression will even better, but never CBOR will be longer
-//! than the corresponding JSON. More importantly CBOR supports binary data, custom data tyes,
+//! than the corresponding JSON. More importantly CBOR supports binary data, custom data types,
 //! annotations for dates, times and expected encoding and is faster to serialize and deserialize.
 //! It can even be used on embedded devices.
 //!
