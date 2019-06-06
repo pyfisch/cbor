@@ -45,11 +45,10 @@ fn test_indefinite_object() {
 
 #[cfg(feature = "std")]
 mod std_tests {
-    use serde_bytes::ByteBuf;
     use std::collections::BTreeMap;
 
     use serde::de as serde_de;
-    use serde_cbor::{de, error, from_reader, to_vec, Deserializer, ObjectKey, Value};
+    use serde_cbor::{de, error, to_vec, Deserializer, ObjectKey, Value};
 
     #[test]
     fn test_string1() {
@@ -374,18 +373,6 @@ mod std_tests {
                 .into_iter::<Value>();
             assert!(it.next().unwrap().unwrap_err().is_eof());
         }
-    }
-
-    #[test]
-    fn test_large_bytes() {
-        let expected = (0..2 * 1024 * 1024)
-            .map(|i| (i * 7) as u8)
-            .collect::<Vec<_>>();
-        let expected = ByteBuf::from(expected);
-        let v = to_vec(&expected).unwrap();
-
-        let actual = from_reader(&v[..]).unwrap();
-        assert_eq!(expected, actual);
     }
 
     #[test]
