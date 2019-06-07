@@ -126,25 +126,6 @@
 //! assert_eq!(encoded.unwrap().len(), 103);
 //! ```
 //!
-//! Serializing a `Vec` as a specialized byte string uses about 2x less RAM and
-//! 100x less CPU time than serializing it as an array.
-//!
-//! ```rust
-//! # extern crate serde_bytes;
-//! # extern crate serde_cbor;
-//! use std::collections::BTreeMap;
-//! use serde_bytes::ByteBuf;
-//! use serde_cbor::to_vec;
-//!
-//! # fn main() {
-//! let data: Vec<u8> = vec![0, 1, 255];
-//! let serialized_array = to_vec(&data).unwrap();
-//! let byte_buf = ByteBuf::from(data);
-//! let serialized_byte_string = to_vec(&byte_buf).unwrap();
-//! assert!(serialized_byte_string.len() < serialized_array.len());
-//! # }
-//! ```
-//!
 //! Deserializing data in the middle of a slice
 //! ```
 //! # extern crate serde_cbor;

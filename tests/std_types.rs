@@ -5,8 +5,6 @@ extern crate serde_derive;
 mod std_tests {
     use std::u8;
 
-    use serde_bytes::ByteBuf;
-
     use serde_cbor::ser::{to_vec, to_vec_packed};
     use serde_cbor::{from_mut_slice, from_reader, from_slice};
 
@@ -103,7 +101,6 @@ mod std_tests {
         "aâø↓é".to_owned(),
         "6a61c3a2c3b8e28693c3a9"
     );
-    testcase!(test_bytes, ByteBuf, b"\x00\xab".to_vec().into(), "4200ab");
     testcase!(test_unit, (), (), "f6");
 
     #[derive(Debug, PartialEq, Deserialize, Serialize)]
