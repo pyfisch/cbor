@@ -81,7 +81,7 @@ impl Ord for Value {
         // 5. Compare the serializations of both types. (expensive)
         use self::Value::*;
         if self.major_type() != other.major_type() {
-            return self.major_type().cmp(&other.major_type())
+            return self.major_type().cmp(&other.major_type());
         }
         match (self, other) {
             (Integer(a), Integer(b)) => a.abs().cmp(&b.abs()),
@@ -135,7 +135,13 @@ impl Value {
         match self {
             Null => 7,
             Bool(_) => 7,
-            Integer(v) => if *v >= 0 { 0 } else { 1 },
+            Integer(v) => {
+                if *v >= 0 {
+                    0
+                } else {
+                    1
+                }
+            }
             Float(_) => 7,
             Bytes(_) => 2,
             Text(_) => 3,

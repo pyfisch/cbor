@@ -187,7 +187,7 @@ pub mod value;
 
 // Re-export the [items recommended by serde](https://serde.rs/conventions.html).
 #[doc(inline)]
-pub use crate::de::Deserializer;
+pub use crate::de::{Deserializer, StreamDeserializer};
 #[doc(inline)]
 pub use crate::error::{Error, Result};
 #[doc(inline)]
