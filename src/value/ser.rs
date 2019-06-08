@@ -15,6 +15,26 @@ use serde::{self, Serialize};
 
 use crate::value::Value;
 
+impl serde::Serialize for Value {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match *self {
+            Value::Integer(v) => serializer.serialize_i128(v),
+            Value::Bytes(ref v) => serializer.serialize_bytes(&v),
+            Value::Text(ref v) => serializer.serialize_str(&v),
+            Value::Array(ref v) => v.serialize(serializer),
+            Value::Map(ref v) => v.serialize(serializer),
+            Value::Float(v) => serializer.serialize_f64(v),
+            Value::Bool(v) => serializer.serialize_bool(v),
+            Value::Null => serializer.serialize_unit(),
+            Value::__Hidden => unreachable!(),
+        }
+    }
+}
+
 struct Serializer;
 
 impl serde::Serializer for Serializer {
@@ -224,24 +244,20 @@ impl serde::Serializer for Serializer {
     }
 }
 
-#[doc(hidden)]
 pub struct SerializeVec {
     vec: Vec<Value>,
 }
 
-#[doc(hidden)]
 pub struct SerializeTupleVariant {
     name: String,
     vec: Vec<Value>,
 }
 
-#[doc(hidden)]
 pub struct SerializeMap {
     map: BTreeMap<Value, Value>,
     next_key: Option<Value>,
 }
 
-#[doc(hidden)]
 pub struct SerializeStructVariant {
     name: String,
     map: BTreeMap<Value, Value>,

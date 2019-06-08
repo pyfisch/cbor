@@ -65,7 +65,7 @@ mod std_tests {
 
         fn as_object(value: &Value) -> &BTreeMap<Value, Value> {
             if let Value::Map(ref v) = value {
-                return v
+                return v;
             }
             panic!()
         }

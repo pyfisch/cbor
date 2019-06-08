@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use serde::de;
-use serde::ser;
 
 use crate::value::Value;
 
@@ -140,26 +139,6 @@ impl<'de> de::Deserialize<'de> for Value {
         }
 
         deserializer.deserialize_any(ValueVisitor)
-    }
-}
-
-impl ser::Serialize for Value {
-    #[inline]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: ser::Serializer,
-    {
-        match *self {
-            Value::Integer(v) => serializer.serialize_i128(v),
-            Value::Bytes(ref v) => serializer.serialize_bytes(&v),
-            Value::Text(ref v) => serializer.serialize_str(&v),
-            Value::Array(ref v) => v.serialize(serializer),
-            Value::Map(ref v) => v.serialize(serializer),
-            Value::Float(v) => serializer.serialize_f64(v),
-            Value::Bool(v) => serializer.serialize_bool(v),
-            Value::Null => serializer.serialize_unit(),
-            Value::__Hidden => unreachable!(),
-        }
     }
 }
 

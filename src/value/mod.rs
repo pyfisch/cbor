@@ -1,13 +1,16 @@
 //! CBOR values, keys and serialization routines.
 
-mod order;
-pub mod ser;
-pub mod value;
+mod de;
+mod ser;
 
+use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::BTreeMap;
 
+#[doc(inline)]
+pub use self::de::from_value;
+#[doc(inline)]
 pub use self::ser::to_value;
-pub use self::value::from_value;
+use crate::to_vec;
 
 /// The `Value` enum, a loosely typed way of representing any valid CBOR value.
 ///
@@ -53,6 +56,28 @@ pub enum Value {
     // with variants for tags and simple values.
     #[doc(hidden)]
     __Hidden,
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Value) -> bool {
+        self.cmp(other) == Ordering::Equal
+    }
+}
+
+impl Eq for Value {}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Value) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Value {
+    fn cmp(&self, other: &Value) -> Ordering {
+        let a = to_vec(self).expect("lhs serialization succeeds");
+        let b = to_vec(other).expect("rhs serialization succeeds");
+        a.cmp(&b)
+    }
 }
 
 macro_rules! impl_from {
