@@ -1,5 +1,3 @@
-//! CBOR values and keys.
-
 use std::collections::BTreeMap;
 use std::fmt;
 
