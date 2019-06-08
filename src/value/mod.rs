@@ -10,7 +10,6 @@ use std::collections::BTreeMap;
 pub use self::de::from_value;
 #[doc(inline)]
 pub use self::ser::to_value;
-use crate::to_vec;
 
 /// The `Value` enum, a loosely typed way of representing any valid CBOR value.
 ///
@@ -74,9 +73,30 @@ impl PartialOrd for Value {
 
 impl Ord for Value {
     fn cmp(&self, other: &Value) -> Ordering {
-        let a = to_vec(self).expect("lhs serialization succeeds");
-        let b = to_vec(other).expect("rhs serialization succeeds");
-        a.cmp(&b)
+        // Determine the canonical order of two values:
+        // 1. Smaller major type sorts first.
+        // 2. Shorter sequence sorts first.
+        // 3. Compare integers by magnitude.
+        // 4. Compare byte and text sequences lexically.
+        // 5. Compare the serializations of both types. (expensive)
+        use self::Value::*;
+        if self.major_type() != other.major_type() {
+            return self.major_type().cmp(&other.major_type())
+        }
+        match (self, other) {
+            (Integer(a), Integer(b)) => a.abs().cmp(&b.abs()),
+            (Bytes(a), Bytes(b)) if a.len() != b.len() => a.len().cmp(&b.len()),
+            (Text(a), Text(b)) if a.len() != b.len() => a.len().cmp(&b.len()),
+            (Array(a), Array(b)) if a.len() != b.len() => a.len().cmp(&b.len()),
+            (Map(a), Map(b)) if a.len() != b.len() => a.len().cmp(&b.len()),
+            (Bytes(a), Bytes(b)) => a.cmp(b),
+            (Text(a), Text(b)) => a.cmp(b),
+            (a, b) => {
+                let a = crate::to_vec(a).expect("self is serializable");
+                let b = crate::to_vec(b).expect("other is serializable");
+                a.cmp(&b)
+            }
+        }
     }
 }
 
@@ -108,3 +128,20 @@ impl_from!(Value::Text, String);
 // TODO: figure out if these impls should be more generic or removed.
 impl_from!(Value::Array, Vec<Value>);
 impl_from!(Value::Map, BTreeMap<Value, Value>);
+
+impl Value {
+    fn major_type(&self) -> u8 {
+        use self::Value::*;
+        match self {
+            Null => 7,
+            Bool(_) => 7,
+            Integer(v) => if *v >= 0 { 0 } else { 1 },
+            Float(_) => 7,
+            Bytes(_) => 2,
+            Text(_) => 3,
+            Array(_) => 4,
+            Map(_) => 5,
+            __Hidden => unreachable!(),
+        }
+    }
+}
