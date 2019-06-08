@@ -49,8 +49,13 @@ impl serde::Serializer for Serializer {
         self.serialize_i64(i64::from(value))
     }
 
+    #[inline]
     fn serialize_i64(self, value: i64) -> Result<Value, Error> {
-        Ok(Value::I64(value))
+        self.serialize_i128(i128::from(value))
+    }
+
+    fn serialize_i128(self, value: i128) -> Result<Value, Error> {
+        Ok(Value::Integer(value))
     }
 
     #[inline]
@@ -70,7 +75,7 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_u64(self, value: u64) -> Result<Value, Error> {
-        Ok(Value::U64(value))
+        Ok(Value::Integer(value.into()))
     }
 
     #[inline]
@@ -80,7 +85,7 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_f64(self, value: f64) -> Result<Value, Error> {
-        Ok(Value::F64(value))
+        Ok(Value::Float(value))
     }
 
     #[inline]
@@ -92,7 +97,7 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_str(self, value: &str) -> Result<Value, Error> {
-        Ok(Value::String(value.to_owned()))
+        Ok(Value::Text(value.to_owned()))
     }
 
     fn serialize_bytes(self, value: &[u8]) -> Result<Value, Error> {
@@ -143,7 +148,7 @@ impl serde::Serializer for Serializer {
     {
         let mut values = BTreeMap::new();
         values.insert(Value::from(variant.to_owned()), to_value(&value)?);
-        Ok(Value::Object(values))
+        Ok(Value::Map(values))
     }
 
     #[inline]
@@ -308,7 +313,7 @@ impl serde::ser::SerializeTupleVariant for SerializeTupleVariant {
 
         object.insert(Value::from(self.name), Value::Array(self.vec));
 
-        Ok(Value::Object(object))
+        Ok(Value::Map(object))
     }
 }
 
@@ -337,7 +342,7 @@ impl serde::ser::SerializeMap for SerializeMap {
     }
 
     fn end(self) -> Result<Value, Error> {
-        Ok(Value::Object(self.map))
+        Ok(Value::Map(self.map))
     }
 }
 
@@ -374,9 +379,9 @@ impl serde::ser::SerializeStructVariant for SerializeStructVariant {
     fn end(self) -> Result<Value, Error> {
         let mut object = BTreeMap::new();
 
-        object.insert(Value::from(self.name), Value::Object(self.map));
+        object.insert(Value::from(self.name), Value::Map(self.map));
 
-        Ok(Value::Object(object))
+        Ok(Value::Map(object))
     }
 }
 

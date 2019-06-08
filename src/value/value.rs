@@ -16,7 +16,7 @@ impl Value {
 
     /// If the value is an object, returns the associated BTreeMap. Returns None otherwise.
     pub fn as_object(&self) -> Option<&BTreeMap<Value, Value>> {
-        if let Value::Object(ref v) = *self {
+        if let Value::Map(ref v) = *self {
             Some(v)
         } else {
             None
@@ -25,7 +25,7 @@ impl Value {
 
     /// If the value is an object, returns the associated mutable BTreeMap. Returns None otherwise.
     pub fn as_object_mut(&mut self) -> Option<&mut BTreeMap<Value, Value>> {
-        if let Value::Object(ref mut v) = *self {
+        if let Value::Map(ref mut v) = *self {
             Some(v)
         } else {
             None
@@ -85,7 +85,7 @@ impl Value {
 
     /// Returns the associated string or `None` if the value has a different type.
     pub fn as_string(&self) -> Option<&String> {
-        if let Value::String(ref v) = *self {
+        if let Value::Text(ref v) = *self {
             Some(v)
         } else {
             None
@@ -94,7 +94,7 @@ impl Value {
 
     /// Returns the associated mutable string or `None` if the value has a different type.
     pub fn as_string_mut(&mut self) -> Option<&mut String> {
-        if let Value::String(ref mut v) = *self {
+        if let Value::Text(ref mut v) = *self {
             Some(v)
         } else {
             None
@@ -104,60 +104,8 @@ impl Value {
     /// Retrns true if the value is a number.
     pub fn is_number(&self) -> bool {
         match *self {
-            Value::U64(_) | Value::I64(_) | Value::F64(_) => true,
+            Value::Integer(_) | Value::Float(_) => true,
             _ => false,
-        }
-    }
-
-    /// Returns true if the `Value` is a i64. Returns false otherwise.
-    pub fn is_i64(&self) -> bool {
-        match *self {
-            Value::I64(_) => true,
-            _ => false,
-        }
-    }
-
-    /// Returns true if the `Value` is a u64. Returns false otherwise.
-    pub fn is_u64(&self) -> bool {
-        match *self {
-            Value::U64(_) => true,
-            _ => false,
-        }
-    }
-
-    /// Returns true if the `Value` is a f64. Returns false otherwise.
-    pub fn is_f64(&self) -> bool {
-        match *self {
-            Value::F64(_) => true,
-            _ => false,
-        }
-    }
-
-    /// If the `Value` is a number, return or cast it to a i64. Returns None otherwise.
-    pub fn as_i64(&self) -> Option<i64> {
-        match *self {
-            Value::I64(n) => Some(n),
-            Value::U64(n) => Some(n as i64),
-            _ => None,
-        }
-    }
-
-    /// If the `Value` is a number, return or cast it to a u64. Returns None otherwise.
-    pub fn as_u64(&self) -> Option<u64> {
-        match *self {
-            Value::I64(n) => Some(n as u64),
-            Value::U64(n) => Some(n),
-            _ => None,
-        }
-    }
-
-    /// If the `Value` is a number, return or cast it to a f64. Returns None otherwise.
-    pub fn as_f64(&self) -> Option<f64> {
-        match *self {
-            Value::I64(n) => Some(n as f64),
-            Value::U64(n) => Some(n as f64),
-            Value::F64(n) => Some(n),
-            _ => None,
         }
     }
 
@@ -218,7 +166,7 @@ impl<'de> de::Deserialize<'de> for Value {
             where
                 E: de::Error,
             {
-                Ok(Value::String(value))
+                Ok(Value::Text(value))
             }
             #[inline]
             fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
@@ -241,7 +189,7 @@ impl<'de> de::Deserialize<'de> for Value {
             where
                 E: de::Error,
             {
-                Ok(Value::U64(v))
+                Ok(Value::Integer(v.into()))
             }
 
             #[inline]
@@ -249,7 +197,15 @@ impl<'de> de::Deserialize<'de> for Value {
             where
                 E: de::Error,
             {
-                Ok(Value::I64(v))
+                Ok(Value::Integer(v.into()))
+            }
+
+            #[inline]
+            fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(Value::Integer(v))
             }
 
             #[inline]
@@ -301,7 +257,7 @@ impl<'de> de::Deserialize<'de> for Value {
                     values.insert(key, value);
                 }
 
-                Ok(Value::Object(values))
+                Ok(Value::Map(values))
             }
 
             #[inline]
@@ -309,7 +265,7 @@ impl<'de> de::Deserialize<'de> for Value {
             where
                 E: de::Error,
             {
-                Ok(Value::F64(v))
+                Ok(Value::Float(v))
             }
         }
 
@@ -324,15 +280,15 @@ impl ser::Serialize for Value {
         S: ser::Serializer,
     {
         match *self {
-            Value::U64(v) => serializer.serialize_u64(v),
-            Value::I64(v) => serializer.serialize_i64(v),
+            Value::Integer(v) => serializer.serialize_i128(v),
             Value::Bytes(ref v) => serializer.serialize_bytes(&v),
-            Value::String(ref v) => serializer.serialize_str(&v),
+            Value::Text(ref v) => serializer.serialize_str(&v),
             Value::Array(ref v) => v.serialize(serializer),
-            Value::Object(ref v) => v.serialize(serializer),
-            Value::F64(v) => serializer.serialize_f64(v),
+            Value::Map(ref v) => v.serialize(serializer),
+            Value::Float(v) => serializer.serialize_f64(v),
             Value::Bool(v) => serializer.serialize_bool(v),
             Value::Null => serializer.serialize_unit(),
+            Value::__Hidden => unreachable!(),
         }
     }
 }
@@ -348,14 +304,13 @@ macro_rules! impl_from {
 }
 
 // All except &'a str and Cow<'a, str>
-impl_from!(Value, U64, u64);
-impl_from!(Value, I64, i64);
-impl_from!(Value, Bytes, Vec<u8>);
-impl_from!(Value, String, String);
-impl_from!(Value, Array, Vec<Value>);
-impl_from!(Value, Object, BTreeMap<Value, Value>);
-impl_from!(Value, F64, f64);
 impl_from!(Value, Bool, bool);
+impl_from!(Value, Integer, i128);
+impl_from!(Value, Float, f64);
+impl_from!(Value, Bytes, Vec<u8>);
+impl_from!(Value, Text, String);
+impl_from!(Value, Array, Vec<Value>);
+impl_from!(Value, Map, BTreeMap<Value, Value>);
 
 /// Convert a `serde_cbor::Value` into a type `T`
 #[allow(clippy::needless_pass_by_value)]

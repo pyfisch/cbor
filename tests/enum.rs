@@ -146,14 +146,14 @@ mod std_tests {
 
         // tuple-variants serialize like ["<variant>", values..]
         let number_s = to_vec(&Bar::Number(42)).unwrap();
-        let number_vec = vec![Value::String("Number".to_string()), Value::I64(42)];
+        let number_vec = vec![Value::Text("Number".to_string()), Value::Integer(42)];
         let number_vec_s = to_vec(&number_vec).unwrap();
         assert_eq!(number_s, number_vec_s);
 
         let flag_s = to_vec(&Bar::Flag("foo".to_string(), true)).unwrap();
         let flag_vec = vec![
-            Value::String("Flag".to_string()),
-            Value::String("foo".to_string()),
+            Value::Text("Flag".to_string()),
+            Value::Text("foo".to_string()),
             Value::Bool(true),
         ];
         let flag_vec_s = to_vec(&flag_vec).unwrap();
@@ -162,11 +162,11 @@ mod std_tests {
         // struct-variants serialize like ["<variant>", {struct..}]
         let point_s = to_vec(&Bar::Point { x: 5, y: -5 }).unwrap();
         let mut struct_map = BTreeMap::new();
-        struct_map.insert(Value::String("x".to_string()), Value::I64(5));
-        struct_map.insert(Value::String("y".to_string()), Value::I64(-5));
+        struct_map.insert(Value::Text("x".to_string()), Value::Integer(5));
+        struct_map.insert(Value::Text("y".to_string()), Value::Integer(-5));
         let point_vec = vec![
-            Value::String("Point".to_string()),
-            Value::Object(struct_map.clone()),
+            Value::Text("Point".to_string()),
+            Value::Map(struct_map.clone()),
         ];
         let point_vec_s = to_vec(&point_vec).unwrap();
         assert_eq!(point_s, point_vec_s);
@@ -193,7 +193,7 @@ mod std_tests {
         let mut flag_map = BTreeMap::new();
         flag_map.insert(
             "Flag",
-            vec![Value::String("foo".to_string()), Value::Bool(true)],
+            vec![Value::Text("foo".to_string()), Value::Bool(true)],
         );
         let flag_map_s = to_vec(&flag_map).unwrap();
         assert_eq!(flag_s, flag_map_s);
@@ -201,7 +201,7 @@ mod std_tests {
         // struct-variants serialize like {"<variant>", {struct..}}
         let point_s = opts.to_vec(&Bar::Point { x: 5, y: -5 }).unwrap();
         let mut point_map = BTreeMap::new();
-        point_map.insert("Point", Value::Object(struct_map));
+        point_map.insert("Point", Value::Map(struct_map));
         let point_map_s = to_vec(&point_map).unwrap();
         assert_eq!(point_s, point_map_s);
 

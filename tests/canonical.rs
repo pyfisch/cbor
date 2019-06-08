@@ -23,7 +23,7 @@ mod std_tests {
             -4294967296,
         ]
         .into_iter()
-        .map(|i| Value::I64(*i))
+        .map(|i| Value::Integer(*i))
         .collect::<Vec<_>>();
 
         let mut sorted = expected.clone();
@@ -36,7 +36,7 @@ mod std_tests {
     fn string_canonical_sort_order() {
         let expected = ["", "a", "b", "aa"]
             .into_iter()
-            .map(|s| Value::String(s.to_string()))
+            .map(|s| Value::Text(s.to_string()))
             .collect::<Vec<_>>();
 
         let mut sorted = expected.clone();
@@ -71,10 +71,10 @@ mod std_tests {
     #[test]
     fn major_type_canonical_sort_order() {
         let expected = vec![
-            Value::I64(0),
-            Value::I64(-1),
+            Value::Integer(0),
+            Value::Integer(-1),
             Value::Bytes(vec![]),
-            Value::String("".to_string()),
+            Value::Text("".to_string()),
             Value::Null,
         ];
 
@@ -88,13 +88,13 @@ mod std_tests {
     fn test_rfc_example() {
         // See: https://tools.ietf.org/html/draft-ietf-cbor-7049bis-04#section-4.10
         let expected = vec![
-            Value::I64(10),
-            Value::I64(100),
-            Value::I64(-1),
-            Value::String("z".to_owned()),
-            Value::String("aa".to_owned()),
-            Value::Array(vec![Value::I64(100)]),
-            Value::Array(vec![Value::I64(-1)]),
+            Value::Integer(10),
+            Value::Integer(100),
+            Value::Integer(-1),
+            Value::Text("z".to_owned()),
+            Value::Text("aa".to_owned()),
+            Value::Array(vec![Value::Integer(100)]),
+            Value::Array(vec![Value::Integer(-1)]),
             Value::Bool(false),
         ];
         let mut sorted = expected.clone();
