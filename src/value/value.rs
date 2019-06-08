@@ -293,25 +293,6 @@ impl ser::Serialize for Value {
     }
 }
 
-macro_rules! impl_from {
-    ($for_enum:ident, $variant:ident, $for_type:ty) => {
-        impl From<$for_type> for $for_enum {
-            fn from(v: $for_type) -> $for_enum {
-                $for_enum::$variant(v)
-            }
-        }
-    };
-}
-
-// All except &'a str and Cow<'a, str>
-impl_from!(Value, Bool, bool);
-impl_from!(Value, Integer, i128);
-impl_from!(Value, Float, f64);
-impl_from!(Value, Bytes, Vec<u8>);
-impl_from!(Value, Text, String);
-impl_from!(Value, Array, Vec<Value>);
-impl_from!(Value, Map, BTreeMap<Value, Value>);
-
 /// Convert a `serde_cbor::Value` into a type `T`
 #[allow(clippy::needless_pass_by_value)]
 pub fn from_value<T>(value: Value) -> Result<T, crate::error::Error>
