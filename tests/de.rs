@@ -48,7 +48,7 @@ mod std_tests {
     use std::collections::BTreeMap;
 
     use serde::de as serde_de;
-    use serde_cbor::value::{ObjectKey, Value};
+    use serde_cbor::value::Value;
     use serde_cbor::{de, error, to_vec, Deserializer};
 
     #[test]
@@ -142,26 +142,11 @@ mod std_tests {
     fn test_object() {
         let value: error::Result<Value> = de::from_slice(b"\xa5aaaAabaBacaCadaDaeaE");
         let mut object = BTreeMap::new();
-        object.insert(
-            ObjectKey::String("a".to_owned()),
-            Value::String("A".to_owned()),
-        );
-        object.insert(
-            ObjectKey::String("b".to_owned()),
-            Value::String("B".to_owned()),
-        );
-        object.insert(
-            ObjectKey::String("c".to_owned()),
-            Value::String("C".to_owned()),
-        );
-        object.insert(
-            ObjectKey::String("d".to_owned()),
-            Value::String("D".to_owned()),
-        );
-        object.insert(
-            ObjectKey::String("e".to_owned()),
-            Value::String("E".to_owned()),
-        );
+        object.insert(Value::String("a".to_owned()), Value::String("A".to_owned()));
+        object.insert(Value::String("b".to_owned()), Value::String("B".to_owned()));
+        object.insert(Value::String("c".to_owned()), Value::String("C".to_owned()));
+        object.insert(Value::String("d".to_owned()), Value::String("D".to_owned()));
+        object.insert(Value::String("e".to_owned()), Value::String("E".to_owned()));
         assert_eq!(value.unwrap(), Value::Object(object));
     }
 
@@ -169,9 +154,9 @@ mod std_tests {
     fn test_indefinite_object() {
         let value: error::Result<Value> = de::from_slice(b"\xbfaa\x01ab\x9f\x02\x03\xff\xff");
         let mut object = BTreeMap::new();
-        object.insert(ObjectKey::String("a".to_owned()), Value::U64(1));
+        object.insert(Value::String("a".to_owned()), Value::U64(1));
         object.insert(
-            ObjectKey::String("b".to_owned()),
+            Value::String("b".to_owned()),
             Value::Array(vec![Value::U64(2), Value::U64(3)]),
         );
         assert_eq!(value.unwrap(), Value::Object(object));
@@ -314,7 +299,7 @@ mod std_tests {
         let value: Value = de::from_slice(slice).unwrap();
         let mut map = BTreeMap::new();
         map.insert(
-            ObjectKey::String("message".to_string()),
+            Value::String("message".to_string()),
             Value::String("pong".to_string()),
         );
         assert_eq!(value, Value::Object(map))

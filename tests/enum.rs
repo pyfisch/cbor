@@ -31,7 +31,7 @@ fn test_simple_data_enum_roundtrip() {
 mod std_tests {
     use std::collections::BTreeMap;
 
-    use serde_cbor::value::{ObjectKey, Value};
+    use serde_cbor::value::Value;
     use serde_cbor::{from_slice, to_vec};
 
     #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -162,8 +162,8 @@ mod std_tests {
         // struct-variants serialize like ["<variant>", {struct..}]
         let point_s = to_vec(&Bar::Point { x: 5, y: -5 }).unwrap();
         let mut struct_map = BTreeMap::new();
-        struct_map.insert(ObjectKey::String("x".to_string()), Value::I64(5));
-        struct_map.insert(ObjectKey::String("y".to_string()), Value::I64(-5));
+        struct_map.insert(Value::String("x".to_string()), Value::I64(5));
+        struct_map.insert(Value::String("y".to_string()), Value::I64(-5));
         let point_vec = vec![
             Value::String("Point".to_string()),
             Value::Object(struct_map.clone()),

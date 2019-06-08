@@ -1,34 +1,12 @@
 //! CBOR values and keys.
 
-use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::BTreeMap;
 use std::fmt;
 
 use serde::de;
 use serde::ser;
 
-/// An enum over all possible CBOR types.
-#[derive(Clone, Debug, PartialEq)]
-pub enum Value {
-    /// Represents an unsigned integer.
-    U64(u64),
-    /// Represents a signed integer.
-    I64(i64),
-    /// Represents a byte string.
-    Bytes(Vec<u8>),
-    /// Represents an UTF-8 string.
-    String(String),
-    /// Represents a list.
-    Array(Vec<Value>),
-    /// Represents a map.
-    Object(BTreeMap<ObjectKey, Value>),
-    /// Represents a floating point value.
-    F64(f64),
-    /// Represents a boolean value.
-    Bool(bool),
-    /// Represents the absence of a value or the value undefined.
-    Null,
-}
+use crate::value::Value;
 
 impl Value {
     /// Returns true if the value is an object.
@@ -37,7 +15,7 @@ impl Value {
     }
 
     /// If the value is an object, returns the associated BTreeMap. Returns None otherwise.
-    pub fn as_object(&self) -> Option<&BTreeMap<ObjectKey, Value>> {
+    pub fn as_object(&self) -> Option<&BTreeMap<Value, Value>> {
         if let Value::Object(ref v) = *self {
             Some(v)
         } else {
@@ -46,7 +24,7 @@ impl Value {
     }
 
     /// If the value is an object, returns the associated mutable BTreeMap. Returns None otherwise.
-    pub fn as_object_mut(&mut self) -> Option<&mut BTreeMap<ObjectKey, Value>> {
+    pub fn as_object_mut(&mut self) -> Option<&mut BTreeMap<Value, Value>> {
         if let Value::Object(ref mut v) = *self {
             Some(v)
         } else {
@@ -359,288 +337,6 @@ impl ser::Serialize for Value {
     }
 }
 
-/// A simplified CBOR value containing only types useful for keys.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum ObjectKey {
-    /// An integer.
-    Integer(i64),
-    /// A byte string.
-    Bytes(Vec<u8>),
-    /// An UTF-8 string.
-    String(String),
-    /// A boolean value.
-    Bool(bool),
-    /// No value.
-    Null,
-}
-
-impl Ord for ObjectKey {
-    fn cmp(&self, other: &ObjectKey) -> Ordering {
-        self.canonical_sort_key().cmp(&other.canonical_sort_key())
-    }
-}
-
-impl PartialOrd for ObjectKey {
-    fn partial_cmp(&self, other: &ObjectKey) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl ObjectKey {
-    // Returns a key to sort `ObjectKey`s by major type, then byte-length, then lexicographically
-    // by content. Equivalent to sorting `ObjectKey`s __lexicographically__ by their CBOR serialization.
-    //
-    // Note: the first guidelines regarding canonicalized CBOR
-    // [located here](https://tools.ietf.org/html/rfc7049#section-3.9) sorted keys by length
-    // before sorting by major type, but a [later draft](https://tools.ietf.org/html/draft-ietf-cbor-7049bis-04#section-4.10)
-    // has moved to a purely lexicographic ordering. This newer ordering is also used by the
-    // [WebAuthn standard](https://fidoalliance.org/specs/fido-v2.0-id-20180227/fido-client-to-authenticator-protocol-v2.0-id-20180227.html#ctap2-canonical-cbor-encoding-form).
-    fn canonical_sort_key(&self) -> (u8, usize, Option<&[u8]>) {
-        use crate::value::ObjectKey::*;
-        match *self {
-            Integer(i) => {
-                let major_type = if i >= 0 { 0u8 } else { 1u8 };
-                let magnitude = if i >= 0 { i } else { -(i + 1) };
-                (major_type, magnitude as usize, None)
-            }
-            Bytes(ref v) => (2, v.len(), Some(v)),
-            String(ref s) => (3, s.len(), Some(s.as_bytes())),
-            Bool(b) => (7, if b { 21 } else { 20 }, None),
-            Null => (7, 22, None),
-        }
-    }
-    /// Returns true if the ObjectKey is a byte string.
-    pub fn is_bytes(&self) -> bool {
-        self.as_bytes().is_some()
-    }
-
-    /// Returns the associated byte string or `None` if the ObjectKey has a different type.
-    pub fn as_bytes(&self) -> Option<&Vec<u8>> {
-        if let ObjectKey::Bytes(ref v) = *self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    /// Returns the associated mutable byte string or `None` if the ObjectKey has a different type.
-    pub fn as_bytes_mut(&mut self) -> Option<&mut Vec<u8>> {
-        if let ObjectKey::Bytes(ref mut v) = *self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    /// Returns true if the ObjectKey is a string.
-    pub fn is_string(&self) -> bool {
-        self.as_string().is_some()
-    }
-
-    /// Returns the associated string or `None` if the *ObjectKey` has a different type.
-    pub fn as_string(&self) -> Option<&String> {
-        if let ObjectKey::String(ref v) = *self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    /// Returns the associated mutable string or `None` if the `ObjectKey` has a different type.
-    pub fn as_string_mut(&mut self) -> Option<&mut String> {
-        if let ObjectKey::String(ref mut v) = *self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    /// Retrns true if the `ObjectKey` is a number.
-    pub fn is_number(&self) -> bool {
-        match *self {
-            ObjectKey::Integer(_) => true,
-            _ => false,
-        }
-    }
-
-    /// If the `ObjectKey` is a number, return or cast it to a i64. Returns None otherwise.
-    pub fn as_i64(&self) -> Option<i64> {
-        match *self {
-            ObjectKey::Integer(n) => Some(n),
-            _ => None,
-        }
-    }
-
-    /// If the `ObjectKey` is a number, return or cast it to a u64. Returns None otherwise.
-    pub fn as_u64(&self) -> Option<u64> {
-        match *self {
-            ObjectKey::Integer(n) => Some(n as u64),
-            _ => None,
-        }
-    }
-
-    /// Returns true if the ObjectKey is a boolean.
-    pub fn is_boolean(&self) -> bool {
-        self.as_boolean().is_some()
-    }
-
-    /// If the ObjectKey is a Boolean, returns the associated bool. Returns None otherwise.
-    pub fn as_boolean(&self) -> Option<bool> {
-        if let ObjectKey::Bool(v) = *self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    /// Returns true if the ObjectKey is a Null. Returns false otherwise.
-    pub fn is_null(&self) -> bool {
-        self.as_null().is_some()
-    }
-
-    /// If the ObjectKey is a Null, returns (). Returns None otherwise.
-    pub fn as_null(&self) -> Option<()> {
-        if let ObjectKey::Null = *self {
-            Some(())
-        } else {
-            None
-        }
-    }
-}
-
-impl<'de> de::Deserialize<'de> for ObjectKey {
-    #[inline]
-    fn deserialize<D>(deserializer: D) -> Result<ObjectKey, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        struct ObjectKeyVisitor;
-
-        impl<'de> de::Visitor<'de> for ObjectKeyVisitor {
-            type Value = ObjectKey;
-
-            fn expecting(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-                fmt.write_str("any valid CBOR key")
-            }
-
-            #[inline]
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                self.visit_string(String::from(value))
-            }
-
-            #[inline]
-            fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                Ok(ObjectKey::String(value))
-            }
-            #[inline]
-            fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                self.visit_byte_buf(v.to_owned())
-            }
-
-            #[inline]
-            fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                Ok(ObjectKey::Bytes(v))
-            }
-
-            #[inline]
-            fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                Ok(ObjectKey::Integer(v as i64))
-            }
-
-            #[inline]
-            fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                Ok(ObjectKey::Integer(v))
-            }
-
-            #[inline]
-            fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                Ok(ObjectKey::Bool(v))
-            }
-
-            #[inline]
-            fn visit_none<E>(self) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                self.visit_unit()
-            }
-
-            #[inline]
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                Ok(ObjectKey::Null)
-            }
-        }
-
-        deserializer.deserialize_any(ObjectKeyVisitor)
-    }
-}
-
-impl ser::Serialize for ObjectKey {
-    #[inline]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: ser::Serializer,
-    {
-        match *self {
-            ObjectKey::Integer(v) => serializer.serialize_i64(v),
-            ObjectKey::Bytes(ref v) => serializer.serialize_bytes(&v),
-            ObjectKey::String(ref v) => serializer.serialize_str(&v),
-            ObjectKey::Bool(v) => serializer.serialize_bool(v),
-            ObjectKey::Null => serializer.serialize_unit(),
-        }
-    }
-}
-
-impl From<ObjectKey> for Value {
-    fn from(key: ObjectKey) -> Value {
-        match key {
-            ObjectKey::Integer(v) => Value::I64(v),
-            ObjectKey::Bytes(v) => Value::Bytes(v),
-            ObjectKey::String(v) => Value::String(v),
-            ObjectKey::Bool(v) => Value::Bool(v),
-            ObjectKey::Null => Value::Null,
-        }
-    }
-}
-
-impl From<Value> for ObjectKey {
-    fn from(value: Value) -> ObjectKey {
-        match value {
-            Value::U64(v) => ObjectKey::Integer(v as i64),
-            Value::I64(v) => ObjectKey::Integer(v),
-            Value::Bytes(v) => ObjectKey::Bytes(v),
-            Value::String(v) => ObjectKey::String(v),
-            Value::Bool(v) => ObjectKey::Bool(v),
-            Value::Null => ObjectKey::Null,
-            _ => panic!("invalid value type for key"),
-        }
-    }
-}
-
 macro_rules! impl_from {
     ($for_enum:ident, $variant:ident, $for_type:ty) => {
         impl From<$for_type> for $for_enum {
@@ -652,18 +348,12 @@ macro_rules! impl_from {
 }
 
 // All except &'a str and Cow<'a, str>
-impl_from!(ObjectKey, Integer, i64);
-impl_from!(ObjectKey, Bytes, Vec<u8>);
-impl_from!(ObjectKey, String, String);
-impl_from!(ObjectKey, Bool, bool);
-
-// All except &'a str and Cow<'a, str>
 impl_from!(Value, U64, u64);
 impl_from!(Value, I64, i64);
 impl_from!(Value, Bytes, Vec<u8>);
 impl_from!(Value, String, String);
 impl_from!(Value, Array, Vec<Value>);
-impl_from!(Value, Object, BTreeMap<ObjectKey, Value>);
+impl_from!(Value, Object, BTreeMap<Value, Value>);
 impl_from!(Value, F64, f64);
 impl_from!(Value, Bool, bool);
 

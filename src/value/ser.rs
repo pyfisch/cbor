@@ -13,7 +13,6 @@ use std::collections::BTreeMap;
 use crate::error::Error;
 use serde::{self, Serialize};
 
-use crate::value::ObjectKey;
 use crate::value::Value;
 
 struct Serializer;
@@ -143,7 +142,7 @@ impl serde::Serializer for Serializer {
         T: Serialize,
     {
         let mut values = BTreeMap::new();
-        values.insert(ObjectKey::from(variant.to_owned()), to_value(&value)?);
+        values.insert(Value::from(variant.to_owned()), to_value(&value)?);
         Ok(Value::Object(values))
     }
 
@@ -233,14 +232,14 @@ pub struct SerializeTupleVariant {
 
 #[doc(hidden)]
 pub struct SerializeMap {
-    map: BTreeMap<ObjectKey, Value>,
-    next_key: Option<ObjectKey>,
+    map: BTreeMap<Value, Value>,
+    next_key: Option<Value>,
 }
 
 #[doc(hidden)]
 pub struct SerializeStructVariant {
     name: String,
-    map: BTreeMap<ObjectKey, Value>,
+    map: BTreeMap<Value, Value>,
 }
 
 impl serde::ser::SerializeSeq for SerializeVec {
@@ -307,7 +306,7 @@ impl serde::ser::SerializeTupleVariant for SerializeTupleVariant {
     fn end(self) -> Result<Value, Error> {
         let mut object = BTreeMap::new();
 
-        object.insert(ObjectKey::from(self.name), Value::Array(self.vec));
+        object.insert(Value::from(self.name), Value::Array(self.vec));
 
         Ok(Value::Object(object))
     }
@@ -321,7 +320,7 @@ impl serde::ser::SerializeMap for SerializeMap {
     where
         T: Serialize,
     {
-        self.next_key = Some(ObjectKey::from(to_value(&key)?));
+        self.next_key = Some(Value::from(to_value(&key)?));
         Ok(())
     }
 
@@ -368,14 +367,14 @@ impl serde::ser::SerializeStructVariant for SerializeStructVariant {
         T: Serialize,
     {
         self.map
-            .insert(ObjectKey::from(String::from(key)), to_value(&value)?);
+            .insert(Value::from(String::from(key)), to_value(&value)?);
         Ok(())
     }
 
     fn end(self) -> Result<Value, Error> {
         let mut object = BTreeMap::new();
 
-        object.insert(ObjectKey::from(self.name), Value::Object(self.map));
+        object.insert(Value::from(self.name), Value::Object(self.map));
 
         Ok(Value::Object(object))
     }
