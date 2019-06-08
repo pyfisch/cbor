@@ -23,7 +23,7 @@ mod std_tests {
         unit_array: Vec<UnitStruct>,
     }
 
-    use serde_cbor::Value;
+    use serde_cbor::value::Value;
     use std::iter::FromIterator;
 
     #[test]
@@ -57,17 +57,22 @@ mod std_tests {
             unit_array,
         };
 
-        let value = serde_cbor::to_value(data.clone()).unwrap();
+        let value = serde_cbor::value::to_value(data.clone()).unwrap();
         println!("{:?}", value);
 
         let data_ser = serde_cbor::to_vec(&value).unwrap();
         let data_de_value: Value = serde_cbor::from_slice(&data_ser).unwrap();
 
-        for ((k1, v1), (k2, v2)) in value
-            .as_object()
-            .unwrap()
+        fn as_object(value: &Value) -> &BTreeMap<Value, Value> {
+            if let Value::Map(ref v) = value {
+                return v;
+            }
+            panic!()
+        }
+
+        for ((k1, v1), (k2, v2)) in as_object(&value)
             .iter()
-            .zip(data_de_value.as_object().unwrap().iter())
+            .zip(as_object(&data_de_value).iter())
         {
             assert_eq!(k1, k2);
             assert_eq!(v1, v2);

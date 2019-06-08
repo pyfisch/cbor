@@ -105,7 +105,8 @@
 //! Read a general CBOR value with an unknown content.
 //!
 //! ```rust
-//! use serde_cbor::{from_slice, Value};
+//! use serde_cbor::from_slice;
+//! use serde_cbor::value::Value;
 //!
 //! let slice = b"\x82\x01\xa1aaab";
 //! let value: Value = from_slice(slice).unwrap();
@@ -184,16 +185,22 @@ mod write;
 #[cfg(feature = "std")]
 pub mod value;
 
+// Re-export the [items recommended by serde](https://serde.rs/conventions.html).
 #[doc(inline)]
-pub use crate::de::{from_mut_slice, from_slice_with_scratch, Deserializer, StreamDeserializer};
+pub use crate::de::{Deserializer, StreamDeserializer};
 #[doc(inline)]
+pub use crate::error::{Error, Result};
+#[doc(inline)]
+pub use crate::ser::Serializer;
+// Convenience functions for serialization and deserialization.
+// These functions are only available in `std` mode.
 #[cfg(feature = "std")]
+#[doc(inline)]
 pub use crate::de::{from_reader, from_slice};
-
-#[doc(inline)]
 #[cfg(feature = "std")]
-pub use crate::ser::{to_vec, to_vec_with_options, to_writer};
-pub use crate::ser::{Serializer, SerializerOptions};
 #[doc(inline)]
+pub use crate::ser::{to_vec, to_writer};
+// Re-export the value type like serde_json
 #[cfg(feature = "std")]
-pub use crate::value::{from_value, to_value, ObjectKey, Value};
+#[doc(inline)]
+pub use crate::value::Value;

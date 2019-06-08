@@ -1,5 +1,3 @@
-//! Value serialization routines
-
 // Copyright 2017 Serde Developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
@@ -13,8 +11,27 @@ use std::collections::BTreeMap;
 use crate::error::Error;
 use serde::{self, Serialize};
 
-use crate::value::ObjectKey;
 use crate::value::Value;
+
+impl serde::Serialize for Value {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match *self {
+            Value::Integer(v) => serializer.serialize_i128(v),
+            Value::Bytes(ref v) => serializer.serialize_bytes(&v),
+            Value::Text(ref v) => serializer.serialize_str(&v),
+            Value::Array(ref v) => v.serialize(serializer),
+            Value::Map(ref v) => v.serialize(serializer),
+            Value::Float(v) => serializer.serialize_f64(v),
+            Value::Bool(v) => serializer.serialize_bool(v),
+            Value::Null => serializer.serialize_unit(),
+            Value::__Hidden => unreachable!(),
+        }
+    }
+}
 
 struct Serializer;
 
@@ -50,8 +67,13 @@ impl serde::Serializer for Serializer {
         self.serialize_i64(i64::from(value))
     }
 
+    #[inline]
     fn serialize_i64(self, value: i64) -> Result<Value, Error> {
-        Ok(Value::I64(value))
+        self.serialize_i128(i128::from(value))
+    }
+
+    fn serialize_i128(self, value: i128) -> Result<Value, Error> {
+        Ok(Value::Integer(value))
     }
 
     #[inline]
@@ -71,7 +93,7 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_u64(self, value: u64) -> Result<Value, Error> {
-        Ok(Value::U64(value))
+        Ok(Value::Integer(value.into()))
     }
 
     #[inline]
@@ -81,7 +103,7 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_f64(self, value: f64) -> Result<Value, Error> {
-        Ok(Value::F64(value))
+        Ok(Value::Float(value))
     }
 
     #[inline]
@@ -93,7 +115,7 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_str(self, value: &str) -> Result<Value, Error> {
-        Ok(Value::String(value.to_owned()))
+        Ok(Value::Text(value.to_owned()))
     }
 
     fn serialize_bytes(self, value: &[u8]) -> Result<Value, Error> {
@@ -143,8 +165,8 @@ impl serde::Serializer for Serializer {
         T: Serialize,
     {
         let mut values = BTreeMap::new();
-        values.insert(ObjectKey::from(variant.to_owned()), to_value(&value)?);
-        Ok(Value::Object(values))
+        values.insert(Value::from(variant.to_owned()), to_value(&value)?);
+        Ok(Value::Map(values))
     }
 
     #[inline]
@@ -220,27 +242,23 @@ impl serde::Serializer for Serializer {
     }
 }
 
-#[doc(hidden)]
 pub struct SerializeVec {
     vec: Vec<Value>,
 }
 
-#[doc(hidden)]
 pub struct SerializeTupleVariant {
     name: String,
     vec: Vec<Value>,
 }
 
-#[doc(hidden)]
 pub struct SerializeMap {
-    map: BTreeMap<ObjectKey, Value>,
-    next_key: Option<ObjectKey>,
+    map: BTreeMap<Value, Value>,
+    next_key: Option<Value>,
 }
 
-#[doc(hidden)]
 pub struct SerializeStructVariant {
     name: String,
-    map: BTreeMap<ObjectKey, Value>,
+    map: BTreeMap<Value, Value>,
 }
 
 impl serde::ser::SerializeSeq for SerializeVec {
@@ -307,9 +325,9 @@ impl serde::ser::SerializeTupleVariant for SerializeTupleVariant {
     fn end(self) -> Result<Value, Error> {
         let mut object = BTreeMap::new();
 
-        object.insert(ObjectKey::from(self.name), Value::Array(self.vec));
+        object.insert(Value::from(self.name), Value::Array(self.vec));
 
-        Ok(Value::Object(object))
+        Ok(Value::Map(object))
     }
 }
 
@@ -321,7 +339,7 @@ impl serde::ser::SerializeMap for SerializeMap {
     where
         T: Serialize,
     {
-        self.next_key = Some(ObjectKey::from(to_value(&key)?));
+        self.next_key = Some(Value::from(to_value(&key)?));
         Ok(())
     }
 
@@ -338,7 +356,7 @@ impl serde::ser::SerializeMap for SerializeMap {
     }
 
     fn end(self) -> Result<Value, Error> {
-        Ok(Value::Object(self.map))
+        Ok(Value::Map(self.map))
     }
 }
 
@@ -368,16 +386,16 @@ impl serde::ser::SerializeStructVariant for SerializeStructVariant {
         T: Serialize,
     {
         self.map
-            .insert(ObjectKey::from(String::from(key)), to_value(&value)?);
+            .insert(Value::from(String::from(key)), to_value(&value)?);
         Ok(())
     }
 
     fn end(self) -> Result<Value, Error> {
         let mut object = BTreeMap::new();
 
-        object.insert(ObjectKey::from(self.name), Value::Object(self.map));
+        object.insert(Value::from(self.name), Value::Map(self.map));
 
-        Ok(Value::Object(object))
+        Ok(Value::Map(object))
     }
 }
 
@@ -405,7 +423,7 @@ impl serde::ser::SerializeStructVariant for SerializeStructVariant {
 ///         location: "Menlo Park, CA".to_owned(),
 ///     };
 ///
-///     let v = serde_cbor::to_value(u).unwrap();
+///     let v = serde_cbor::value::to_value(u).unwrap();
 /// }
 /// ```
 #[allow(clippy::needless_pass_by_value)]
