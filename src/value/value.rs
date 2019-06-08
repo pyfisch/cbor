@@ -396,7 +396,7 @@ impl ObjectKey {
     // has moved to a purely lexicographic ordering. This newer ordering is also used by the
     // [WebAuthn standard](https://fidoalliance.org/specs/fido-v2.0-id-20180227/fido-client-to-authenticator-protocol-v2.0-id-20180227.html#ctap2-canonical-cbor-encoding-form).
     fn canonical_sort_key(&self) -> (u8, usize, Option<&[u8]>) {
-        use crate::ObjectKey::*;
+        use crate::value::ObjectKey::*;
         match *self {
             Integer(i) => {
                 let major_type = if i >= 0 { 0u8 } else { 1u8 };

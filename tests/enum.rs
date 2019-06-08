@@ -23,7 +23,7 @@ fn test_simple_data_enum_roundtrip() {
     let end = writer.bytes_written();
     let slice = writer.into_inner();
     let deserialized: DataEnum =
-        serde_cbor::from_slice_with_scratch(&slice[..end], &mut []).unwrap();
+        serde_cbor::de::from_slice_with_scratch(&slice[..end], &mut []).unwrap();
     assert_eq!(a, deserialized);
 }
 
@@ -31,7 +31,8 @@ fn test_simple_data_enum_roundtrip() {
 mod std_tests {
     use std::collections::BTreeMap;
 
-    use serde_cbor::{from_slice, to_vec, ObjectKey, Value};
+    use serde_cbor::value::{ObjectKey, Value};
+    use serde_cbor::{from_slice, to_vec};
 
     #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
     enum Enum {
@@ -171,7 +172,7 @@ mod std_tests {
         assert_eq!(point_s, point_vec_s);
 
         // enum_as_map matches serde_json's default serialization for enums.
-        let opts = serde_cbor::SerializerOptions {
+        let opts = serde_cbor::ser::SerializerOptions {
             enum_as_map: true,
             ..Default::default()
         };

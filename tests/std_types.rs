@@ -5,8 +5,9 @@ extern crate serde_derive;
 mod std_tests {
     use std::u8;
 
+    use serde_cbor::de::from_mut_slice;
     use serde_cbor::ser::{to_vec, to_vec_packed};
-    use serde_cbor::{from_mut_slice, from_reader, from_slice};
+    use serde_cbor::{from_reader, from_slice};
 
     fn to_binary(s: &'static str) -> Vec<u8> {
         assert!(s.len() % 2 == 0);

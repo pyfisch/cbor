@@ -54,6 +54,6 @@ fn test() {
     let end = writer.bytes_written();
     let slice = writer.into_inner();
     let deserialized: Example =
-        serde_cbor::from_slice_with_scratch(&slice[..end], &mut []).unwrap();
+        serde_cbor::de::from_slice_with_scratch(&slice[..end], &mut []).unwrap();
     assert_eq!(EXAMPLE, deserialized);
 }

@@ -23,7 +23,7 @@ mod std_tests {
         unit_array: Vec<UnitStruct>,
     }
 
-    use serde_cbor::Value;
+    use serde_cbor::value::Value;
     use std::iter::FromIterator;
 
     #[test]
@@ -57,7 +57,7 @@ mod std_tests {
             unit_array,
         };
 
-        let value = serde_cbor::to_value(data.clone()).unwrap();
+        let value = serde_cbor::value::to_value(data.clone()).unwrap();
         println!("{:?}", value);
 
         let data_ser = serde_cbor::to_vec(&value).unwrap();

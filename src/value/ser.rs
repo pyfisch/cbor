@@ -405,7 +405,7 @@ impl serde::ser::SerializeStructVariant for SerializeStructVariant {
 ///         location: "Menlo Park, CA".to_owned(),
 ///     };
 ///
-///     let v = serde_cbor::to_value(u).unwrap();
+///     let v = serde_cbor::value::to_value(u).unwrap();
 /// }
 /// ```
 #[allow(clippy::needless_pass_by_value)]

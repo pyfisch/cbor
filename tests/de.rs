@@ -48,7 +48,8 @@ mod std_tests {
     use std::collections::BTreeMap;
 
     use serde::de as serde_de;
-    use serde_cbor::{de, error, to_vec, Deserializer, ObjectKey, Value};
+    use serde_cbor::value::{ObjectKey, Value};
+    use serde_cbor::{de, error, to_vec, Deserializer};
 
     #[test]
     fn test_string1() {
