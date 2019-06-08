@@ -200,3 +200,7 @@ pub use crate::de::{from_reader, from_slice};
 #[cfg(feature = "std")]
 #[doc(inline)]
 pub use crate::ser::{to_vec, to_writer};
+// Re-export the value type like serde_json
+#[cfg(feature = "std")]
+#[doc(inline)]
+pub use crate::value::Value;
