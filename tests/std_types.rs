@@ -167,13 +167,13 @@ mod std_tests {
         test_color_enum_transparent,
         Color,
         Color::Other(42),
-        "82654f74686572182a"
+        "a1654f74686572182a"
     );
     testcase!(
         test_color_enum_with_alpha,
         Color,
         Color::Alpha(234567, 60),
-        "8365416c7068611a00039447183c"
+        "a165416c706861821a00039447183c"
     );
     testcase!(test_i128_a, i128, -1i128, "20");
     testcase!(
