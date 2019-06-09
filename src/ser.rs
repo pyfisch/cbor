@@ -11,58 +11,6 @@ use serde::ser::{self, Serialize};
 #[cfg(feature = "std")]
 use std::io;
 
-/// Serializes a value to a writer.
-#[cfg(feature = "std")]
-pub fn to_writer<W, T>(writer: &mut W, value: &T) -> Result<()>
-where
-    W: io::Write,
-    T: ser::Serialize,
-{
-    value.serialize(&mut Serializer::new(&mut IoWrite::new(writer)))
-}
-
-/// Serializes a value to a writer and adds a CBOR self-describe tag.
-#[cfg(feature = "std")]
-pub fn to_writer_sd<W, T>(writer: &mut W, value: &T) -> Result<()>
-where
-    W: io::Write,
-    T: ser::Serialize,
-{
-    let mut writer = IoWrite::new(writer);
-    let mut ser = Serializer::new(&mut writer);
-    ser.self_describe()?;
-    value.serialize(&mut ser)
-}
-
-/// Serializes a value without names to a writer.
-///
-/// Struct fields and enum variants are identified by their numeric indices rather than names to
-/// save space.
-#[cfg(feature = "std")]
-pub fn to_writer_packed<W, T>(writer: &mut W, value: &T) -> Result<()>
-where
-    W: io::Write,
-    T: ser::Serialize,
-{
-    value.serialize(&mut Serializer::packed(&mut IoWrite::new(writer)))
-}
-
-/// Serializes a value without names to a writer and adds a CBOR self-describe tag.
-///
-/// Struct fields and enum variants are identified by their numeric indices rather than names to
-/// save space.
-#[cfg(feature = "std")]
-pub fn to_writer_packed_sd<W, T>(writer: &mut W, value: &T) -> Result<()>
-where
-    W: io::Write,
-    T: ser::Serialize,
-{
-    let mut writer = IoWrite::new(writer);
-    let mut ser = Serializer::packed(&mut writer);
-    ser.self_describe()?;
-    value.serialize(&mut ser)
-}
-
 /// Serializes a value to a vector.
 #[cfg(feature = "std")]
 pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
@@ -74,117 +22,25 @@ where
     Ok(vec)
 }
 
-/// Serializes a value to a vector and adds a CBOR self-describe tag.
-#[cfg(feature = "std")]
-pub fn to_vec_sd<T>(value: &T) -> Result<Vec<u8>>
-where
-    T: ser::Serialize,
-{
-    let mut vec = Vec::new();
-    to_writer_sd(&mut vec, value)?;
-    Ok(vec)
-}
-
-/// Serializes a value without names to a vector.
-///
-/// Struct fields and enum variants are identified by their numeric indices rather than names to
-/// save space.
+/// Serializes a value to a vector in packed format.
 #[cfg(feature = "std")]
 pub fn to_vec_packed<T>(value: &T) -> Result<Vec<u8>>
 where
     T: ser::Serialize,
 {
     let mut vec = Vec::new();
-    to_writer_packed(&mut vec, value)?;
+    value.serialize(&mut Serializer::new(&mut IoWrite::new(&mut vec)).packed_format())?;
     Ok(vec)
 }
 
-/// Serializes a value without names to a vector and adds a CBOR self-describe tag.
-///
-/// Struct fields and enum variants are identified by their numeric indices rather than names to
-/// save space.
+/// Serializes a value to a writer.
 #[cfg(feature = "std")]
-pub fn to_vec_packed_sd<T>(value: &T) -> Result<Vec<u8>>
+pub fn to_writer<W, T>(writer: &mut W, value: &T) -> Result<()>
 where
+    W: io::Write,
     T: ser::Serialize,
 {
-    let mut vec = Vec::new();
-    to_writer_packed_sd(&mut vec, value)?;
-    Ok(vec)
-}
-
-/// Serializes a value to a vector.
-#[cfg(feature = "std")]
-pub fn to_vec_with_options<T>(value: &T, options: &SerializerOptions) -> Result<Vec<u8>>
-where
-    T: ser::Serialize,
-{
-    let mut vec = Vec::new();
-    {
-        let mut ser = Serializer::new_with_options(&mut vec, options);
-        if options.self_describe {
-            ser.self_describe()?;
-        }
-        value.serialize(&mut ser)?;
-    }
-    Ok(vec)
-}
-
-/// Options for a CBOR serializer.
-///
-/// The `enum_as_map` option determines how enums are encoded.
-///
-/// This makes no difference when encoding and decoding enums using
-/// this crate, but it shows up when decoding to a `Value` or decoding
-/// in other languages.
-///
-/// With enum_as_map true, the encoding scheme matches the default encoding
-/// scheme used by `serde_json`.
-///
-/// # Examples
-///
-/// Given the following enum
-/// ```
-/// enum Enum {
-///     Unit,
-///     NewType(i32),
-///     Tuple(String, bool),
-///     Struct{ x: i32, y: i32 },
-/// }
-/// ```
-/// we will give the `Value` with the same encoding for each case using
-/// JSON notation.
-///
-/// ## Default encodings
-///
-/// * `Enum::Unit` encodes as `"Unit"`
-/// * `Enum::NewType(10)` encodes as `["NewType", 10]`
-/// * `Enum::Tuple("x", true)` encodes as `["Tuple", "x", true]`
-/// * `Enum::Struct{ x: 5, y: -5 }` encodes as `["Struct", {"x": 5, "y": -5}]`
-///
-/// ## Encodings with enum_as_map true
-///
-/// * `Enum::Unit` encodes as `"Unit"`
-/// * `Enum::NewType(10)` encodes as `{"NewType": 10}`
-/// * `Enum::Tuple("x", true)` encodes as `{"Tuple": ["x", true]}`
-/// * `Enum::Struct{ x: 5, y: -5 }` encodes as `{"Struct": {"x": 5, "y": -5}}`
-#[derive(Default)]
-pub struct SerializerOptions {
-    /// When set, struct fields and enum variants are identified by their numeric indices rather than names
-    /// to save space.
-    pub packed: bool,
-    /// When set, enums are encoded as maps rather than arrays.
-    pub enum_as_map: bool,
-    /// When set, `to_vec` will prepend the CBOR self-describe tag.
-    pub self_describe: bool,
-}
-
-#[cfg(feature = "std")]
-impl SerializerOptions {
-    /// Serializes a value to a vector.
-    pub fn to_vec<T: ser::Serialize>(&self, value: &T) -> Result<Vec<u8>> {
-        to_vec_with_options(value, self)
-    }
+    value.serialize(&mut Serializer::new(&mut IoWrite::new(writer)))
 }
 
 /// A structure for serializing Rust values to CBOR.
@@ -202,35 +58,61 @@ where
     ///
     /// `to_vec` and `to_writer` should normally be used instead of this method.
     #[inline]
-    pub fn new(writer: W) -> Serializer<W> {
+    pub fn new(writer: W) -> Self {
         Serializer {
             writer: writer,
             packed: false,
-            enum_as_map: false,
+            enum_as_map: true,
         }
     }
 
-    /// Creates a new "packed" CBOR serializer.
+    /// Choose concise/packed format for serializer.
     ///
-    /// Struct fields and enum variants are identified by their numeric indices rather than names
-    /// to save space.
-    #[inline]
-    pub fn packed(writer: W) -> Serializer<W> {
-        Serializer {
-            writer,
-            packed: true,
-            enum_as_map: false,
-        }
+    /// In the packed format enum variant names and field names
+    /// are replaced with numeric indizes to conserve space.
+    pub fn packed_format(mut self) -> Self {
+        self.packed = true;
+        self
     }
 
-    /// Creates a new CBOR serializer with the specified options.
-    #[inline]
-    pub fn new_with_options(writer: W, options: &SerializerOptions) -> Serializer<W> {
-        Serializer {
-            writer,
-            packed: options.packed,
-            enum_as_map: options.enum_as_map,
-        }
+    /// Enable old enum format used by `serde_cbor` versions <= v0.9.
+    ///
+    /// The `legacy_enums` option determines how enums are encoded.
+    ///
+    /// This makes no difference when encoding and decoding enums using
+    /// this crate, but it shows up when decoding to a `Value` or decoding
+    /// in other languages.
+    ///
+    /// # Examples
+    ///
+    /// Given the following enum
+    ///
+    /// ```rust
+    /// enum Enum {
+    ///     Unit,
+    ///     NewType(i32),
+    ///     Tuple(String, bool),
+    ///     Struct{ x: i32, y: i32 },
+    /// }
+    /// ```
+    /// we will give the `Value` with the same encoding for each case using
+    /// JSON notation.
+    ///
+    /// ## Default encodings
+    ///
+    /// * `Enum::Unit` encodes as `"Unit"`
+    /// * `Enum::NewType(10)` encodes as `{"NewType": 10}`
+    /// * `Enum::Tuple("x", true)` encodes as `{"Tuple": ["x", true]}`
+    ///
+    /// ## Legacy encodings
+    ///
+    /// * `Enum::Unit` encodes as `"Unit"`
+    /// * `Enum::NewType(10)` encodes as `["NewType", 10]`
+    /// * `Enum::Tuple("x", true)` encodes as `["Tuple", "x", true]`
+    /// * `Enum::Struct{ x: 5, y: -5 }` encodes as `["Struct", {"x": 5, "y": -5}]`
+    pub fn legacy_enums(mut self) -> Self {
+        self.enum_as_map = false;
+        self
     }
 
     /// Writes a CBOR self-describe tag to the stream.

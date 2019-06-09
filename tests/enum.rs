@@ -31,8 +31,18 @@ fn test_simple_data_enum_roundtrip() {
 mod std_tests {
     use std::collections::BTreeMap;
 
+    use serde_cbor::ser::{IoWrite, Serializer};
     use serde_cbor::value::Value;
     use serde_cbor::{from_slice, to_vec};
+
+    pub fn to_vec_legacy<T>(value: &T) -> serde_cbor::Result<Vec<u8>>
+    where
+        T: serde::ser::Serialize,
+    {
+        let mut vec = Vec::new();
+        value.serialize(&mut Serializer::new(&mut IoWrite::new(&mut vec)).legacy_enums())?;
+        Ok(vec)
+    }
 
     #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
     enum Enum {
@@ -99,11 +109,14 @@ mod std_tests {
 
     #[test]
     fn test_serialize() {
-        assert_eq!(to_vec(&Enum::A).unwrap(), &[97, 65]);
-        assert_eq!(to_vec(&Enum::B).unwrap(), &[97, 66]);
-        assert_eq!(to_vec(&DataEnum::A(42)).unwrap(), &[130, 97, 65, 24, 42]);
+        assert_eq!(to_vec_legacy(&Enum::A).unwrap(), &[97, 65]);
+        assert_eq!(to_vec_legacy(&Enum::B).unwrap(), &[97, 66]);
         assert_eq!(
-            to_vec(&DataEnum::B(true, 9)).unwrap(),
+            to_vec_legacy(&DataEnum::A(42)).unwrap(),
+            &[130, 97, 65, 24, 42]
+        );
+        assert_eq!(
+            to_vec_legacy(&DataEnum::B(true, 9)).unwrap(),
             &[131, 97, 66, 245, 9]
         );
     }
@@ -140,27 +153,27 @@ mod std_tests {
     #[test]
     fn test_enum_as_map() {
         // unit variants serialize like bare strings
-        let empty_s = to_vec(&Bar::Empty).unwrap();
-        let empty_str_s = to_vec(&"Empty").unwrap();
+        let empty_s = to_vec_legacy(&Bar::Empty).unwrap();
+        let empty_str_s = to_vec_legacy(&"Empty").unwrap();
         assert_eq!(empty_s, empty_str_s);
 
         // tuple-variants serialize like ["<variant>", values..]
-        let number_s = to_vec(&Bar::Number(42)).unwrap();
+        let number_s = to_vec_legacy(&Bar::Number(42)).unwrap();
         let number_vec = vec![Value::Text("Number".to_string()), Value::Integer(42)];
-        let number_vec_s = to_vec(&number_vec).unwrap();
+        let number_vec_s = to_vec_legacy(&number_vec).unwrap();
         assert_eq!(number_s, number_vec_s);
 
-        let flag_s = to_vec(&Bar::Flag("foo".to_string(), true)).unwrap();
+        let flag_s = to_vec_legacy(&Bar::Flag("foo".to_string(), true)).unwrap();
         let flag_vec = vec![
             Value::Text("Flag".to_string()),
             Value::Text("foo".to_string()),
             Value::Bool(true),
         ];
-        let flag_vec_s = to_vec(&flag_vec).unwrap();
+        let flag_vec_s = to_vec_legacy(&flag_vec).unwrap();
         assert_eq!(flag_s, flag_vec_s);
 
         // struct-variants serialize like ["<variant>", {struct..}]
-        let point_s = to_vec(&Bar::Point { x: 5, y: -5 }).unwrap();
+        let point_s = to_vec_legacy(&Bar::Point { x: 5, y: -5 }).unwrap();
         let mut struct_map = BTreeMap::new();
         struct_map.insert(Value::Text("x".to_string()), Value::Integer(5));
         struct_map.insert(Value::Text("y".to_string()), Value::Integer(-5));
@@ -168,28 +181,24 @@ mod std_tests {
             Value::Text("Point".to_string()),
             Value::Map(struct_map.clone()),
         ];
-        let point_vec_s = to_vec(&point_vec).unwrap();
+        let point_vec_s = to_vec_legacy(&point_vec).unwrap();
         assert_eq!(point_s, point_vec_s);
 
         // enum_as_map matches serde_json's default serialization for enums.
-        let opts = serde_cbor::ser::SerializerOptions {
-            enum_as_map: true,
-            ..Default::default()
-        };
 
         // unit variants still serialize like bare strings
-        let empty_s = opts.to_vec(&Bar::Empty).unwrap();
+        let empty_s = to_vec(&Bar::Empty).unwrap();
         assert_eq!(empty_s, empty_str_s);
 
         // 1-element tuple variants serialize like {"<variant>": value}
-        let number_s = opts.to_vec(&Bar::Number(42)).unwrap();
+        let number_s = to_vec(&Bar::Number(42)).unwrap();
         let mut number_map = BTreeMap::new();
         number_map.insert("Number", 42);
         let number_map_s = to_vec(&number_map).unwrap();
         assert_eq!(number_s, number_map_s);
 
         // multi-element tuple variants serialize like {"<variant>": [values..]}
-        let flag_s = opts.to_vec(&Bar::Flag("foo".to_string(), true)).unwrap();
+        let flag_s = to_vec(&Bar::Flag("foo".to_string(), true)).unwrap();
         let mut flag_map = BTreeMap::new();
         flag_map.insert(
             "Flag",
@@ -199,7 +208,7 @@ mod std_tests {
         assert_eq!(flag_s, flag_map_s);
 
         // struct-variants serialize like {"<variant>", {struct..}}
-        let point_s = opts.to_vec(&Bar::Point { x: 5, y: -5 }).unwrap();
+        let point_s = to_vec(&Bar::Point { x: 5, y: -5 }).unwrap();
         let mut point_map = BTreeMap::new();
         point_map.insert("Point", Value::Map(struct_map));
         let point_map_s = to_vec(&point_map).unwrap();

@@ -49,7 +49,7 @@ mod std_tests {
 fn test() {
     let mut slice = [0u8; 64];
     let writer = SliceWrite::new(&mut slice);
-    let mut serializer = Serializer::packed(writer);
+    let mut serializer = Serializer::new(writer).packed_format();
     EXAMPLE.serialize(&mut serializer).unwrap();
     let writer = serializer.into_inner();
     let end = writer.bytes_written();
