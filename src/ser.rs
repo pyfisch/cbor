@@ -233,29 +233,6 @@ where
         }
     }
 
-    #[cfg(feature = "std")]
-    fn serialize_with_same_settings<V: Serialize>(&self, v: V) -> Result<Vec<u8>> {
-        let buf: Vec<u8> = vec![];
-        let mut s = Serializer {
-            writer: buf,
-            packed: self.packed,
-            enum_as_map: self.enum_as_map,
-        };
-        v.serialize(&mut s)?;
-        Ok(s.writer)
-    }
-
-    #[cfg(not(feature = "std"))]
-    fn serialize_with_same_settings<V: Serialize>(&mut self, v: V) -> Result<()> {
-        let mut s = Serializer {
-            writer: &mut self.writer,
-            packed: self.packed,
-            enum_as_map: self.enum_as_map,
-        };
-        v.serialize(&mut s)?;
-        Ok(())
-    }
-
     /// Writes a CBOR self-describe tag to the stream.
     ///
     /// Tagging allows a decoder to distinguish different file formats based on their content
@@ -609,50 +586,6 @@ where
         self.serialize_collection(5, len)
     }
 
-    #[cfg(feature = "std")]
-    fn collect_map<K, V, I>(self, iter: I) -> Result<Self::Ok>
-    where
-        K: Serialize,
-        V: Serialize,
-        I: IntoIterator<Item = (K, V)>,
-    {
-        use serde::ser::SerializeMap;
-
-        let entry_results = iter
-            .into_iter()
-            .map(|(k, v)| {
-                (
-                    self.serialize_with_same_settings(k),
-                    self.serialize_with_same_settings(v),
-                )
-            })
-            .collect::<Vec<_>>();
-
-        let mut entries = vec![];
-        for (k, v) in entry_results {
-            let (k, v) = (k?, v?);
-            entries.push((k, v));
-        }
-
-        entries.sort_by(|a, b| a.0.cmp(&b.0));
-
-        let serializer = self.serialize_map(Some(entries.len()))?;
-
-        for (key, value) in entries {
-            serializer
-                .ser
-                .writer
-                .write_all(&key)
-                .map_err(|e| e.into())?;
-            serializer
-                .ser
-                .writer
-                .write_all(&value)
-                .map_err(|e| e.into())?;
-        }
-        serializer.end()
-    }
-
     #[cfg(not(feature = "std"))]
     fn collect_str<T: ?Sized>(self, value: &T) -> Result<()>
     where
@@ -672,8 +605,6 @@ where
         Ok(StructSerializer {
             ser: self,
             idx: 0,
-            #[cfg(feature = "std")]
-            entries: vec![],
         })
     }
 
@@ -763,62 +694,12 @@ where
     }
 }
 
-#[cfg(feature = "std")]
-#[doc(hidden)]
-pub struct StructSerializer<'a, W> {
-    ser: &'a mut Serializer<W>,
-    idx: u32,
-    entries: Vec<(Vec<u8>, Vec<u8>)>,
-}
-
-#[cfg(not(feature = "std"))]
 #[doc(hidden)]
 pub struct StructSerializer<'a, W> {
     ser: &'a mut Serializer<W>,
     idx: u32,
 }
 
-#[cfg(feature = "std")]
-impl<'a, W> StructSerializer<'a, W>
-where
-    W: Write,
-{
-    #[inline]
-    fn serialize_field_inner<T>(&mut self, key: &'static str, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        let key_bytes = if self.ser.packed {
-            self.ser.serialize_with_same_settings(self.idx)?
-        } else {
-            self.ser.serialize_with_same_settings(key)?
-        };
-        self.idx += 1;
-        self.entries
-            .push((key_bytes, self.ser.serialize_with_same_settings(value)?));
-        Ok(())
-    }
-
-    #[inline]
-    fn skip_field_inner(&mut self, _: &'static str) -> Result<()> {
-        self.idx += 1;
-        Ok(())
-    }
-
-    #[inline]
-    fn end_inner(mut self) -> Result<()> {
-        self.entries.sort_by(|a, b| a.0.cmp(&b.0));
-        for (k, v) in self.entries {
-            self.ser.writer.write_all(&k).map_err(|e| e.into())?;
-            self.ser.writer.write_all(&v).map_err(|e| e.into())?;
-        }
-        Ok(())
-    }
-}
-
-// Version of `StructSerializer` that does not canonicalize its output, suitable for embedded
-// platforms.
-#[cfg(not(feature = "std"))]
 impl<'a, W> StructSerializer<'a, W>
 where
     W: Write,
@@ -829,11 +710,11 @@ where
         T: ?Sized + ser::Serialize,
     {
         if self.ser.packed {
-            self.ser.serialize_with_same_settings(self.idx)?;
+            self.idx.serialize(&mut *self.ser)?;
         } else {
-            self.ser.serialize_with_same_settings(key)?;
+            key.serialize(&mut *self.ser)?;
         }
-        self.ser.serialize_with_same_settings(value)?;
+        value.serialize(&mut *self.ser)?;
         self.idx += 1;
         Ok(())
     }

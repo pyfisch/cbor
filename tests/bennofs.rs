@@ -38,8 +38,9 @@ mod std_tests {
 
     #[test]
     fn test() {
-        let serialized = serde_cbor::ser::to_vec_packed(&EXAMPLE).unwrap();
-        let deserialized: Example = serde_cbor::from_slice(&serialized).unwrap();
+        let serialized = serde_cbor::ser::to_vec_packed(&EXAMPLE).expect("bennofs 1");
+        println!("{:?}", serialized);
+        let deserialized: Example = serde_cbor::from_slice(&serialized).expect("bennofs 2");
         assert_eq!(EXAMPLE, deserialized);
     }
 }

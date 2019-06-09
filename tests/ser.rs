@@ -82,7 +82,7 @@ mod std_tests {
         object.insert(vec![-2i64], ());
         object.insert(vec![0i64, 0i64], ());
         object.insert(vec![0i64, -1i64], ());
-        let vec = to_vec(&object).unwrap();
+        let vec = to_vec(&serde_cbor::value::to_value(object.clone()).unwrap()).unwrap();
         assert_eq!(
             vec![
                 166, 129, 0, 246, 129, 24, 100, 246, 129, 32, 246, 129, 33, 246, 130, 0, 0, 246,
@@ -112,7 +112,7 @@ mod std_tests {
         for key in keys {
             object.insert(key, ());
         }
-        let vec = to_vec(&object).unwrap();
+        let vec = to_vec(&serde_cbor::value::to_value(object.clone()).unwrap()).unwrap();
         assert_eq!(
             vec![
                 166, 161, 97, 97, 246, 246, 161, 97, 98, 246, 246, 161, 97, 99, 246, 246, 161, 97,
