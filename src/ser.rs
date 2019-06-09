@@ -602,10 +602,7 @@ where
     #[inline]
     fn serialize_struct(self, _name: &'static str, len: usize) -> Result<StructSerializer<'a, W>> {
         self.write_u64(5, len as u64)?;
-        Ok(StructSerializer {
-            ser: self,
-            idx: 0,
-        })
+        Ok(StructSerializer { ser: self, idx: 0 })
     }
 
     #[inline]
