@@ -126,6 +126,10 @@ where
 pub struct Deserializer<R> {
     read: R,
     remaining_depth: u8,
+    accept_named: bool,
+    accept_packed: bool,
+    accept_standard_enums: bool,
+    accept_legacy_enums: bool,
 }
 
 #[cfg(feature = "std")]
@@ -180,6 +184,10 @@ where
         Deserializer {
             read,
             remaining_depth: 128,
+            accept_named: true,
+            accept_packed: true,
+            accept_standard_enums: true,
+            accept_legacy_enums: true,
         }
     }
 
