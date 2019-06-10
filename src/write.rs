@@ -87,7 +87,7 @@ impl<W: io::Write> Write for IoWrite<W> {
 }
 
 #[cfg(all(feature = "std", not(feature = "unsealed_read_write")))]
-impl<'a, W> private::Sealed for IoWrite<W> where W: io::Write {}
+impl<W> private::Sealed for IoWrite<W> where W: io::Write {}
 
 // TODO this should be possible with just alloc
 #[cfg(feature = "std")]
