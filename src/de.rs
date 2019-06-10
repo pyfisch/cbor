@@ -778,6 +778,9 @@ where
     {
         match self.peek()? {
             Some(byte @ 0x80..=0x9f) => {
+                if !self.accept_legacy_enums {
+                    return Err(self.error(ErrorCode::WrongEnumFormat));
+                }
                 self.consume();
                 match byte {
                     0x80..=0x97 => self.parse_enum(byte as usize - 0x80, visitor),
@@ -807,11 +810,19 @@ where
                 }
             }
             Some(0xa1) => {
+                if !self.accept_standard_enums {
+                    return Err(self.error(ErrorCode::WrongEnumFormat));
+                }
                 self.consume();
                 self.parse_enum_map(visitor)
             }
             None => Err(self.error(ErrorCode::EofWhileParsingValue)),
-            _ => visitor.visit_enum(UnitVariantAccess { de: self }),
+            _ => {
+                if !self.accept_standard_enums && !self.accept_legacy_enums {
+                    return Err(self.error(ErrorCode::WrongEnumFormat));
+                }
+                visitor.visit_enum(UnitVariantAccess { de: self })
+            }
         }
     }
 
