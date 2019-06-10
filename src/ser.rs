@@ -35,7 +35,7 @@ where
 
 /// Serializes a value to a writer.
 #[cfg(feature = "std")]
-pub fn to_writer<W, T>(writer: &mut W, value: &T) -> Result<()>
+pub fn to_writer<W, T>(writer: W, value: &T) -> Result<()>
 where
     W: io::Write,
     T: ser::Serialize,

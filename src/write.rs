@@ -67,18 +67,18 @@ impl<W> private::Sealed for &mut W where W: Write {}
 /// A wrapper for types that implement
 /// [`std::io::Write`](https://doc.rust-lang.org/std/io/trait.Write.html) to implement the local
 /// [`Write`](trait.Write.html) trait.
-pub struct IoWrite<'a, W>(&'a mut W);
+pub struct IoWrite<W>(W);
 
 #[cfg(feature = "std")]
-impl<'a, W: io::Write> IoWrite<'a, W> {
+impl<W: io::Write> IoWrite<W> {
     /// Wraps an `io::Write` writer to make it compatible with [`Write`](trait.Write.html)
-    pub fn new(w: &'a mut W) -> IoWrite<'a, W> {
+    pub fn new(w: W) -> IoWrite<W> {
         IoWrite(w)
     }
 }
 
 #[cfg(feature = "std")]
-impl<'a, W: io::Write> Write for IoWrite<'a, W> {
+impl<W: io::Write> Write for IoWrite<W> {
     type Error = io::Error;
 
     fn write_all(&mut self, buf: &[u8]) -> Result<(), Self::Error> {
@@ -87,7 +87,7 @@ impl<'a, W: io::Write> Write for IoWrite<'a, W> {
 }
 
 #[cfg(all(feature = "std", not(feature = "unsealed_read_write")))]
-impl<'a, W> private::Sealed for IoWrite<'a, W> where W: io::Write {}
+impl<'a, W> private::Sealed for IoWrite<W> where W: io::Write {}
 
 // TODO this should be possible with just alloc
 #[cfg(feature = "std")]
