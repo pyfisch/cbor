@@ -193,6 +193,30 @@ where
         }
     }
 
+    /// Don't accept named variants and fields.
+    pub fn disable_named_format(mut self) -> Self {
+        self.accept_named = false;
+        self
+    }
+
+    /// Don't accept numbered variants and fields.
+    pub fn disable_packed_format(mut self) -> Self {
+        self.accept_packed = false;
+        self
+    }
+
+    /// Don't accept the new enum format used by `serde_cbor` versions >= v0.10.
+    pub fn disable_standard_enums(mut self) -> Self {
+        self.accept_standard_enums = false;
+        self
+    }
+
+    /// Don't accept the old enum format used by `serde_cbor` versions <= v0.9.
+    pub fn disable_legacy_enums(mut self) -> Self {
+        self.accept_legacy_enums = false;
+        self
+    }
+
     /// This method should be called after a value has been deserialized to ensure there is no
     /// trailing data in the input source.
     pub fn end(&mut self) -> Result<()> {
