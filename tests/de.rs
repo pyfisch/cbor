@@ -402,4 +402,84 @@ mod std_tests {
         assert_eq!(value, "foobar");
         assert_eq!(rest, &[]);
     }
+
+    fn from_slice_stream_options<'a, T>(
+        slice: &'a [u8],
+        standard: bool,
+        legacy: bool,
+    ) -> error::Result<(&'a [u8], T)>
+    where
+        T: serde_de::Deserialize<'a>,
+    {
+        let deserializer = Deserializer::from_slice(slice);
+        let deserializer = if !standard {
+            deserializer.disable_standard_enums()
+        } else {
+            deserializer
+        };
+        let mut deserializer = if !legacy {
+            deserializer.disable_legacy_enums()
+        } else {
+            deserializer
+        };
+        let value = serde_de::Deserialize::deserialize(&mut deserializer)?;
+        let rest = &slice[deserializer.byte_offset()..];
+
+        Ok((rest, value))
+    }
+
+    #[test]
+    fn test_deserializer_enums() {
+        #[derive(Debug, PartialEq, Deserialize)]
+        enum Enum {
+            Unit,
+            NewType(i32),
+            Tuple(String, bool),
+            Struct { x: i32, y: i32 },
+        }
+
+        // This is the format used in serde >= 0.10
+        let v: Vec<u8> = vec![
+            0xa1, // map 1pair
+            0x67, 0x4e, 0x65, 0x77, 0x54, 0x79, 0x70, 0x65, // utf8 string: NewType
+            0x1a, // u32
+            0x00, 0x00, 0x00, 0x0a, // 10 (dec)
+        ];
+        let (_rest, value): (&[u8], Enum) = from_slice_stream(&v[..]).unwrap();
+        assert_eq!(value, Enum::NewType(10));
+        let (_rest, value): (&[u8], Enum) = from_slice_stream_options(&v[..], true, false).unwrap();
+        assert_eq!(value, Enum::NewType(10));
+        let value: error::Result<(&[u8], Enum)> = from_slice_stream_options(&v[..], false, true);
+        assert_eq!(
+            value.unwrap_err().classify(),
+            serde_cbor::error::Category::Syntax
+        );
+        let value: error::Result<(&[u8], Enum)> = from_slice_stream_options(&v[..], false, false);
+        assert_eq!(
+            value.unwrap_err().classify(),
+            serde_cbor::error::Category::Syntax
+        );
+
+        // This is the format used in serde <= 0.9
+        let v: Vec<u8> = vec![
+            0x82, // array 2 items
+            0x67, 0x4e, 0x65, 0x77, 0x54, 0x79, 0x70, 0x65, // utf8 string: NewType
+            0x1a, // u32
+            0x00, 0x00, 0x00, 0x0a, // 10 (dec)
+        ];
+        let (_rest, value): (&[u8], Enum) = from_slice_stream(&v[..]).unwrap();
+        assert_eq!(value, Enum::NewType(10));
+        let value: error::Result<(&[u8], Enum)> = from_slice_stream_options(&v[..], true, false);
+        assert_eq!(
+            value.unwrap_err().classify(),
+            serde_cbor::error::Category::Syntax
+        );
+        let value: error::Result<(&[u8], Enum)> = from_slice_stream_options(&v[..], false, true);
+        assert_eq!(value.unwrap().1, Enum::NewType(10));
+        let value: error::Result<(&[u8], Enum)> = from_slice_stream_options(&v[..], false, false);
+        assert_eq!(
+            value.unwrap_err().classify(),
+            serde_cbor::error::Category::Syntax
+        );
+    }
 }
