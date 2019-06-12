@@ -146,6 +146,86 @@
 //! # }
 //! ```
 //!
+//! # `no-std` support
+//!
+//! Serde CBOR supports building in a `no_std` context, use the following lines
+//! in your `Cargo.toml` dependencies:
+//! ``` toml
+//! [dependencies]
+//! serde = { version = "1.0", default-features = false }
+//! serde_cbor = { version = "0.10", default-features = false }
+//! ```
+//!
+//! *Note*: to use derive macros in serde you will need to declare `serde`
+//! dependency like so:
+//! ``` toml
+//! serde = { version = "1.0", default-features = false, features = ["derive"] }
+//! ```
+//!
+//! Serialize an object.
+//! ``` rust
+//! # #[macro_use] extern crate serde_derive;
+//! use serde::Serialize;
+//! use serde_cbor::Serializer;
+//! use serde_cbor::ser::SliceWrite;
+//!
+//! #[derive(Serialize)]
+//! struct User {
+//!     user_id: u32,
+//!     password_hash: [u8; 4],
+//! }
+//!
+//! let mut buf = [0u8; 100];
+//! let writer = SliceWrite::new(&mut buf[..]);
+//! let mut ser = Serializer::new(writer);
+//! let user = User {
+//!     user_id: 42,
+//!     password_hash: [1, 2, 3, 4],
+//! };
+//! user.serialize(&mut ser).unwrap();
+//! let writer = ser.into_inner();
+//! let size = writer.bytes_written();
+//! let expected = [
+//!     0xa2, 0x67, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x2a, 0x6d,
+//!     0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x5f, 0x68, 0x61, 0x73,
+//!     0x68, 0x84, 0x1, 0x2, 0x3, 0x4
+//! ];
+//! assert_eq!(&buf[..size], expected);
+//! ```
+//!
+//! Deserialize an object.
+//! ``` rust
+//! # #[macro_use] extern crate serde_derive;
+//!
+//! #[derive(Debug, PartialEq, Deserialize)]
+//! struct User {
+//!     user_id: u32,
+//!     password_hash: [u8; 4],
+//! }
+//!
+//! let mut value = [
+//!     0xa2, 0x67, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x2a, 0x6d,
+//!     0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x5f, 0x68, 0x61, 0x73,
+//!     0x68, 0x84, 0x1, 0x2, 0x3, 0x4
+//! ];
+//! let mut scratch = [0u8; 32];
+//!
+//! use serde_cbor::de::from_slice_with_scratch;
+//! let user: User = from_slice_with_scratch(&value[..], &mut scratch)
+//!     .unwrap();
+//! assert_eq!(user, User {
+//!     user_id: 42,
+//!     password_hash: [1, 2, 3, 4],
+//! });
+//!
+//! use serde_cbor::de::from_mut_slice;
+//! let user: User = from_mut_slice(&mut value[..]).unwrap();
+//! assert_eq!(user, User {
+//!     user_id: 42,
+//!     password_hash: [1, 2, 3, 4],
+//! });
+//! ```
+//!
 //! # Limitations
 //!
 //! While Serde CBOR strives to support all features of Serde and CBOR
