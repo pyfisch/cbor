@@ -54,7 +54,6 @@ where
 
 // When the "std" feature is enabled there should be little to no need to ever use this function,
 // as `from_slice` covers all use cases (at the expense of being less efficient).
-#[cfg_attr(feature = "std", doc(hidden))]
 /// Decode a value from CBOR data in a mutable slice.
 ///
 /// This can be used in analogy to `from_slice`. Unlike `from_slice`, this will use the slice's
@@ -73,7 +72,6 @@ where
 // When the "std" feature is enabled there should be little to no need to ever use this function,
 // as `from_slice` covers all use cases and is much more reliable (at the expense of being less
 // efficient).
-#[cfg_attr(feature = "std", doc(hidden))]
 /// Decode a value from CBOR data using a scratch buffer.
 ///
 /// Users should generally prefer to use `from_slice` or `from_mut_slice` over this function,
