@@ -439,6 +439,8 @@ mod std_tests {
         }
 
         // This is the format used in serde >= 0.10
+        //
+        // Serialization of Enum::NewType(10)
         let v: Vec<u8> = vec![
             0xa1, // map 1pair
             0x67, 0x4e, 0x65, 0x77, 0x54, 0x79, 0x70, 0x65, // utf8 string: NewType
@@ -454,6 +456,21 @@ mod std_tests {
             value.unwrap_err().classify(),
             serde_cbor::error::Category::Syntax
         );
+        let value: error::Result<(&[u8], Enum)> = from_slice_stream_options(&v[..], false, false);
+        assert_eq!(
+            value.unwrap_err().classify(),
+            serde_cbor::error::Category::Syntax
+        );
+        // Serialization of Enum::Unit
+        let v: Vec<u8> = vec![
+            0x64, 0x55, 0x6e, 0x69, 0x74, // utf8 string: Unit
+        ];
+        let (_rest, value): (&[u8], Enum) = from_slice_stream(&v[..]).unwrap();
+        assert_eq!(value, Enum::Unit);
+        let (_rest, value): (&[u8], Enum) = from_slice_stream_options(&v[..], true, false).unwrap();
+        assert_eq!(value, Enum::Unit);
+        let (_rest, value): (&[u8], Enum) = from_slice_stream_options(&v[..], false, true).unwrap();
+        assert_eq!(value, Enum::Unit);
         let value: error::Result<(&[u8], Enum)> = from_slice_stream_options(&v[..], false, false);
         assert_eq!(
             value.unwrap_err().classify(),
