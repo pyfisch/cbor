@@ -206,20 +206,32 @@
 //!     password_hash: [u8; 4],
 //! }
 //!
-//! let mut value = [
+//! let value = [
 //!     0xa2, 0x67, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x2a, 0x6d,
 //!     0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x5f, 0x68, 0x61, 0x73,
 //!     0x68, 0x84, 0x1, 0x2, 0x3, 0x4
 //! ];
-//! let mut scratch = [0u8; 32];
 //!
+//! // from_slice_with_scratch will not alter input data, use it whenever you
+//! // borrow from somewhere else.
+//! // You will have to size your scratch according to the input data you
+//! // expect.
 //! use serde_cbor::de::from_slice_with_scratch;
+//! let mut scratch = [0u8; 32];
 //! let user: User = from_slice_with_scratch(&value[..], &mut scratch)?;
 //! assert_eq!(user, User {
 //!     user_id: 42,
 //!     password_hash: [1, 2, 3, 4],
 //! });
 //!
+//! let mut value = [
+//!     0xa2, 0x67, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x2a, 0x6d,
+//!     0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x5f, 0x68, 0x61, 0x73,
+//!     0x68, 0x84, 0x1, 0x2, 0x3, 0x4
+//! ];
+//!
+//! // from_mut_slice will move data around the input slice, you may only use it
+//! // on data you may own or can modify.
 //! use serde_cbor::de::from_mut_slice;
 //! let user: User = from_mut_slice(&mut value[..])?;
 //! assert_eq!(user, User {
