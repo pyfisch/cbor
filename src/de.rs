@@ -1113,6 +1113,27 @@ where
 ///
 /// A stream deserializer can be created from any CBOR deserializer using the
 /// `Deserializer::into_iter` method.
+///
+/// ```
+/// # extern crate serde_cbor;
+/// use serde_cbor::de::Deserializer;
+/// use serde_cbor::value::Value;
+///
+/// # fn main() {
+/// let data: Vec<u8> = vec![
+///     0x01, 0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72,
+/// ];
+/// let mut it = Deserializer::from_slice(&data[..]).into_iter::<Value>();
+/// assert_eq!(
+///     Value::Integer(1),
+///     it.next().unwrap().unwrap()
+/// );
+/// assert_eq!(
+///     Value::Text("foobar".to_string()),
+///     it.next().unwrap().unwrap()
+/// );
+/// # }
+/// ```
 pub struct StreamDeserializer<'de, R, T> {
     de: Deserializer<R>,
     output: PhantomData<T>,
