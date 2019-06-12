@@ -165,6 +165,7 @@
 //! Serialize an object.
 //! ``` rust
 //! # #[macro_use] extern crate serde_derive;
+//! # fn main() -> Result<(), serde_cbor::Error> {
 //! use serde::Serialize;
 //! use serde_cbor::Serializer;
 //! use serde_cbor::ser::SliceWrite;
@@ -182,7 +183,7 @@
 //!     user_id: 42,
 //!     password_hash: [1, 2, 3, 4],
 //! };
-//! user.serialize(&mut ser).unwrap();
+//! user.serialize(&mut ser)?;
 //! let writer = ser.into_inner();
 //! let size = writer.bytes_written();
 //! let expected = [
@@ -191,12 +192,14 @@
 //!     0x68, 0x84, 0x1, 0x2, 0x3, 0x4
 //! ];
 //! assert_eq!(&buf[..size], expected);
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! Deserialize an object.
 //! ``` rust
 //! # #[macro_use] extern crate serde_derive;
-//!
+//! # fn main() -> Result<(), serde_cbor::Error> {
 //! #[derive(Debug, PartialEq, Deserialize)]
 //! struct User {
 //!     user_id: u32,
@@ -211,19 +214,20 @@
 //! let mut scratch = [0u8; 32];
 //!
 //! use serde_cbor::de::from_slice_with_scratch;
-//! let user: User = from_slice_with_scratch(&value[..], &mut scratch)
-//!     .unwrap();
+//! let user: User = from_slice_with_scratch(&value[..], &mut scratch)?;
 //! assert_eq!(user, User {
 //!     user_id: 42,
 //!     password_hash: [1, 2, 3, 4],
 //! });
 //!
 //! use serde_cbor::de::from_mut_slice;
-//! let user: User = from_mut_slice(&mut value[..]).unwrap();
+//! let user: User = from_mut_slice(&mut value[..])?;
 //! assert_eq!(user, User {
 //!     user_id: 42,
 //!     password_hash: [1, 2, 3, 4],
 //! });
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! # Limitations
