@@ -142,7 +142,8 @@ impl Error {
             | ErrorCode::ArrayTooShort
             | ErrorCode::ArrayTooLong
             | ErrorCode::RecursionLimitExceeded
-            | ErrorCode::WrongEnumFormat => Category::Syntax,
+            | ErrorCode::WrongEnumFormat
+            | ErrorCode::WrongStructFormat => Category::Syntax,
         }
     }
 
@@ -279,6 +280,7 @@ pub(crate) enum ErrorCode {
     ArrayTooLong,
     RecursionLimitExceeded,
     WrongEnumFormat,
+    WrongStructFormat,
 }
 
 impl fmt::Display for ErrorCode {
@@ -303,6 +305,7 @@ impl fmt::Display for ErrorCode {
             ErrorCode::ArrayTooLong => f.write_str("array too long"),
             ErrorCode::RecursionLimitExceeded => f.write_str("recursion limit exceeded"),
             ErrorCode::WrongEnumFormat => f.write_str("wrong enum format"),
+            ErrorCode::WrongStructFormat => f.write_str("wrong struct format"),
         }
     }
 }
