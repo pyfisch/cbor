@@ -442,8 +442,13 @@ where
     where
         V: de::Visitor<'de>,
     {
+        let accept_packed = self.accept_packed;
         self.recursion_checked(|de| {
-            let value = visitor.visit_map(MapAccess { de, len: &mut len })?;
+            let value = visitor.visit_map(MapAccess {
+                de,
+                len: &mut len,
+                accept_packed,
+            })?;
 
             if len != 0 {
                 Err(de.error(ErrorCode::TrailingData))
@@ -457,8 +462,9 @@ where
     where
         V: de::Visitor<'de>,
     {
+        let accept_packed = self.accept_packed;
         self.recursion_checked(|de| {
-            let value = visitor.visit_map(IndefiniteMapAccess { de })?;
+            let value = visitor.visit_map(IndefiniteMapAccess { de, accept_packed })?;
             match de.next()? {
                 Some(0xff) => Ok(value),
                 Some(_) => Err(de.error(ErrorCode::TrailingData)),
@@ -488,10 +494,15 @@ where
     where
         V: de::Visitor<'de>,
     {
+        let accept_packed = self.accept_packed;
         self.recursion_checked(|de| {
             let mut len = 1;
             let value = visitor.visit_enum(VariantAccessMap {
-                map: MapAccess { de, len: &mut len },
+                map: MapAccess {
+                    de,
+                    len: &mut len,
+                    accept_packed,
+                },
             })?;
 
             if len != 0 {
@@ -930,6 +941,7 @@ where
 struct MapAccess<'a, R> {
     de: &'a mut Deserializer<R>,
     len: &'a mut usize,
+    accept_packed: bool,
 }
 
 impl<'de, 'a, R> de::MapAccess<'de> for MapAccess<'a, R>
@@ -946,6 +958,13 @@ where
             return Ok(None);
         }
         *self.len -= 1;
+
+        match self.de.peek()? {
+            Some(_byte @ 0x00..=0x1b) if !self.accept_packed => {
+                return Err(self.de.error(ErrorCode::WrongStructFormat));
+            }
+            _ => {}
+        };
 
         let value = seed.deserialize(&mut *self.de)?;
         Ok(Some(value))
@@ -974,6 +993,7 @@ where
 
 struct IndefiniteMapAccess<'a, R> {
     de: &'a mut Deserializer<R>,
+    accept_packed: bool,
 }
 
 impl<'de, 'a, R> de::MapAccess<'de> for IndefiniteMapAccess<'a, R>
@@ -987,6 +1007,9 @@ where
         K: de::DeserializeSeed<'de>,
     {
         match self.de.peek()? {
+            Some(_byte @ 0x00..=0x1b) if !self.accept_packed => {
+                return Err(self.de.error(ErrorCode::WrongStructFormat))
+            }
             Some(0xff) => return Ok(None),
             Some(_) => {}
             None => return Err(self.de.error(ErrorCode::EofWhileParsingMap)),
