@@ -403,27 +403,79 @@ mod std_tests {
         assert_eq!(rest, &[]);
     }
 
-    fn from_slice_stream_options<'a, T>(
-        slice: &'a [u8],
+    #[derive(Debug, Copy, Clone)]
+    struct Options {
         standard: bool,
         legacy: bool,
         packed: bool,
+        named: bool,
+    }
+
+    impl Default for Options {
+        fn default() -> Self {
+            Options {
+                standard: true,
+                legacy: true,
+                packed: true,
+                named: true,
+            }
+        }
+    }
+
+    impl Options {
+        fn no_standard(self) -> Self {
+            Options {
+                standard: false,
+                ..self
+            }
+        }
+
+        fn no_legacy(self) -> Self {
+            Options {
+                legacy: false,
+                ..self
+            }
+        }
+
+        fn no_packed(self) -> Self {
+            Options {
+                packed: false,
+                ..self
+            }
+        }
+
+        fn no_named(self) -> Self {
+            Options {
+                named: false,
+                ..self
+            }
+        }
+    }
+
+    fn from_slice_stream_options<'a, T>(
+        slice: &'a [u8],
+        options: Options,
     ) -> error::Result<(&'a [u8], T)>
     where
         T: serde_de::Deserialize<'a>,
     {
         let deserializer = Deserializer::from_slice(slice);
-        let deserializer = if !standard {
-            deserializer.disable_standard_enums()
-        } else {
-            deserializer
-        };
-        let deserializer = if !packed {
+        let deserializer = if !options.packed {
             deserializer.disable_packed_format()
         } else {
             deserializer
         };
-        let mut deserializer = if !legacy {
+        let deserializer = if !options.named {
+            deserializer.disable_named_format()
+        } else {
+            deserializer
+        };
+        let deserializer = if !options.standard {
+            deserializer.disable_standard_enums()
+        } else {
+            deserializer
+        };
+        let mut deserializer = if !options.legacy {
             deserializer.disable_legacy_enums()
         } else {
             deserializer
@@ -456,16 +508,16 @@ mod std_tests {
         let (_rest, value): (&[u8], Enum) = from_slice_stream(&v[..]).unwrap();
         assert_eq!(value, Enum::NewType(10));
         let (_rest, value): (&[u8], Enum) =
-            from_slice_stream_options(&v[..], true, false, true).unwrap();
+            from_slice_stream_options(&v[..], Options::default().no_legacy()).unwrap();
         assert_eq!(value, Enum::NewType(10));
         let value: error::Result<(&[u8], Enum)> =
-            from_slice_stream_options(&v[..], false, true, true);
+            from_slice_stream_options(&v[..], Options::default().no_standard());
         assert_eq!(
             value.unwrap_err().classify(),
             serde_cbor::error::Category::Syntax
         );
         let value: error::Result<(&[u8], Enum)> =
-            from_slice_stream_options(&v[..], false, false, true);
+            from_slice_stream_options(&v[..], Options::default().no_standard().no_legacy());
         assert_eq!(
             value.unwrap_err().classify(),
             serde_cbor::error::Category::Syntax
@@ -477,13 +529,13 @@ mod std_tests {
         let (_rest, value): (&[u8], Enum) = from_slice_stream(&v[..]).unwrap();
         assert_eq!(value, Enum::Unit);
         let (_rest, value): (&[u8], Enum) =
-            from_slice_stream_options(&v[..], true, false, true).unwrap();
+            from_slice_stream_options(&v[..], Options::default().no_legacy()).unwrap();
         assert_eq!(value, Enum::Unit);
         let (_rest, value): (&[u8], Enum) =
-            from_slice_stream_options(&v[..], false, true, true).unwrap();
+            from_slice_stream_options(&v[..], Options::default().no_standard()).unwrap();
         assert_eq!(value, Enum::Unit);
         let value: error::Result<(&[u8], Enum)> =
-            from_slice_stream_options(&v[..], false, false, true);
+            from_slice_stream_options(&v[..], Options::default().no_legacy().no_standard());
         assert_eq!(
             value.unwrap_err().classify(),
             serde_cbor::error::Category::Syntax
@@ -499,16 +551,16 @@ mod std_tests {
         let (_rest, value): (&[u8], Enum) = from_slice_stream(&v[..]).unwrap();
         assert_eq!(value, Enum::NewType(10));
         let value: error::Result<(&[u8], Enum)> =
-            from_slice_stream_options(&v[..], true, false, true);
+            from_slice_stream_options(&v[..], Options::default().no_legacy());
         assert_eq!(
             value.unwrap_err().classify(),
             serde_cbor::error::Category::Syntax
         );
         let value: error::Result<(&[u8], Enum)> =
-            from_slice_stream_options(&v[..], false, true, true);
+            from_slice_stream_options(&v[..], Options::default().no_standard());
         assert_eq!(value.unwrap().1, Enum::NewType(10));
         let value: error::Result<(&[u8], Enum)> =
-            from_slice_stream_options(&v[..], false, false, true);
+            from_slice_stream_options(&v[..], Options::default().no_standard().no_legacy());
         assert_eq!(
             value.unwrap_err().classify(),
             serde_cbor::error::Category::Syntax
@@ -542,7 +594,7 @@ mod std_tests {
             }
         );
         let (_rest, value): (&[u8], User) =
-            from_slice_stream_options(&v[..], true, true, false).unwrap();
+            from_slice_stream_options(&v[..], Options::default().no_packed()).unwrap();
         assert_eq!(
             value,
             User {
@@ -550,6 +602,13 @@ mod std_tests {
                 password_hash: [1, 2, 3, 4],
             }
         );
+        let value: error::Result<(&[u8], User)> =
+            from_slice_stream_options(&v[..], Options::default().no_named());
+        assert_eq!(
+            value.unwrap_err().classify(),
+            serde_cbor::error::Category::Syntax
+        );
+
         // unpacked - indefinite length
         let v: Vec<u8> = vec![
             0xbf, // map to be followed by a break
@@ -570,13 +629,19 @@ mod std_tests {
             }
         );
         let (_rest, value): (&[u8], User) =
-            from_slice_stream_options(&v[..], true, true, false).unwrap();
+            from_slice_stream_options(&v[..], Options::default().no_packed()).unwrap();
         assert_eq!(
             value,
             User {
                 user_id: 10,
                 password_hash: [1, 2, 3, 4],
             }
+        );
+        let value: error::Result<(&[u8], User)> =
+            from_slice_stream_options(&v[..], Options::default().no_named());
+        assert_eq!(
+            value.unwrap_err().classify(),
+            serde_cbor::error::Category::Syntax
         );
 
         // packed
@@ -596,8 +661,17 @@ mod std_tests {
                 password_hash: [1, 2, 3, 4],
             }
         );
+        let (_rest, value): (&[u8], User) =
+            from_slice_stream_options(&v[..], Options::default().no_named()).unwrap();
+        assert_eq!(
+            value,
+            User {
+                user_id: 10,
+                password_hash: [1, 2, 3, 4],
+            }
+        );
         let value: error::Result<(&[u8], User)> =
-            from_slice_stream_options(&v[..], true, true, false);
+            from_slice_stream_options(&v[..], Options::default().no_packed());
         assert_eq!(
             value.unwrap_err().classify(),
             serde_cbor::error::Category::Syntax
@@ -621,8 +695,17 @@ mod std_tests {
                 password_hash: [1, 2, 3, 4],
             }
         );
+        let (_rest, value): (&[u8], User) =
+            from_slice_stream_options(&v[..], Options::default().no_named()).unwrap();
+        assert_eq!(
+            value,
+            User {
+                user_id: 10,
+                password_hash: [1, 2, 3, 4],
+            }
+        );
         let value: error::Result<(&[u8], User)> =
-            from_slice_stream_options(&v[..], true, true, false);
+            from_slice_stream_options(&v[..], Options::default().no_packed());
         assert_eq!(
             value.unwrap_err().classify(),
             serde_cbor::error::Category::Syntax
