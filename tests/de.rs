@@ -499,4 +499,19 @@ mod std_tests {
             serde_cbor::error::Category::Syntax
         );
     }
+
+    use serde_cbor::{de::from_slice, ser::to_vec_packed};
+    use std::net::{IpAddr, Ipv4Addr};
+    #[test]
+    fn test_ipaddr_deserialization() {
+        let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
+        let buf = to_vec_packed(&ip).unwrap();
+        let deserialized_ip = from_slice::<IpAddr>(&buf).unwrap();
+        assert_eq!(ip, deserialized_ip);
+
+        let buf = to_vec(&ip).unwrap();
+        let deserialized_ip = from_slice::<IpAddr>(&buf).unwrap();
+        assert_eq!(ip, deserialized_ip);
+    }
+
 }
