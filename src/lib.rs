@@ -267,10 +267,16 @@ extern crate std;
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+#[cfg(feature = "tags")]
+#[macro_use]
+extern crate serde_derive;
+
 pub mod de;
 pub mod error;
 mod read;
 pub mod ser;
+#[cfg(feature = "tags")]
+mod tag;
 mod write;
 
 #[cfg(feature = "std")]
@@ -308,3 +314,6 @@ pub use crate::ser::to_writer;
 #[cfg(feature = "std")]
 #[doc(inline)]
 pub use crate::value::Value;
+
+#[cfg(feature = "tags")]
+pub use tag::EncodeCborTag;

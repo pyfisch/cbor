@@ -52,6 +52,8 @@ pub struct Serializer<W> {
     writer: W,
     packed: bool,
     enum_as_map: bool,
+    #[cfg(feature = "tags")]
+    tag: bool,
 }
 
 impl<W> Serializer<W>
@@ -67,6 +69,8 @@ where
             writer,
             packed: false,
             enum_as_map: true,
+            #[cfg(feature = "tags")]
+            tag: false,
         }
     }
 
@@ -125,9 +129,7 @@ where
     /// without further information.
     #[inline]
     pub fn self_describe(&mut self) -> Result<()> {
-        let mut buf = [6 << 5 | 25, 0, 0];
-        BigEndian::write_u16(&mut buf[1..], 55799);
-        self.writer.write_all(&buf).map_err(|e| e.into())
+        self.write_tag(55799)
     }
 
     /// Unwrap the `Writer` from the `Serializer`.
@@ -178,6 +180,11 @@ where
             BigEndian::write_u64(&mut buf[1..], value);
             self.writer.write_all(&buf).map_err(|e| e.into())
         }
+    }
+
+    #[inline]
+    fn write_tag(&mut self, tag: u64) -> Result<()> {
+        self.write_u64(6, tag)
     }
 
     #[inline]
@@ -293,6 +300,16 @@ where
         self.write_u32(0, value)
     }
 
+    #[cfg(feature = "tags")]
+    #[inline]
+    fn serialize_u64(self, value: u64) -> Result<()> {
+        if self.tag {
+            self.write_tag(value)
+        } else {
+            self.write_u64(0, value)
+        }
+    }
+    #[cfg(not(feature = "tags"))]
     #[inline]
     fn serialize_u64(self, value: u64) -> Result<()> {
         self.write_u64(0, value)
@@ -485,9 +502,28 @@ where
         Ok(())
     }
 
+    #[cfg(feature = "tags")]
+    #[inline]
+    fn serialize_struct(self, name: &'static str, len: usize) -> Result<StructSerializer<'a, W>> {
+        let tagged = if name == "EncodeCborTag" {
+            true
+        } else {
+            self.write_u64(5, len as u64)?;
+            false
+        };
+
+        Ok(StructSerializer {
+            ser: self,
+            idx: 0,
+            tagged,
+        })
+    }
+
+    #[cfg(not(feature = "tags"))]
     #[inline]
     fn serialize_struct(self, _name: &'static str, len: usize) -> Result<StructSerializer<'a, W>> {
         self.write_u64(5, len as u64)?;
+
         Ok(StructSerializer { ser: self, idx: 0 })
     }
 
@@ -581,12 +617,45 @@ where
 pub struct StructSerializer<'a, W> {
     ser: &'a mut Serializer<W>,
     idx: u32,
+    #[cfg(feature = "tags")]
+    tagged: bool,
 }
 
 impl<'a, W> StructSerializer<'a, W>
 where
     W: Write,
 {
+    #[cfg(feature = "tags")]
+    #[inline]
+    fn serialize_field_inner<T>(&mut self, key: &'static str, value: &T) -> Result<()>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        if self.tagged && key == "__cbor_tag_ser_tag" {
+            assert_eq!(self.idx, 0);
+            // write the tag as
+            self.ser.tag = true;
+            value.serialize(&mut *self.ser)?;
+            self.ser.tag = false;
+        } else if self.tagged && key == "__cbor_tag_ser_data" {
+            assert_eq!(self.idx, 1);
+            // only write the data, without key
+            value.serialize(&mut *self.ser)?;
+        } else {
+            // regular struct
+            if self.ser.packed {
+                self.idx.serialize(&mut *self.ser)?;
+            } else {
+                key.serialize(&mut *self.ser)?;
+            }
+            value.serialize(&mut *self.ser)?;
+        }
+
+        self.idx += 1;
+        Ok(())
+    }
+
+    #[cfg(not(feature = "tags"))]
     #[inline]
     fn serialize_field_inner<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where

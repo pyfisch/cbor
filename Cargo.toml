@@ -20,6 +20,7 @@ maintenance = { status = "actively-developed" }
 byteorder = { version = "1.0.0", default-features = false }
 half = "1.2.0"
 serde = { version = "1.0.14", default-features = false }
+serde_derive = { version = "1.0.14", default-features = false, optional = true }
 
 [dev-dependencies]
 serde_derive = { version = "1.0.14", default-features = false }
@@ -31,3 +32,4 @@ default = ["std"]
 alloc = ["serde/alloc"]
 std = ["serde/std" ]
 unsealed_read_write = []
+tags = ["serde_derive"]

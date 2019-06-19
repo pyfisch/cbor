@@ -439,6 +439,51 @@ where
         })
     }
 
+    #[cfg(feature = "tags")]
+    fn parse_tag<V>(&mut self, typ: TagTyp, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.recursion_checked(|de| {
+            let mut len = 2;
+            let value = visitor.visit_seq(TagAccess {
+                de,
+                typ,
+                len: &mut len,
+            })?;
+
+            if len != 0 {
+                Err(de.error(ErrorCode::TrailingData))
+            } else {
+                Ok(value)
+            }
+        })
+    }
+
+    #[cfg(not(feature = "tags"))]
+    fn parse_tag<V>(&mut self, typ: TagTyp, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        match typ {
+            TagTyp::U8 => {
+                self.parse_u8()?;
+            }
+            TagTyp::U16 => {
+                self.parse_u16()?;
+            }
+            TagTyp::U32 => {
+                self.parse_u32()?;
+            }
+            TagTyp::U64 => {
+                self.parse_u64()?;
+            }
+            _ => {}
+        }
+
+        self.parse_value(visitor)
+    }
+
     fn parse_map<V>(&mut self, mut len: usize, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
@@ -704,23 +749,11 @@ where
             0xbf => self.parse_indefinite_map(visitor),
 
             // Major type 6: optional semantic tagging of other major types
-            0xc0..=0xd7 => self.parse_value(visitor),
-            0xd8 => {
-                self.parse_u8()?;
-                self.parse_value(visitor)
-            }
-            0xd9 => {
-                self.parse_u16()?;
-                self.parse_value(visitor)
-            }
-            0xda => {
-                self.parse_u32()?;
-                self.parse_value(visitor)
-            }
-            0xdb => {
-                self.parse_u64()?;
-                self.parse_value(visitor)
-            }
+            val @ 0xc0..=0xd7 => self.parse_tag(TagTyp::Inline(val), visitor),
+            0xd8 => self.parse_tag(TagTyp::U8, visitor),
+            0xd9 => self.parse_tag(TagTyp::U16, visitor),
+            0xda => self.parse_tag(TagTyp::U32, visitor),
+            0xdb => self.parse_tag(TagTyp::U64, visitor),
             0xdc..=0xdf => Err(self.error(ErrorCode::UnassignedCode)),
 
             // Major type 7: floating-point numbers and other simple data types that need no content
@@ -906,6 +939,156 @@ where
 }
 
 impl<'de, 'a, R> MakeError for SeqAccess<'a, R>
+where
+    R: Read<'de>,
+{
+    fn error(&self, code: ErrorCode) -> Error {
+        self.de.error(code)
+    }
+}
+
+#[cfg(feature = "tags")]
+struct TagAccess<'a, R> {
+    de: &'a mut Deserializer<R>,
+    typ: TagTyp,
+    len: &'a mut usize,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum TagTyp {
+    Inline(u8),
+    U8,
+    U16,
+    U32,
+    U64,
+}
+
+#[cfg(feature = "tags")]
+impl<'de, 'a, R> de::SeqAccess<'de> for TagAccess<'a, R>
+where
+    R: Read<'de>,
+{
+    type Error = Error;
+
+    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
+    where
+        T: de::DeserializeSeed<'de>,
+    {
+        if *self.len == 0 {
+            return Ok(None);
+        }
+
+        if *self.len == 1 {
+            *self.len -= 1;
+            // actual value
+            let value = seed.deserialize(&mut *self.de)?;
+            return Ok(Some(value));
+        }
+
+        if *self.len == 2 {
+            *self.len -= 1;
+            // TAG
+            let mut td = TagDeserializer {
+                inner: &mut *self.de,
+                typ: self.typ,
+            };
+            let tag = seed.deserialize(&mut td)?;
+
+            return Ok(Some(tag));
+        }
+
+        unreachable!();
+    }
+
+    fn size_hint(&self) -> Option<usize> {
+        Some(*self.len)
+    }
+}
+
+#[cfg(feature = "tags")]
+struct TagDeserializer<'a, R> {
+    inner: &'a mut Deserializer<R>,
+    typ: TagTyp,
+}
+
+#[cfg(feature = "tags")]
+impl<'de, 'a, R> MakeError for TagDeserializer<'a, R>
+where
+    R: Read<'de>,
+{
+    fn error(&self, code: ErrorCode) -> Error {
+        self.inner.error(code)
+    }
+}
+
+#[cfg(feature = "tags")]
+impl<'de, 'a, R> de::Deserializer<'de> for &'a mut TagDeserializer<'a, R>
+where
+    R: Read<'de>,
+{
+    type Error = Error;
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_u64(visitor)
+    }
+
+    fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self.typ {
+            TagTyp::U8 => self.deserialize_u64(visitor),
+            _ => Err(self.error(ErrorCode::InvalidUtf8)),
+        }
+    }
+
+    fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self.typ {
+            TagTyp::U16 => self.deserialize_u64(visitor),
+            _ => Err(self.error(ErrorCode::InvalidUtf8)),
+        }
+    }
+
+    fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self.typ {
+            TagTyp::U32 => self.deserialize_u64(visitor),
+            _ => Err(self.error(ErrorCode::InvalidUtf8)),
+        }
+    }
+
+    fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        let tag = match self.typ {
+            TagTyp::Inline(val) => (val - 0xc0) as u64,
+            TagTyp::U8 => self.inner.parse_u8()? as u64,
+            TagTyp::U16 => self.inner.parse_u16()? as u64,
+            TagTyp::U32 => self.inner.parse_u32()? as u64,
+            TagTyp::U64 => self.inner.parse_u64()?,
+        };
+
+        visitor.visit_u64(tag)
+    }
+
+    serde::forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u128 f32 f64 char str string unit
+        unit_struct seq tuple tuple_struct map struct identifier ignored_any
+        bytes byte_buf option newtype_struct enum
+    }
+}
+
+#[cfg(feature = "tags")]
+impl<'de, 'a, R> MakeError for TagAccess<'a, R>
 where
     R: Read<'de>,
 {

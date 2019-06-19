@@ -251,4 +251,69 @@ mod std_tests {
         assert_eq!(vec, b"\xF9\x51\x50");
         assert_eq!(from_slice::<f32>(&vec[..]).unwrap(), 42.5f32);
     }
+
+    #[cfg(feature = "tags")]
+    #[test]
+    fn test_tags() {
+        use serde::de::{Deserialize, Deserializer};
+        use serde::Serialize;
+
+        #[derive(Debug, PartialEq)]
+        struct MyTaggedValue(Vec<u8>);
+
+        impl MyTaggedValue {
+            fn tag() -> u64 {
+                9
+            }
+        }
+
+        impl Serialize for MyTaggedValue {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer,
+            {
+                serde_cbor::EncodeCborTag::new(Self::tag(), &self.0).serialize(serializer)
+            }
+        }
+
+        impl<'de> Deserialize<'de> for MyTaggedValue {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                let wrapper = serde_cbor::EncodeCborTag::deserialize(deserializer)?;
+                if wrapper.tag() != Self::tag() {
+                    return Err(serde::de::Error::custom(format!(
+                        "Invalid tag: {}, expected {}",
+                        wrapper.tag(),
+                        Self::tag()
+                    )));
+                }
+                Ok(MyTaggedValue(wrapper.value()))
+            }
+        }
+
+        // Roundtrip with custom type
+
+        let value = MyTaggedValue(vec![1, 2, 3]);
+        let bytes = b"\xC9\x83\x01\x02\x03";
+        assert_eq!(&to_vec(&value).unwrap()[..], bytes);
+        let res: MyTaggedValue = serde_cbor::de::from_slice_with_scratch(bytes, &mut []).unwrap();
+        println!("{:?}", res);
+
+        assert_eq!(res, value);
+
+        // Deserialize tag into tuple
+        let res: (u64, (usize, usize, usize)) =
+            serde_cbor::de::from_slice_with_scratch(bytes, &mut []).unwrap();
+        println!("{:?}", res);
+
+        assert_eq!(res, (9, (1, 2, 3)));
+
+        // Deserialize into tuple multiple bytes for the tag
+        println!("----");
+        let value: (u64, (usize, usize, usize)) =
+            serde_cbor::de::from_slice(&[0xd9, 0xd9, 0xf6, 0x83, 0x01, 0x02, 0x03]).unwrap();
+        assert_eq!(value, (55798, (1, 2, 3)));
+    }
 }
