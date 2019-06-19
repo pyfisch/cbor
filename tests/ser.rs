@@ -303,6 +303,13 @@ mod std_tests {
 
         assert_eq!(res, value);
 
+        // Serialize via `Value`
+
+        let value = MyTaggedValue(vec![1, 2, 3]);
+        let bytes = b"\xC9\x83\x01\x02\x03";
+        let encoded = to_vec(&serde_cbor::value::to_value(value).unwrap()).unwrap();
+        assert_eq!(&encoded[..], bytes);
+
         // Deserialize tag into tuple
         let res: (u64, (usize, usize, usize)) =
             serde_cbor::de::from_slice_with_scratch(bytes, &mut []).unwrap();

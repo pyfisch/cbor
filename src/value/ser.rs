@@ -24,7 +24,24 @@ impl serde::Serialize for Value {
             Value::Bytes(ref v) => serializer.serialize_bytes(&v),
             Value::Text(ref v) => serializer.serialize_str(&v),
             Value::Array(ref v) => v.serialize(serializer),
-            Value::Map(ref v) => v.serialize(serializer),
+            Value::Tag(v) => serializer.serialize_u64(v),
+            Value::Map(ref v) => {
+                if v.len() == 2 {
+                    use serde::ser::SerializeStruct;
+
+                    let tag = v.get(&Value::Text("__cbor_tag_ser_tag".to_string()));
+                    let value = v.get(&Value::Text("__cbor_tag_ser_data".to_string()));
+                    if tag.is_some() && value.is_some() {
+                        if let Some(Value::Integer(tag)) = tag {
+                            let mut s = serializer.serialize_struct("EncodeCborTag", 2)?;
+                            s.serialize_field("__cbor_tag_ser_tag", &Value::Tag(*tag as u64))?;
+                            s.serialize_field("__cbor_tag_ser_data", value.unwrap())?;
+                            return s.end();
+                        }
+                    }
+                }
+                v.serialize(serializer)
+            }
             Value::Float(v) => serializer.serialize_f64(v),
             Value::Bool(v) => serializer.serialize_bool(v),
             Value::Null => serializer.serialize_unit(),
