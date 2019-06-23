@@ -123,6 +123,7 @@ where
 }
 
 /// A Serde `Deserialize`r of CBOR data.
+#[derive(Debug)]
 pub struct Deserializer<R> {
     read: R,
     remaining_depth: u8,
@@ -1215,6 +1216,7 @@ where
 /// );
 /// # }
 /// ```
+#[derive(Debug)]
 pub struct StreamDeserializer<'de, R, T> {
     de: Deserializer<R>,
     output: PhantomData<T>,
