@@ -44,6 +44,7 @@ where
 }
 
 /// A structure for serializing Rust values to CBOR.
+#[derive(Debug)]
 pub struct Serializer<W> {
     writer: W,
     packed: bool,

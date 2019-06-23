@@ -67,6 +67,7 @@ impl<W> private::Sealed for &mut W where W: Write {}
 /// A wrapper for types that implement
 /// [`std::io::Write`](https://doc.rust-lang.org/std/io/trait.Write.html) to implement the local
 /// [`Write`](trait.Write.html) trait.
+#[derive(Debug)]
 pub struct IoWrite<W>(W);
 
 #[cfg(feature = "std")]
@@ -103,6 +104,7 @@ impl Write for Vec<u8> {
 impl private::Sealed for Vec<u8> {}
 
 #[cfg(not(feature = "std"))]
+#[derive(Debug)]
 pub struct FmtWrite<'a, W: Write>(&'a mut W);
 
 #[cfg(not(feature = "std"))]
@@ -126,6 +128,7 @@ impl<'a, W> private::Sealed for FmtWrite<'a, W> where W: Write {}
 /// Implements [`Write`](trait.Write.html) for mutable byte slices (`&mut [u8]`).
 ///
 /// Returns an error if the value to serialize is too large to fit in the slice.
+#[derive(Debug)]
 pub struct SliceWrite<'a> {
     slice: &'a mut [u8],
     index: usize,
