@@ -1,72 +1,58 @@
 //! CBOR and serialization.
 //!
-//! # What is CBOR?
-//! [CBOR](http://cbor.io) is a way to encode data in a space-efficient and fast binary format.
-//! CBORs data-model is a superset of the JSONs.
+//! # Usage
 //!
-//! A simple object describing a person in diagnostic notation (it is actually JSON plus some
-//! annotations) looks like
+//! Serde CBOR supports Rust 1.31 and up. Add this to your `Cargo.toml`:
+//! ```toml
+//! [dependencies]
+//! serde_cbor = "0.9"
+//! ```
 //!
-//! ```json
-//! {
-//!     "FirstName": "John",
-//!     "LastName": "Doe",
-//!     "Age": 43,
-//!     "Address": {
-//!         "Street": "Downing Street 10",
-//!         "City": "London",
-//!         "Country": "Great Britain"
-//!     },
-//!     "PhoneNumbers": [
-//!         "+44 1234567",
-//!         "+44 2345678"
-//!     ]
+//! Storing and loading Rust types is easy and requires only
+//! minimal modifications to the program code.
+//!
+//! ```rust
+//! use serde_derive::{Deserialize, Serialize};
+//! use std::error::Error;
+//! use std::fs::File;
+//!
+//! // Types annotated with `Serialize` can be stored as CBOR.
+//! // To be able to load them again add `Deserialize`.
+//! #[derive(Debug, Serialize, Deserialize)]
+//! struct Mascot {
+//!     name: String,
+//!     species: String,
+//!     year_of_birth: u32,
+//! }
+//!
+//! fn main() -> Result<(), Box<dyn Error>> {
+//!     let ferris = Mascot {
+//!         name: "Ferris".to_owned(),
+//!         species: "crab".to_owned(),
+//!         year_of_birth: 2015,
+//!     };
+//!
+//!     let ferris_file = File::create("examples/ferris.cbor")?;
+//!     // Write Ferris to the given file.
+//!     // Instead of a file you can use any type that implements `io::Write`
+//!     // like a HTTP body, database connection etc.
+//!     serde_cbor::to_writer(ferris_file, &ferris)?;
+//!
+//!     let tux_file = File::open("examples/tux.cbor")?;
+//!     // Load Tux from a file.
+//!     // Serde CBOR performs roundtrip serialization meaning that
+//!     // the data will not change in any way.
+//!     let tux: Mascot = serde_cbor::from_reader(tux_file)?;
+//!
+//!     println!("{:?}", tux);
+//!     // prints: Mascot { name: "Tux", species: "penguin", year_of_birth: 1996 }
+//!
+//!     Ok(())
 //! }
 //! ```
 //!
-//! The CBOR encoded object with comments in hexadecimal notation looks like
-//!
-//! ```cbor
-//! a5                                      # map(5)
-//!    69                                   # text(9)
-//!       46697273744e616d65                # "FirstName"
-//!    64                                   # text(4)
-//!       4a6f686e                          # "John"
-//!    68                                   # text(8)
-//!       4c6173744e616d65                  # "LastName"
-//!    63                                   # text(3)
-//!       446f65                            # "Doe"
-//!    63                                   # text(3)
-//!       416765                            # "Age"
-//!    18 2b                                # unsigned(43)
-//!    67                                   # text(7)
-//!       41646472657373                    # "Address"
-//!    a3                                   # map(3)
-//!       66                                # text(6)
-//!          537472656574                   # "Street"
-//!       71                                # text(17)
-//!          446f776e696e6720537472656574203130 # "Downing Street 10"
-//!       64                                # text(4)
-//!          43697479                       # "City"
-//!       66                                # text(6)
-//!          4c6f6e646f6e                   # "London"
-//!       67                                # text(7)
-//!          436f756e747279                 # "Country"
-//!       6d                                # text(13)
-//!          4772656174204272697461696e     # "Great Britain"
-//!    6c                                   # text(12)
-//!       50686f6e654e756d62657273          # "PhoneNumbers"
-//!    82                                   # array(2)
-//!       6b                                # text(11)
-//!          2b34342031323334353637         # "+44 1234567"
-//!       6b                                # text(11)
-//!          2b34342032333435363738         # "+44 2345678"
-//! ```
-//! While the JSON encoding is 174 bytes long the CBOR representation is only 141 bytes long.
-//! This is 19% shorter! Sometimes compression will even better, but never CBOR will be longer
-//! than the corresponding JSON. More importantly CBOR supports binary data, custom data types,
-//! annotations for dates, times and expected encoding and is faster to serialize and deserialize.
-//! It can even be used on embedded devices.
+//! There are a lot of options available to customize the format.
+//! To operate on untyped CBOR values have a look at the `Value` type.
 //!
 //! # Type-based Serialization and Deserialization
 //! Serde provides a mechanism for low boilerplate serialization & deserialization of values to and
