@@ -18,3 +18,4 @@ script:
   - cargo build --no-default-features --target thumbv7em-none-eabihf # Test we can build a platform that does not have std.
   - cargo test --no-default-features --lib --tests # Run no_std tests
   - cargo build --features unsealed_read_write # The crate should still build when the unsealed_read_write feature is enabled.
+  - cargo build --no-default-features --features unsealed_read_write # The crate should still build when the unsealed_read_write feature is enabled and std disabled.
