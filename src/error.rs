@@ -130,6 +130,8 @@ impl Error {
             ErrorCode::Message => Category::Data,
             #[cfg(feature = "std")]
             ErrorCode::Io(_) => Category::Io,
+            #[cfg(not(feature = "std"))]
+            ErrorCode::Io => Category::Io,
             ErrorCode::ScratchTooSmall => Category::Io,
             ErrorCode::EofWhileParsingValue
             | ErrorCode::EofWhileParsingArray
@@ -267,6 +269,9 @@ pub(crate) enum ErrorCode {
     Message,
     #[cfg(feature = "std")]
     Io(io::Error),
+    #[allow(unused)]
+    #[cfg(not(feature = "std"))]
+    Io,
     ScratchTooSmall,
     EofWhileParsingValue,
     EofWhileParsingArray,
@@ -292,6 +297,8 @@ impl fmt::Display for ErrorCode {
             ErrorCode::Message => f.write_str("Unknown error"),
             #[cfg(feature = "std")]
             ErrorCode::Io(ref err) => fmt::Display::fmt(err, f),
+            #[cfg(not(feature = "std"))]
+            ErrorCode::Io => f.write_str("Unknown I/O error"),
             ErrorCode::ScratchTooSmall => f.write_str("Scratch buffer too small"),
             ErrorCode::EofWhileParsingValue => f.write_str("EOF while parsing a value"),
             ErrorCode::EofWhileParsingArray => f.write_str("EOF while parsing an array"),
