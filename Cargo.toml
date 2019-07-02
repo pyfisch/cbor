@@ -1,6 +1,6 @@
 [package]
 name = "serde_cbor"
-version = "0.9.0"
+version = "0.10.0"
 authors = [
     "Pyfisch <pyfisch@gmail.com>",
     "Steven Fackler <sfackler@gmail.com>"]
