@@ -5,7 +5,6 @@ pub use crate::write::IoWrite;
 pub use crate::write::{SliceWrite, Write};
 
 use crate::error::{Error, Result};
-use byteorder::{BigEndian, ByteOrder};
 use half::f16;
 use serde::ser::{self, Serialize};
 #[cfg(feature = "std")]
@@ -123,7 +122,7 @@ where
     #[inline]
     pub fn self_describe(&mut self) -> Result<()> {
         let mut buf = [6 << 5 | 25, 0, 0];
-        BigEndian::write_u16(&mut buf[1..], 55799);
+        (&mut buf[1..]).copy_from_slice(&55799u16.to_be_bytes());
         self.writer.write_all(&buf).map_err(|e| e.into())
     }
 
@@ -150,7 +149,7 @@ where
             self.write_u8(major, value as u8)
         } else {
             let mut buf = [major << 5 | 25, 0, 0];
-            BigEndian::write_u16(&mut buf[1..], value);
+            (&mut buf[1..]).copy_from_slice(&value.to_be_bytes());
             self.writer.write_all(&buf).map_err(|e| e.into())
         }
     }
@@ -161,7 +160,7 @@ where
             self.write_u16(major, value as u16)
         } else {
             let mut buf = [major << 5 | 26, 0, 0, 0, 0];
-            BigEndian::write_u32(&mut buf[1..], value);
+            (&mut buf[1..]).copy_from_slice(&value.to_be_bytes());
             self.writer.write_all(&buf).map_err(|e| e.into())
         }
     }
@@ -172,7 +171,7 @@ where
             self.write_u32(major, value as u32)
         } else {
             let mut buf = [major << 5 | 27, 0, 0, 0, 0, 0, 0, 0, 0];
-            BigEndian::write_u64(&mut buf[1..], value);
+            (&mut buf[1..]).copy_from_slice(&value.to_be_bytes());
             self.writer.write_all(&buf).map_err(|e| e.into())
         }
     }
@@ -316,11 +315,11 @@ where
             self.writer.write_all(&[0xf9, 0x7e, 0x00])
         } else if f32::from(f16::from_f32(value)) == value {
             let mut buf = [0xf9, 0, 0];
-            BigEndian::write_u16(&mut buf[1..], f16::from_f32(value).to_bits());
+            (&mut buf[1..]).copy_from_slice(&f16::from_f32(value).to_bits().to_be_bytes());
             self.writer.write_all(&buf)
         } else {
             let mut buf = [0xfa, 0, 0, 0, 0];
-            BigEndian::write_f32(&mut buf[1..], value);
+            (&mut buf[1..]).copy_from_slice(&value.to_bits().to_be_bytes());
             self.writer.write_all(&buf)
         }
         .map_err(|e| e.into())
@@ -333,7 +332,7 @@ where
             self.serialize_f32(value as f32)
         } else {
             let mut buf = [0xfb, 0, 0, 0, 0, 0, 0, 0, 0];
-            BigEndian::write_f64(&mut buf[1..], value);
+            (&mut buf[1..]).copy_from_slice(&value.to_bits().to_be_bytes());
             self.writer.write_all(&buf).map_err(|e| e.into())
         }
     }
