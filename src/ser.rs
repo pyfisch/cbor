@@ -4,6 +4,9 @@
 pub use crate::write::IoWrite;
 pub use crate::write::{SliceWrite, Write};
 
+#[cfg(not(feature = "std"))]
+pub use crate::write::FmtWriter;
+
 use crate::error::{Error, Result};
 use byteorder::{BigEndian, ByteOrder};
 use half::f16;

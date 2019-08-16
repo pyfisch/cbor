@@ -168,3 +168,33 @@ impl<'a> Write for SliceWrite<'a> {
 
 #[cfg(not(feature = "unsealed_read_write"))]
 impl<'a> private::Sealed for SliceWrite<'a> {}
+
+/// Implements [`Write`](trait.Write.html) for mutable byte slices (`&mut [u8]`).
+///
+/// Returns an error if the value to serialize is too large to fit in the slice.
+#[cfg(not(feature = "std"))]
+#[derive(Debug)]
+pub struct FmtWriter<'a, W: fmt::Write>(&'a mut W);
+
+/// A wrapper for types that implement
+/// [`core::io::Write`](https://doc.rust-lang.org/core/io/trait.Write.html) to implement the local
+/// [`Write`](trait.Write.html) trait.
+#[cfg(not(feature = "std"))]
+impl<'a, W: fmt::Write> FmtWriter<'a, W> {
+    /// Wraps an `fmt::Write` writer to make it compatible with [`Write`](trait.Write.html)
+    pub fn new(w: &'a mut W) -> FmtWriter<'a, W> {
+        FmtWriter(w)
+    }
+}
+
+#[cfg(not(feature = "std"))]
+impl<'a, W: fmt::Write> Write for FmtWriter<'a, W> {
+    type Error = fmt::Error;
+
+    fn write_all(&mut self, buf: &[u8]) -> Result<(), Self::Error> {
+        self.0.write_str(core::str::from_utf8(buf).unwrap())
+    }
+}
+
+#[cfg(all(not(feature = "std"), not(feature = "unsealed_read_write")))]
+impl<'a, W> private::Sealed for FmtWriter<'a, W> where W: fmt::Write {}
