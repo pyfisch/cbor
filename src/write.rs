@@ -192,7 +192,9 @@ impl<'a, W: fmt::Write> Write for FmtWriter<'a, W> {
     type Error = fmt::Error;
 
     fn write_all(&mut self, buf: &[u8]) -> Result<(), Self::Error> {
-        self.0.write_str(core::str::from_utf8(buf).unwrap())
+        // Is safe as internally an &[u8] is needed, but not allowed by the interface
+        self.0
+            .write_str(unsafe { core::str::from_utf8_unchecked(buf) })
     }
 }
 
