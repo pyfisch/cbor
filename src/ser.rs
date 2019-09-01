@@ -183,13 +183,13 @@ where
         if len <= 8 {
             self.write_u64(tag - 2, value as u64)
         } else {
+            let mut buf = [0u8; 2 + 16];
+            BigEndian::write_u128(&mut buf[2..], value);
+            let hdr_offset = 16 - len as usize;
+            buf[hdr_offset] = 6 << 5 | tag;
+            buf[hdr_offset + 1] = 2 << 5 | len as u8;
             self.writer
-                .write_all(&[6 << 5 | tag, 2 << 5 | len as u8])
-                .map_err(|e| e.into())?;
-            let mut buf = [0u8; 16];
-            BigEndian::write_u128(&mut buf, value);
-            self.writer
-                .write_all(&buf[(16 - len) as usize..])
+                .write_all(&buf[hdr_offset..])
                 .map_err(|e| e.into())
         }
     }

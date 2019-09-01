@@ -281,16 +281,16 @@ where
     }
 
     fn try_parse_u128(&mut self) -> Result<Option<u128>> {
-        // ^ Only *try* parse because the value could be a non-u128 byte array.
+        // ^ Only *try* parse because the value could be a non-u128 bytestring.
         let desc = match self.peek()? {
             Some(desc) => desc,
             None => return Ok(None),
         };
         let ty = desc >> 5;
         if ty != 2 {
-            return Ok(None);
+            return Ok(None); // not a bytestring
         }
-        let len = desc & 0x1fu8;
+        let len = desc & 0x1f;
         if len > 16 {
             return Ok(None);
         }
@@ -731,7 +731,7 @@ where
                 Some(value) => visitor.visit_i128(-1 - value as i128),
                 None => self.parse_value(visitor),
             },
-            0xc1 | 0xc4..=0xd7 => self.parse_value(visitor),
+            0xc0 | 0xc1 | 0xc4..=0xd7 => self.parse_value(visitor),
             0xd8 => {
                 self.parse_u8()?;
                 self.parse_value(visitor)
@@ -771,8 +771,7 @@ where
             }
             0xfc..=0xfe => Err(self.error(ErrorCode::UnassignedCode)),
             0xff => Err(self.error(ErrorCode::UnexpectedCode)),
-
-            _ => unreachable!(),
+            _ => unreachable!(), // Remove this once minimum supported rustc version is 1.33.0.
         }
     }
 }
