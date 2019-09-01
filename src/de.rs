@@ -226,6 +226,7 @@ where
     }
 
     /// Turn a CBOR deserializer into an iterator over values of type T.
+    #[allow(clippy::should_implement_trait)] // Trait doesn't allow unconstrained T.
     pub fn into_iter<T>(self) -> StreamDeserializer<'de, R, T>
     where
         T: de::Deserialize<'de>,
@@ -599,7 +600,7 @@ where
             0x3b => {
                 let value = self.parse_u64()?;
                 if value > i64::max_value() as u64 {
-                    return visitor.visit_i128(-1 - value as i128);
+                    return visitor.visit_i128(-1 - i128::from(value));
                 }
                 visitor.visit_i64(-1 - value as i64)
             }
