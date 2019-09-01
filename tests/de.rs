@@ -725,5 +725,4 @@ mod std_tests {
         let deserialized_ip = from_slice::<IpAddr>(&buf).unwrap();
         assert_eq!(ip, deserialized_ip);
     }
-
 }

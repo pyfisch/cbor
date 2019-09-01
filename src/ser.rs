@@ -61,7 +61,7 @@ where
     #[inline]
     pub fn new(writer: W) -> Self {
         Serializer {
-            writer: writer,
+            writer,
             packed: false,
             enum_as_map: true,
         }
@@ -263,12 +263,12 @@ where
     #[inline]
     fn serialize_i128(self, value: i128) -> Result<()> {
         if value < 0 {
-            if -(value + 1) > u64::max_value() as i128 {
+            if -(value + 1) > i128::from(u64::max_value()) {
                 return Err(Error::message("The number can't be stored in CBOR"));
             }
             self.write_u64(1, -(value + 1) as u64)
         } else {
-            if value > u64::max_value() as i128 {
+            if value > i128::from(u64::max_value()) {
                 return Err(Error::message("The number can't be stored in CBOR"));
             }
             self.write_u64(0, value as u64)
@@ -297,7 +297,7 @@ where
 
     #[inline]
     fn serialize_u128(self, value: u128) -> Result<()> {
-        if value > u64::max_value() as u128 {
+        if value > u128::from(u64::max_value()) {
             return Err(Error::message("The number can't be stored in CBOR"));
         }
         self.write_u64(0, value as u64)
