@@ -183,10 +183,14 @@ where
         if len <= 8 {
             self.write_u64(tag - 2, value as u64)
         } else {
-            self.writer.write_all(&[6 << 5 | tag, 2 << 5 | len as u8]).map_err(|e| e.into())?;
+            self.writer
+                .write_all(&[6 << 5 | tag, 2 << 5 | len as u8])
+                .map_err(|e| e.into())?;
             let mut buf = [0u8; 16];
             BigEndian::write_u128(&mut buf, value);
-            self.writer.write_all(&buf[(16 - len) as usize..]).map_err(|e| e.into())
+            self.writer
+                .write_all(&buf[(16 - len) as usize..])
+                .map_err(|e| e.into())
         }
     }
 
