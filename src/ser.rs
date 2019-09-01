@@ -178,6 +178,19 @@ where
     }
 
     #[inline]
+    fn write_u128(&mut self, tag: u8, value: u128) -> Result<()> {
+        let len = 16 - (value.leading_zeros() >> 3);
+        if len <= 8 {
+            self.write_u64(tag - 2, value as u64)
+        } else {
+            self.writer.write_all(&[6 << 5 | tag, 2 << 5 | len as u8]).map_err(|e| e.into())?;
+            let mut buf = [0u8; 16];
+            BigEndian::write_u128(&mut buf, value);
+            self.writer.write_all(&buf[(16 - len) as usize..]).map_err(|e| e.into())
+        }
+    }
+
+    #[inline]
     fn serialize_collection<'a>(
         &'a mut self,
         major: u8,
@@ -263,15 +276,9 @@ where
     #[inline]
     fn serialize_i128(self, value: i128) -> Result<()> {
         if value < 0 {
-            if -(value + 1) > i128::from(u64::max_value()) {
-                return Err(Error::message("The number can't be stored in CBOR"));
-            }
-            self.write_u64(1, -(value + 1) as u64)
+            self.write_u128(3, -(value + 1) as u128)
         } else {
-            if value > i128::from(u64::max_value()) {
-                return Err(Error::message("The number can't be stored in CBOR"));
-            }
-            self.write_u64(0, value as u64)
+            self.write_u128(2, value as u128)
         }
     }
 
@@ -297,10 +304,7 @@ where
 
     #[inline]
     fn serialize_u128(self, value: u128) -> Result<()> {
-        if value > u128::from(u64::max_value()) {
-            return Err(Error::message("The number can't be stored in CBOR"));
-        }
-        self.write_u64(0, value as u64)
+        self.write_u128(2, value)
     }
 
     #[inline]

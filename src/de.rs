@@ -280,6 +280,26 @@ where
         Ok(BigEndian::read_u64(&buf))
     }
 
+    fn try_parse_u128(&mut self) -> Result<Option<u128>> {
+        // ^ Only *try* parse because the value could be a non-u128 byte array.
+        let desc = match self.peek()? {
+            Some(desc) => desc,
+            None => return Ok(None),
+        };
+        let ty = desc >> 5;
+        if ty != 2 {
+            return Ok(None);
+        }
+        let len = desc & 0x1fu8;
+        if len > 16 {
+            return Ok(None);
+        }
+        self.read.discard();
+        let mut buf = [0; 16];
+        self.read.read_into(&mut buf[usize::from(16 - len)..])?;
+        Ok(Some(BigEndian::read_u128(&buf)))
+    }
+
     fn parse_bytes<V>(&mut self, len: usize, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
@@ -703,7 +723,15 @@ where
             0xbf => self.parse_indefinite_map(visitor),
 
             // Major type 6: optional semantic tagging of other major types
-            0xc0..=0xd7 => self.parse_value(visitor),
+            0xc2 => match self.try_parse_u128()? {
+                Some(value) => visitor.visit_u128(value),
+                None => self.parse_value(visitor),
+            },
+            0xc3 => match self.try_parse_u128()? {
+                Some(value) => visitor.visit_i128(-1 - value as i128),
+                None => self.parse_value(visitor),
+            },
+            0xc1 | 0xc4..=0xd7 => self.parse_value(visitor),
             0xd8 => {
                 self.parse_u8()?;
                 self.parse_value(visitor)

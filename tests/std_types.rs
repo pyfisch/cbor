@@ -182,5 +182,23 @@ mod std_tests {
         -18446744073709551616i128,
         "3BFFFFFFFFFFFFFFFF"
     );
-    testcase!(test_u128, u128, 17, "11");
+    testcase!(
+        test_i128_c,
+        i128,
+        -18446744073709551617i128,
+        "C349010000000000000000"
+    );
+    testcase!(test_u128_a, u128, 17, "11");
+    testcase!(
+        test_u128_b,
+        u128,
+        u128::max_value(),
+        "C250FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+    );
+    testcase!(
+        test_u128_c,
+        u128,
+        u128::from(u64::max_value()),
+        "1BFFFFFFFFFFFFFFFF"
+    );
 }
