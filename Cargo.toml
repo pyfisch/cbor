@@ -26,5 +26,8 @@ serde_derive = { version = "1.0.14", default-features = false }
 
 [features]
 default = ["std"]
+# Uses `alloc` library and adds support for vector functions with
+# `no_std`.
+alloc = ["serde/alloc"]
 std = ["serde/std" ]
 unsealed_read_write = []

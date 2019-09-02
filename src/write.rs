@@ -1,3 +1,5 @@
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 #[cfg(not(feature = "std"))]
 use core::fmt;
 #[cfg(feature = "std")]
@@ -90,17 +92,20 @@ impl<W: io::Write> Write for IoWrite<W> {
 #[cfg(all(feature = "std", not(feature = "unsealed_read_write")))]
 impl<W> private::Sealed for IoWrite<W> where W: io::Write {}
 
-// TODO this should be possible with just alloc
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "alloc"))]
 impl Write for Vec<u8> {
-    type Error = io::Error;
+    type Error = error::Error;
 
     fn write_all(&mut self, buf: &[u8]) -> Result<(), Self::Error> {
-        io::Write::write_all(self, buf)
+        self.extend_from_slice(buf);
+        Ok(())
     }
 }
 
-#[cfg(all(feature = "std", not(feature = "unsealed_read_write")))]
+#[cfg(all(
+    any(feature = "std", feature = "alloc"),
+    not(feature = "unsealed_read_write")
+))]
 impl private::Sealed for Vec<u8> {}
 
 #[cfg(not(feature = "std"))]

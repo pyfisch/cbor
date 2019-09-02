@@ -142,13 +142,19 @@
 //! serde_cbor = { version = "0.10", default-features = false }
 //! ```
 //!
+//! Without the `std` feature the functions [from_reader], [from_slice], [to_vec], and [to_writer]
+//! are not exported. To export [from_slice] and [to_vec] enable the `alloc` feature. The `alloc`
+//! feature uses the [`alloc` library][alloc-lib] and requires at least version 1.36.0 of Rust.
+//!
+//! [alloc-lib]: https://doc.rust-lang.org/alloc/
+//!
 //! *Note*: to use derive macros in serde you will need to declare `serde`
 //! dependency like so:
 //! ``` toml
 //! serde = { version = "1.0", default-features = false, features = ["derive"] }
 //! ```
 //!
-//! Serialize an object.
+//! Serialize an object with `no_std` and without `alloc`.
 //! ``` rust
 //! # #[macro_use] extern crate serde_derive;
 //! # fn main() -> Result<(), serde_cbor::Error> {
@@ -258,6 +264,9 @@
 #[cfg(all(not(feature = "std"), test))]
 extern crate std;
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 pub mod de;
 pub mod error;
 mod read;
@@ -270,18 +279,31 @@ pub mod value;
 // Re-export the [items recommended by serde](https://serde.rs/conventions.html).
 #[doc(inline)]
 pub use crate::de::{Deserializer, StreamDeserializer};
+
 #[doc(inline)]
 pub use crate::error::{Error, Result};
+
 #[doc(inline)]
 pub use crate::ser::Serializer;
+
 // Convenience functions for serialization and deserialization.
 // These functions are only available in `std` mode.
 #[cfg(feature = "std")]
 #[doc(inline)]
-pub use crate::de::{from_reader, from_slice};
+pub use crate::de::from_reader;
+
+#[cfg(any(feature = "std", feature = "alloc"))]
+#[doc(inline)]
+pub use crate::de::from_slice;
+
+#[cfg(any(feature = "std", feature = "alloc"))]
+#[doc(inline)]
+pub use crate::ser::to_vec;
+
 #[cfg(feature = "std")]
 #[doc(inline)]
-pub use crate::ser::{to_vec, to_writer};
+pub use crate::ser::to_writer;
+
 // Re-export the value type like serde_json
 #[cfg(feature = "std")]
 #[doc(inline)]
