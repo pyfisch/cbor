@@ -280,7 +280,7 @@ where
         Ok(BigEndian::read_u64(&buf))
     }
 
-    fn parse_bigint<V>(&mut self, visitor: V, signed: bool) -> Result<V::Value>
+    fn parse_bigint<V>(&mut self, signed: bool, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
@@ -890,7 +890,7 @@ where
         match self.peek()? {
             Some(tag @ 0xc2..=0xc3) => {
                 self.consume();
-                self.parse_bigint(visitor, tag == 0xc3 /* signed */)
+                self.parse_bigint(tag == 0xc3 /* signed */, visitor)
             }
             _ => self.parse_value(visitor),
         }
