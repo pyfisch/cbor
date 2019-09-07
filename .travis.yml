@@ -13,6 +13,7 @@ before_script:
   - rustup target add thumbv7em-none-eabihf     # Any target that does not have a standard library will do
 script:
   - cargo fmt --all -- --check
+  - (rustup component add clippy && cargo clippy --all --all-features -- -D clippy::all) || true
   - cargo build
   - cargo test
   - cargo build --no-default-features --target thumbv7em-none-eabihf # Test we can build a platform that does not have std.
