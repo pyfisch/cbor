@@ -14,6 +14,14 @@ use serde::ser::{self, Serialize};
 #[cfg(feature = "std")]
 use std::io;
 
+#[cfg(feature = "tags")]
+use crate::tags::TagStructSerializer;
+#[cfg(feature = "tags")]
+use crate::CBOR_TAG_STRUCT_NAME;
+
+#[cfg(feature = "tags")]
+const MAJOR_TYPE_TAG: u8 = 6;
+
 /// Serializes a value to a vector.
 #[cfg(any(feature = "std", feature = "alloc"))]
 pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
@@ -178,6 +186,12 @@ where
             BigEndian::write_u64(&mut buf[1..], value);
             self.writer.write_all(&buf).map_err(|e| e.into())
         }
+    }
+
+    #[cfg(feature = "tags")]
+    #[inline]
+    pub(super) fn write_tag(&mut self, tag: u64) -> Result<()> {
+        self.write_u64(MAJOR_TYPE_TAG, tag)
     }
 
     #[inline]
@@ -399,6 +413,23 @@ where
         }
     }
 
+    #[cfg(feature = "tags")]
+    #[inline]
+    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<()>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        if name == CBOR_TAG_STRUCT_NAME {
+            // The value is a struct that gets forwarded to the `TagStructSerializer`
+            let mut tag_ser = TagStructSerializer::new(self);
+            value.serialize(&mut tag_ser)?;
+            return Ok(());
+        }
+
+        value.serialize(self)
+    }
+
+    #[cfg(not(feature = "tags"))]
     #[inline]
     fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
     where

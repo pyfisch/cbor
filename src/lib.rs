@@ -241,7 +241,8 @@
 //!
 //! * [Tags] are ignored during deserialization and can't be emitted during
 //!     serialization. This is because Serde has no concept of tagged
-//!     values. See:&nbsp;[#3]
+//!     values. See:&nbsp;[#3]. Support for tags can be enabled with the
+//!     `tags` feature flag.
 //! * Unknown [simple values] cause an `UnassignedCode` error.
 //!     The simple values *False* and *True* are recognized and parsed as bool.
 //!     *Null* and *Undefined* are both deserialized as *unit*.
@@ -276,6 +277,9 @@ mod write;
 #[cfg(feature = "std")]
 pub mod value;
 
+#[cfg(feature = "tags")]
+pub mod tags;
+
 // Re-export the [items recommended by serde](https://serde.rs/conventions.html).
 #[doc(inline)]
 pub use crate::de::{Deserializer, StreamDeserializer};
@@ -308,3 +312,26 @@ pub use crate::ser::to_writer;
 #[cfg(feature = "std")]
 #[doc(inline)]
 pub use crate::value::Value;
+
+/// Name of Serde newtype struct to Represent CBOR tags
+/// CBOR Tag: Tag(tag, value)
+/// Serde data model: _TagStruct((tag, binary))
+/// Example Serde impl for custom type:
+///
+/// ```
+/// use serde_cbor::value::Value;
+/// use serde_cbor::{from_slice, to_vec};
+/// use serde_derive::{Deserialize, Serialize};
+///
+/// #[derive(Debug, PartialEq, Serialize, Deserialize)]
+/// #[serde(rename = "_TagStruct")]
+/// struct Cid((u64, Value));
+///
+/// let tag = Cid((42,  Value::Bytes(vec![1, 2, 3])));
+/// let tag_encoded = to_vec(&tag).unwrap();
+/// assert_eq!(tag_encoded,  [0xd8, 0x2a, 0x43, 0x01, 0x02, 0x03]);
+/// let tag_decoded = from_slice::<Value>(&tag_encoded).unwrap();
+/// assert_eq!(tag_decoded, Value::Tag(42, Box::new(Value::Bytes(vec![1, 2, 3]))));
+/// ```
+#[cfg(feature = "tags")]
+pub const CBOR_TAG_STRUCT_NAME: &'static str = "_TagStruct";

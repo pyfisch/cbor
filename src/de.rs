@@ -21,6 +21,24 @@ use crate::read::Offset;
 #[cfg(any(feature = "std", feature = "alloc"))]
 pub use crate::read::SliceRead;
 pub use crate::read::{MutSliceRead, Read, SliceReadFixed};
+#[cfg(feature = "tags")]
+use crate::tags::TagDeserializer;
+
+/// CBOR tags can be stored with different bit widths
+#[derive(Clone, Copy, Debug)]
+pub enum TagType {
+    /// CBOR tags < 24 are stored inline with the tag identifier
+    Inline(u8),
+    /// 1 byte CBOR tag
+    U8,
+    /// 2 bytes CBOR tag
+    U16,
+    /// 4 bytes CBOR tag
+    U32,
+    /// 8 bytes CBOR tag
+    U64,
+}
+
 /// Decodes a value from CBOR data in a slice.
 ///
 /// # Examples
@@ -558,7 +576,7 @@ where
     // Don't warn about the `unreachable!` in case
     // exhaustive integer pattern matching is enabled.
     #[allow(unreachable_patterns)]
-    fn parse_value<V>(&mut self, visitor: V) -> Result<V::Value>
+    pub(super) fn parse_value<V>(&mut self, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
@@ -704,23 +722,11 @@ where
             0xbf => self.parse_indefinite_map(visitor),
 
             // Major type 6: optional semantic tagging of other major types
-            0xc0..=0xd7 => self.parse_value(visitor),
-            0xd8 => {
-                self.parse_u8()?;
-                self.parse_value(visitor)
-            }
-            0xd9 => {
-                self.parse_u16()?;
-                self.parse_value(visitor)
-            }
-            0xda => {
-                self.parse_u32()?;
-                self.parse_value(visitor)
-            }
-            0xdb => {
-                self.parse_u64()?;
-                self.parse_value(visitor)
-            }
+            val @ 0xc0..=0xd7 => self.parse_tag(TagType::Inline(val), visitor),
+            0xd8 => self.parse_tag(TagType::U8, visitor),
+            0xd9 => self.parse_tag(TagType::U16, visitor),
+            0xda => self.parse_tag(TagType::U32, visitor),
+            0xdb => self.parse_tag(TagType::U64, visitor),
             0xdc..=0xdf => Err(self.error(ErrorCode::UnassignedCode)),
 
             // Major type 7: floating-point numbers and other simple data types that need no content
@@ -747,6 +753,38 @@ where
 
             _ => unreachable!(),
         }
+    }
+
+    /// Return the parsed tag as u64
+    pub(super) fn parse_tag_by_type(&mut self, tag_type: TagType) -> Result<u64> {
+        let tag = match tag_type {
+            TagType::U8 => self.parse_u8()? as u64,
+            TagType::U16 => self.parse_u16()? as u64,
+            TagType::U32 => self.parse_u32()? as u64,
+            TagType::U64 => self.parse_u64()? as u64,
+            TagType::Inline(tag) => (tag - 0xc0) as u64,
+        };
+        Ok(tag)
+    }
+
+    #[cfg(feature = "tags")]
+    fn parse_tag<V>(&mut self, tag_type: TagType, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        let tag_de = TagDeserializer::new(self, tag_type);
+        visitor.visit_newtype_struct(tag_de)
+    }
+
+    #[cfg(not(feature = "tags"))]
+    fn parse_tag<V>(&mut self, tag_type: TagType, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        // Skip the tag with parsing it without producing any output
+        let _tag = self.parse_tag_by_type(tag_type)?;
+        // And parse the value only
+        self.parse_value(visitor)
     }
 }
 

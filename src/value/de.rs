@@ -134,6 +134,39 @@ impl<'de> de::Deserialize<'de> for Value {
             {
                 Ok(Value::Float(v))
             }
+
+            #[cfg(feature = "tags")]
+            #[inline]
+            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct TagValueVisitor;
+                impl<'de> serde::de::Visitor<'de> for TagValueVisitor {
+                    type Value = Value;
+
+                    fn expecting(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+                        fmt.write_str("any valid CBOR tag")
+                    }
+
+                    #[inline]
+                    fn visit_seq<V>(self, mut seq: V) -> Result<Value, V::Error>
+                    where
+                        V: de::SeqAccess<'de>,
+                    {
+                        let tag = seq
+                            .next_element()?
+                            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                        let value = seq
+                            .next_element()?
+                            .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+
+                        Ok(Value::Tag(tag, Box::new(value)))
+                    }
+                }
+
+                deserializer.deserialize_tuple(2, TagValueVisitor)
+            }
         }
 
         deserializer.deserialize_any(ValueVisitor)

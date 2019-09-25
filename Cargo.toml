@@ -23,6 +23,7 @@ serde = { version = "1.0.14", default-features = false }
 
 [dev-dependencies]
 serde_derive = { version = "1.0.14", default-features = false }
+serde_bytes = "0.11.2"
 
 [features]
 default = ["std"]
@@ -31,3 +32,4 @@ default = ["std"]
 alloc = ["serde/alloc"]
 std = ["serde/std" ]
 unsealed_read_write = []
+tags = []

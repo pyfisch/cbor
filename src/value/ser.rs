@@ -13,6 +13,9 @@ use serde::{self, Serialize};
 
 use crate::value::Value;
 
+#[cfg(feature = "tags")]
+use crate::CBOR_TAG_STRUCT_NAME;
+
 impl serde::Serialize for Value {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -28,6 +31,10 @@ impl serde::Serialize for Value {
             Value::Float(v) => serializer.serialize_f64(v),
             Value::Bool(v) => serializer.serialize_bool(v),
             Value::Null => serializer.serialize_unit(),
+            #[cfg(feature = "tags")]
+            Value::Tag(ref tag, ref v) => {
+                serializer.serialize_newtype_struct(CBOR_TAG_STRUCT_NAME, &(tag, v))
+            }
             Value::__Hidden => unreachable!(),
         }
     }

@@ -21,3 +21,4 @@ script:
   - [[ $TRAVIS_RUST_VERSION != "1.31.0" ]] && cargo build --no-default-features --features alloc
   - cargo build --features unsealed_read_write # The crate should still build when the unsealed_read_write feature is enabled.
   - cargo build --no-default-features --features unsealed_read_write # The crate should still build when the unsealed_read_write feature is enabled and std disabled.
+  - cargo test --features tags # Run tags tests

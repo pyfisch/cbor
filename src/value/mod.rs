@@ -51,6 +51,9 @@ pub enum Value {
     /// to establish canonical order may be slow and therefore insertion
     /// and retrieval of values will be slow too.
     Map(BTreeMap<Value, Value>),
+    /// CBOR Tags
+    #[cfg(feature = "tags")]
+    Tag(u64, Box<Value>),
     // The hidden variant allows the enum to be extended
     // with variants for tags and simple values.
     #[doc(hidden)]
@@ -147,6 +150,8 @@ impl Value {
             Text(_) => 3,
             Array(_) => 4,
             Map(_) => 5,
+            #[cfg(feature = "tags")]
+            Tag(_, _) => 6,
             __Hidden => unreachable!(),
         }
     }
