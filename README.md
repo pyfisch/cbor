@@ -4,7 +4,7 @@
 [![Documentation](https://docs.rs/serde_cbor/badge.svg)](https://docs.rs/serde_cbor)
 
 This crate implements the Concise Binary Object Representation from [RFC 7049].
-It builds on [Serde] the generic serialization  framework for Rust.
+It builds on [Serde], the generic serialization framework for Rust.
 CBOR provides a binary encoding for a superset
 of the JSON data model that is small and very fast to parse.
 
