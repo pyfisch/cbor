@@ -725,4 +725,15 @@ mod std_tests {
         let deserialized_ip = from_slice::<IpAddr>(&buf).unwrap();
         assert_eq!(ip, deserialized_ip);
     }
+
+    #[test]
+    fn attempt_stack_overflow() {
+        // Create a tag 17, followed by 999 more tag 17:
+        // 17(17(17(17(17(17(17(17(17(17(17(17(17(17(17(17(17(17(...
+        // This causes deep recursion in the decoder and may
+        // exhaust the stack and therfore result in a stack overflow.
+        let input = vec![0xd1; 1000];
+        let err = serde_cbor::from_slice::<serde_cbor::Value>(&input).expect_err("recursion limit");
+        assert!(err.is_syntax());
+    }
 }
