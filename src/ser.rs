@@ -508,7 +508,166 @@ where
         self.serialize_struct(name, len)
     }
 
+    fn serialize_tagged_value<T, U>(
+        mut self,
+        format: &'static str,
+        tag: &U,
+        value: &T,
+    ) -> Result<()>
+    where
+        T: ?Sized + ser::Serialize,
+        U: ?Sized + ser::Serialize,
+    {
+        if format == "cbor" {
+            tag.serialize(TagSerializer { ser: &mut self })?
+        }
+        value.serialize(self)
+    }
+
     #[inline]
+    fn is_human_readable(&self) -> bool {
+        false
+    }
+}
+
+struct TagSerializer<'a, W> {
+    ser: &'a mut Serializer<W>,
+}
+
+impl<W> ser::Serializer for TagSerializer<'_, W>
+where
+    W: Write,
+{
+    type Ok = ();
+    type Error = Error;
+    type SerializeSeq = serde::ser::Impossible<(), Error>;
+    type SerializeTuple = serde::ser::Impossible<(), Error>;
+    type SerializeTupleStruct = serde::ser::Impossible<(), Error>;
+    type SerializeTupleVariant = serde::ser::Impossible<(), Error>;
+    type SerializeMap = serde::ser::Impossible<(), Error>;
+    type SerializeStruct = serde::ser::Impossible<(), Error>;
+    type SerializeStructVariant = serde::ser::Impossible<(), Error>;
+    fn serialize_bool(self, _v: bool) -> Result<()> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_i8(self, _v: i8) -> Result<()> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_i16(self, _v: i16) -> Result<()> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_i32(self, _v: i32) -> Result<()> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_i64(self, _v: i64) -> Result<()> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_u8(self, v: u8) -> Result<()> {
+        self.ser.write_u8(6, v)
+    }
+    fn serialize_u16(self, v: u16) -> Result<()> {
+        self.ser.write_u16(6, v)
+    }
+    fn serialize_u32(self, v: u32) -> Result<()> {
+        self.ser.write_u32(6, v)
+    }
+    fn serialize_u64(self, v: u64) -> Result<()> {
+        self.ser.write_u64(6, v)
+    }
+    fn serialize_f32(self, _v: f32) -> Result<()> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_f64(self, _v: f64) -> Result<()> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_char(self, _v: char) -> Result<()> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_str(self, _v: &str) -> Result<()> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_bytes(self, _v: &[u8]) -> Result<()> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_none(self) -> Result<()> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_some<T: ?Sized>(self, _value: &T) -> Result<()>
+    where
+        T: Serialize,
+    {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_unit(self) -> Result<()> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_unit_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+    ) -> Result<()> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, _value: &T) -> Result<()>
+    where
+        T: Serialize,
+    {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_newtype_variant<T: ?Sized>(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _value: &T,
+    ) -> Result<()>
+    where
+        T: Serialize,
+    {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_tuple_struct(
+        self,
+        _name: &'static str,
+        _len: usize,
+    ) -> Result<Self::SerializeTupleStruct> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_tuple_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _len: usize,
+    ) -> Result<Self::SerializeTupleVariant> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
+        Err(Error::only_integer_tags())
+    }
+    fn serialize_struct_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _len: usize,
+    ) -> Result<Self::SerializeStructVariant> {
+        Err(Error::only_integer_tags())
+    }
+
     fn is_human_readable(&self) -> bool {
         false
     }

@@ -111,6 +111,10 @@ impl Error {
         }
     }
 
+    pub(crate) fn only_integer_tags() -> Error {
+        Error::message("A CBOR tag must be an unsigned integer.")
+    }
+
     #[cfg(feature = "unsealed_read_write")]
     /// Creates an error signalling that the underlying read
     /// encountered an end of input.

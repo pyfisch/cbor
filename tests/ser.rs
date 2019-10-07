@@ -251,4 +251,14 @@ mod std_tests {
         assert_eq!(vec, b"\xF9\x51\x50");
         assert_eq!(from_slice::<f32>(&vec[..]).unwrap(), 42.5f32);
     }
+
+    #[test]
+    fn test_tagged_value() {
+        let mut buf = Vec::new();
+        let mut ser = serde_cbor::Serializer::new(&mut buf);
+        assert!(ser
+            .serialize_tagged_value("cbor", &32u64, "http://example.org/")
+            .is_ok());
+        assert_eq!(&buf, b"\xd8\x20\x73http://example.org/");
+    }
 }
