@@ -264,6 +264,16 @@ where
 }
 
 #[cfg(feature = "std")]
+impl<R> Offset for IoRead<R>
+where
+    R: std::io::Read,
+{
+    fn byte_offset(&self) -> usize {
+        self.offset() as usize
+    }
+}
+
+#[cfg(feature = "std")]
 #[derive(Debug)]
 struct OffsetReader<R> {
     reader: R,
@@ -501,6 +511,14 @@ impl<'a, 'b> Read<'a> for SliceReadFixed<'a, 'b> {
 
     fn offset(&self) -> u64 {
         self.index as u64
+    }
+}
+
+#[cfg(any(feature = "std", feature = "alloc"))]
+impl<'a, 'b> Offset for SliceReadFixed<'a, 'b> {
+    #[inline]
+    fn byte_offset(&self) -> usize {
+        self.index
     }
 }
 
