@@ -68,13 +68,13 @@
 //! as string keys to a map. Especially in embedded environments this can increase the file
 //! size too much. In packed encoding the keys and variants will be serialized as variable sized
 //! integers. The first 24 entries in any struct consume only a single byte!
-//! To serialize a document in packed encoding use `ser::to_(vec|writer)_packed`, deserialization
-//! works without any changes.
+//! To serialize a document in this format use `Serializer::new(writer).packed_format()` or
+//! the shorthand `ser::to_vec_packed`. The deserialization works without any changes.
 //!
 //! # Self describing documents
 //! In some contexts different formats are used but there is no way to declare the format used
 //! out of band. For this reason CBOR has a magic number that may be added before any document.
-//! The *`_sd` (for *s*elf*d*escribe) append the magic number before documents.
+//! Self describing documents are created with `serializer.self_describe()`.
 //!
 //! # Examples
 //! Read a CBOR value that is known to be a map of string keys to string values and print it.
