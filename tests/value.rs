@@ -39,7 +39,7 @@ mod std_tests {
                 (format!("key3"), format!("value3")),
                 (format!("key4"), format!("value4")),
             ]
-            .into_iter()
+            .iter()
             .cloned(),
         );
 

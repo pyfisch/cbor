@@ -22,7 +22,7 @@ mod std_tests {
             -65537,
             -4294967296,
         ]
-        .into_iter()
+        .iter()
         .map(|i| Value::Integer(*i))
         .collect::<Vec<_>>();
 
@@ -35,7 +35,7 @@ mod std_tests {
     #[test]
     fn string_canonical_sort_order() {
         let expected = ["", "a", "b", "aa"]
-            .into_iter()
+            .iter()
             .map(|s| Value::Text(s.to_string()))
             .collect::<Vec<_>>();
 
