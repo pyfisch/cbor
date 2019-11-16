@@ -30,7 +30,7 @@ impl serde::Serialize for Value {
             Value::Tag(tag, ref v) => {
                 crate::tagstore::set_tag(Some(tag));
                 serializer.serialize_newtype_struct("__cbor_tag", v)
-            },
+            }
             Value::Null => serializer.serialize_unit(),
             Value::__Hidden => unreachable!(),
         }
