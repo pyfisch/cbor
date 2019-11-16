@@ -1,14 +1,16 @@
 use std::cell::RefCell;
 
-/// basically serialize_newtype_struct with a cbor tag value
-pub fn serialize_cbor_tagged<S: serde::ser::Serializer, T: serde::ser::Serialize>(
-    serializer: S,
-    tag: u64,
-    value: &T,
-) -> std::result::Result<S::Ok, S::Error> {
-    set_tag(Some(tag));
-    serializer.serialize_newtype_struct("__cbor_tag", value)
+/// extensions for all serde serializers
+pub trait SerializerExt: serde::ser::Serializer {
+
+    /// basically serialize_newtype_struct with a cbor tag value
+    fn serialize_cbor_tagged<T: serde::ser::Serialize>(self, tag: u64, value: &T) -> std::result::Result<Self::Ok, Self::Error> {
+        set_tag(Some(tag));
+        self.serialize_newtype_struct("__cbor_tag", value)
+    }
 }
+
+impl<S: serde::ser::Serializer> SerializerExt for S {}
 
 thread_local!(static CBOR_TAG: RefCell<Option<u64>> = RefCell::new(None));
 

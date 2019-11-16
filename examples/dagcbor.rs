@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fs::File;
 use std::io::Cursor;
 use serde::ser::{Serialize, Serializer};
-use serde_cbor::{Value, serialize_cbor_tagged};
+use serde_cbor::{Value, SerializerExt};
 
 #[derive(Debug, PartialEq)]
 struct Cid(Vec<u8>);
@@ -12,8 +12,7 @@ impl Serialize for Cid {
     where
         S: Serializer,
     {
-        // we could get this infix, but not sure if it is worth it...
-        serialize_cbor_tagged(s, 42, &self.0)
+        s.serialize_cbor_tagged(42, &self.0)
     }
 }
 
