@@ -308,3 +308,24 @@ pub use crate::ser::to_writer;
 #[cfg(feature = "std")]
 #[doc(inline)]
 pub use crate::value::Value;
+
+mod tagstore {
+    use std::cell::RefCell;
+
+    thread_local!(static CBOR_TAG: RefCell<Option<u64>> = RefCell::new(None));
+
+    pub fn set_tag(value: Option<u64>) {
+        CBOR_TAG.with(|f| {
+            *f.borrow_mut() = value;
+        });
+    }
+
+    pub fn get_tag() -> Option<u64> {
+        CBOR_TAG.with(|f| {
+            let mut b = f.borrow_mut();
+            let r = *b;
+            *b = None;
+            r
+        })
+    }
+}

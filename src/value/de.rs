@@ -134,6 +134,18 @@ impl<'de> de::Deserialize<'de> for Value {
             {
                 Ok(Value::Float(v))
             }
+
+            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                let tag = crate::tagstore::get_tag();
+                let result = deserializer.deserialize_any(self);
+                result.map(|x| match tag {
+                    Some(tag) => Value::Tag(tag, Box::new(x)),
+                    None => x,
+                })
+            }
         }
 
         deserializer.deserialize_any(ValueVisitor)

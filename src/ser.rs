@@ -404,6 +404,9 @@ where
     where
         T: ?Sized + ser::Serialize,
     {
+        for tag in crate::tagstore::get_tag().into_iter() {
+            self.write_u64(6, tag)?;
+        }
         value.serialize(self)
     }
 
