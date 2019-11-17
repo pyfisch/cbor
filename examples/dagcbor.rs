@@ -1,8 +1,8 @@
+use serde::ser::{Serialize, Serializer};
+use serde_cbor::{SerializerExt, Value};
 use std::error::Error;
 use std::fs::File;
 use std::io::Cursor;
-use serde::ser::{Serialize, Serializer};
-use serde_cbor::{Value, SerializerExt};
 
 #[derive(Debug, PartialEq)]
 struct Cid(Vec<u8>);
@@ -26,7 +26,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let bytes1 = serde_cbor::to_vec(&Value::Tag(42, Box::new(Value::Bytes(Vec::new()))))?;
     // let bytes = serde_cbor::to_vec(&Value::Null)?;
     println!("{:?}", bytes1);
-
 
     let bytes2 = serde_cbor::to_vec(&Cid(Vec::new()))?;
     println!("{:?}", bytes2);

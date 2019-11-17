@@ -3,6 +3,7 @@
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
+use crate::tagstore::{get_tag, CBOR_NEWTYPE_NAME};
 #[cfg(feature = "std")]
 pub use crate::write::IoWrite;
 pub use crate::write::{SliceWrite, Write};
@@ -400,12 +401,14 @@ where
     }
 
     #[inline]
-    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
+    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + ser::Serialize,
     {
-        for tag in crate::tagstore::get_tag().into_iter() {
-            self.write_u64(6, tag)?;
+        if name == CBOR_NEWTYPE_NAME {
+            for tag in get_tag().into_iter() {
+                self.write_u64(6, tag)?;
+            }
         }
         value.serialize(self)
     }

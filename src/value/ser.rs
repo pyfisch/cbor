@@ -9,6 +9,7 @@
 use std::collections::BTreeMap;
 
 use crate::error::Error;
+use crate::tagstore::{set_tag, CBOR_NEWTYPE_NAME};
 use serde::{self, Serialize};
 
 use crate::value::Value;
@@ -28,8 +29,10 @@ impl serde::Serialize for Value {
             Value::Float(v) => serializer.serialize_f64(v),
             Value::Bool(v) => serializer.serialize_bool(v),
             Value::Tag(tag, ref v) => {
-                crate::tagstore::set_tag(Some(tag));
-                serializer.serialize_newtype_struct("__cbor_tag", v)
+                set_tag(Some(tag));
+                let res = serializer.serialize_newtype_struct(CBOR_NEWTYPE_NAME, v);
+                set_tag(None);
+                res
             }
             Value::Null => serializer.serialize_unit(),
             Value::__Hidden => unreachable!(),
