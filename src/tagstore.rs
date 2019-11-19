@@ -28,7 +28,7 @@ pub trait DeserializerExt<'de>: Deserializer<'de> {
         match tag_access::get_tag() {
             Some(t) if t == tag => Ok(()),
             Some(_) => Err(Self::Error::custom("unexpected cbor tag")),
-            None => Err(Self::Error::custom("missing cbor tag")),
+            None => Err(Self::Error::custom("missing cbor tag!")),
         }
     }
 }
