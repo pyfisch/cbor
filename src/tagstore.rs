@@ -1,9 +1,13 @@
+use serde::de::{Deserializer, Error};
+use serde::ser::{Serialize, Serializer};
+
+/// signals that a newtype is from a CBOR tag
 pub const CBOR_NEWTYPE_NAME: &str = "__cbor_tag";
 
 /// extensions for all serde serializers
-pub trait SerializerExt: serde::ser::Serializer {
+pub trait SerializerExt: Serializer {
     /// basically serialize_newtype_struct with a cbor tag value
-    fn serialize_cbor_tagged<T: serde::ser::Serialize>(
+    fn serialize_cbor_tagged<T: Serialize>(
         self,
         tag: u64,
         value: &T,
@@ -15,7 +19,21 @@ pub trait SerializerExt: serde::ser::Serializer {
     }
 }
 
-impl<S: serde::ser::Serializer> SerializerExt for S {}
+impl<S: Serializer> SerializerExt for S {}
+
+/// extensions for all serde deserializers
+pub trait DeserializerExt<'de>: Deserializer<'de> {
+    /// expect the given cbor tag
+    fn expect_cbor_tag(&self, tag: u64) -> Result<(), Self::Error> {
+        match tag_access::get_tag() {
+            Some(t) if t == tag => Ok(()),
+            Some(_) => Err(Self::Error::custom("unexpected cbor tag")),
+            None => Err(Self::Error::custom("missing cbor tag")),
+        }
+    }
+}
+
+impl<'de, D: Deserializer<'de>> DeserializerExt<'de> for D {}
 
 #[cfg(tags)]
 pub mod tag_access {

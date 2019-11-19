@@ -1,5 +1,6 @@
+use serde::de::{Deserialize, Deserializer};
 use serde::ser::{Serialize, Serializer};
-use serde_cbor::{SerializerExt, Value};
+use serde_cbor::{DeserializerExt, SerializerExt, Value};
 use std::error::Error;
 use std::fs::File;
 use std::io::Cursor;
@@ -13,6 +14,18 @@ impl Serialize for Cid {
         S: Serializer,
     {
         s.serialize_cbor_tagged(42, &self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for Cid {
+    #[inline]
+    fn deserialize<D>(deserializer: D) -> Result<Cid, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.expect_cbor_tag(42)?;
+        let res = Vec::<u8>::deserialize(deserializer)?;
+        Ok(Cid(res))
     }
 }
 
