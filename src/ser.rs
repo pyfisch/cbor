@@ -3,7 +3,6 @@
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-use crate::tagstore::{get_tag, CBOR_NEWTYPE_NAME};
 #[cfg(feature = "std")]
 pub use crate::write::IoWrite;
 pub use crate::write::{SliceWrite, Write};
@@ -14,6 +13,8 @@ use half::f16;
 use serde::ser::{self, Serialize};
 #[cfg(feature = "std")]
 use std::io;
+
+use crate::{get_tag, CBOR_NEWTYPE_NAME};
 
 /// Serializes a value to a vector.
 #[cfg(any(feature = "std", feature = "alloc"))]

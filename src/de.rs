@@ -21,6 +21,7 @@ use crate::read::Offset;
 #[cfg(any(feature = "std", feature = "alloc"))]
 pub use crate::read::SliceRead;
 pub use crate::read::{MutSliceRead, Read, SliceReadFixed};
+use crate::set_tag;
 /// Decodes a value from CBOR data in a slice.
 ///
 /// # Examples
@@ -405,9 +406,9 @@ where
         if self.remaining_depth == 0 {
             return Err(self.error(ErrorCode::RecursionLimitExceeded));
         }
-        crate::tagstore::set_tag(Some(tag));
+        set_tag(Some(tag));
         let r = f(self);
-        crate::tagstore::set_tag(None);
+        set_tag(None);
         self.remaining_depth += 1;
         r
     }

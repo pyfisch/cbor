@@ -9,10 +9,10 @@
 use std::collections::BTreeMap;
 
 use crate::error::Error;
-use crate::tagstore::{set_tag, CBOR_NEWTYPE_NAME};
 use serde::{self, Serialize};
 
 use crate::value::Value;
+use crate::{set_tag, CBOR_NEWTYPE_NAME};
 
 impl serde::Serialize for Value {
     #[inline]

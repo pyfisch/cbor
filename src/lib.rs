@@ -310,4 +310,7 @@ pub use crate::ser::to_writer;
 #[doc(inline)]
 pub use crate::value::Value;
 
-pub use tagstore::SerializerExt;
+pub use crate::tagstore::SerializerExt;
+
+use crate::tagstore::tag_access::{get_tag, set_tag};
+use crate::tagstore::CBOR_NEWTYPE_NAME;

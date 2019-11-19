@@ -7,20 +7,18 @@ pub trait SerializerExt: serde::ser::Serializer {
         self,
         tag: u64,
         value: &T,
-    ) -> std::result::Result<Self::Ok, Self::Error> {
-        set_tag(Some(tag));
+    ) -> core::result::Result<Self::Ok, Self::Error> {
+        tag_access::set_tag(Some(tag));
         let r = self.serialize_newtype_struct(CBOR_NEWTYPE_NAME, value);
-        set_tag(None);
+        tag_access::set_tag(None);
         r
     }
 }
 
 impl<S: serde::ser::Serializer> SerializerExt for S {}
 
-pub use tag_access::{get_tag, set_tag};
-
 #[cfg(tags)]
-mod tag_access {
+pub mod tag_access {
     use std::cell::RefCell;
     thread_local!(static CBOR_TAG: RefCell<Option<u64>> = RefCell::new(None));
 
@@ -85,7 +83,7 @@ C1                   # tag(1)
 }
 
 #[cfg(not(tags))]
-mod tag_access {
+pub mod tag_access {
 
     pub fn set_tag(_: Option<u64>) {}
 
