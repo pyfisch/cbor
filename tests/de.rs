@@ -220,14 +220,25 @@ mod std_tests {
         assert_eq!(value.unwrap(), Value::Float(100000.0));
     }
 
+    #[cfg(tags)]
     #[test]
     fn test_self_describing() {
         let value: error::Result<Value> =
             de::from_slice(&[0xd9, 0xd9, 0xf7, 0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72]);
+        // tag is present because tags feature is enabled
         assert_eq!(
             value.unwrap(),
             Value::Tag(55799, Box::new(Value::Text("foobar".to_owned())))
         );
+    }
+
+    #[cfg(not(tags))]
+    #[test]
+    fn test_self_describing() {
+        let value: error::Result<Value> =
+            de::from_slice(&[0xd9, 0xd9, 0xf7, 0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72]);
+        // tag is removed because tags feature is disabled
+        assert_eq!(value.unwrap(), Value::Text("foobar".to_owned()));
     }
 
     #[test]
