@@ -14,7 +14,7 @@ use serde::ser::{self, Serialize};
 #[cfg(feature = "std")]
 use std::io;
 
-use crate::{get_tag, CBOR_NEWTYPE_NAME};
+use crate::tags::{get_tag, CBOR_NEWTYPE_NAME};
 
 /// Serializes a value to a vector.
 #[cfg(any(feature = "std", feature = "alloc"))]

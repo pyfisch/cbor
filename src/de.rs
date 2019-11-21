@@ -21,7 +21,7 @@ use crate::read::Offset;
 #[cfg(any(feature = "std", feature = "alloc"))]
 pub use crate::read::SliceRead;
 pub use crate::read::{MutSliceRead, Read, SliceReadFixed};
-use crate::set_tag;
+use crate::tags::set_tag;
 /// Decodes a value from CBOR data in a slice.
 ///
 /// # Examples

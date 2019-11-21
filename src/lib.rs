@@ -271,7 +271,7 @@ pub mod de;
 pub mod error;
 mod read;
 pub mod ser;
-mod tagstore;
+mod tags;
 mod write;
 
 #[cfg(feature = "std")]
@@ -310,7 +310,4 @@ pub use crate::ser::to_writer;
 #[doc(inline)]
 pub use crate::value::Value;
 
-pub use crate::tagstore::{DeserializerExt, SerializerExt};
-
-use crate::tagstore::tag_access::{get_tag, set_tag};
-use crate::tagstore::CBOR_NEWTYPE_NAME;
+pub use crate::tags::{DeserializerExt, SerializerExt};

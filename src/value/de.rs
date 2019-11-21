@@ -3,7 +3,7 @@ use std::fmt;
 
 use serde::de;
 
-use crate::get_tag;
+use crate::tags::get_tag;
 use crate::value::Value;
 
 impl<'de> de::Deserialize<'de> for Value {
