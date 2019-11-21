@@ -718,7 +718,7 @@ where
 
             // Major type 6: optional semantic tagging of other major types
             0xc0..=0xd7 => {
-                let tag = byte as u64 - 0xc0;
+                let tag = u64::from(byte) - 0xc0;
                 self.handle_tagged_value(tag, visitor)
             }
             0xd8 => {
