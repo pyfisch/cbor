@@ -2,7 +2,7 @@ use serde::de::{Deserializer, Error};
 use serde::ser::{Serialize, Serializer};
 
 /// signals that a newtype is from a CBOR tag
-pub const CBOR_NEWTYPE_NAME: &str = "__cbor_tag";
+pub const CBOR_NEWTYPE_NAME: &str = "\0cbor_tag";
 
 /// extensions for all serde serializers
 pub trait SerializerExt: Serializer {

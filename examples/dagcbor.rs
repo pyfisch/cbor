@@ -18,7 +18,6 @@ impl Serialize for Cid {
 }
 
 impl<'de> Deserialize<'de> for Cid {
-    #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Cid, D::Error>
     where
         D: Deserializer<'de>,
@@ -37,7 +36,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let ast: serde_cbor::Value = serde_cbor::from_reader(Cursor::new(bytes))?;
     println!("{:?}", ast);
     let bytes1 = serde_cbor::to_vec(&Value::Tag(42, Box::new(Value::Bytes(Vec::new()))))?;
-    // let bytes = serde_cbor::to_vec(&Value::Null)?;
     println!("{:?}", bytes1);
 
     let bytes2 = serde_cbor::to_vec(&Cid(Vec::new()))?;

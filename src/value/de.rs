@@ -141,10 +141,10 @@ impl<'de> de::Deserialize<'de> for Value {
                 D: serde::Deserializer<'de>,
             {
                 let tag = get_tag();
-                let result = deserializer.deserialize_any(self);
-                result.map(|x| match tag {
-                    Some(tag) => Value::Tag(tag, Box::new(x)),
-                    None => x,
+                let value = deserializer.deserialize_any(self)?;
+                Ok(match tag {
+                    Some(tag) => Value::Tag(tag, Box::new(value)),
+                    None => value,
                 })
             }
         }

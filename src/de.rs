@@ -398,19 +398,16 @@ where
         }
     }
 
-    fn recursion_checked_tagged<F, T>(&mut self, tag: u64, f: F) -> Result<T>
+    fn handle_tagged_value<V>(&mut self, tag: u64, visitor: V) -> Result<V::Value>
     where
-        F: FnOnce(&mut Deserializer<R>) -> Result<T>,
+        V: de::Visitor<'de>,
     {
-        self.remaining_depth -= 1;
-        if self.remaining_depth == 0 {
-            return Err(self.error(ErrorCode::RecursionLimitExceeded));
-        }
-        set_tag(Some(tag));
-        let r = f(self);
-        set_tag(None);
-        self.remaining_depth += 1;
-        r
+        self.recursion_checked(|d| {
+            set_tag(Some(tag));
+            let r = visitor.visit_newtype_struct(d);
+            set_tag(None);
+            r
+        })
     }
 
     fn recursion_checked<F, T>(&mut self, f: F) -> Result<T>
@@ -721,24 +718,24 @@ where
 
             // Major type 6: optional semantic tagging of other major types
             0xc0..=0xd7 => {
-                let tag = byte as usize - 0xc0;
-                self.recursion_checked_tagged(tag as u64, |de| visitor.visit_newtype_struct(de))
+                let tag = byte as u64 - 0xc0;
+                self.handle_tagged_value(tag, visitor)
             }
             0xd8 => {
                 let tag = self.parse_u8()?;
-                self.recursion_checked_tagged(tag.into(), |de| visitor.visit_newtype_struct(de))
+                self.handle_tagged_value(tag.into(), visitor)
             }
             0xd9 => {
                 let tag = self.parse_u16()?;
-                self.recursion_checked_tagged(tag.into(), |de| visitor.visit_newtype_struct(de))
+                self.handle_tagged_value(tag.into(), visitor)
             }
             0xda => {
                 let tag = self.parse_u32()?;
-                self.recursion_checked_tagged(tag.into(), |de| visitor.visit_newtype_struct(de))
+                self.handle_tagged_value(tag.into(), visitor)
             }
             0xdb => {
                 let tag = self.parse_u64()?;
-                self.recursion_checked_tagged(tag as u64, |de| visitor.visit_newtype_struct(de))
+                self.handle_tagged_value(tag, visitor)
             }
             0xdc..=0xdf => Err(self.error(ErrorCode::UnassignedCode)),
 
