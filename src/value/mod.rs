@@ -25,13 +25,21 @@ pub enum Value {
     Null,
     /// Represents a boolean value.
     Bool(bool),
-    /// Integer CBOR numbers.
+    /// Integer CBOR non-negative numbers.
     ///
-    /// The biggest value that can be represented is 2^64 - 1.
-    /// While the smallest value is -2^64.
-    /// Values outside this range can't be serialized
+    UnsignedInteger(u64),
+    /// Integer CBOR possibly-negative numbers within the i64 range.
+    ///
+    /// Numbers smaller than -2^63
+    /// The smallest value that can be represented is -2^64.
+    SignedInteger(i64),
+    /// Integer CBOR possibly-negative numbers within the i28 range.
+    ///
+    /// For numbers smaller than -2^63
+    ///
+    /// Values smaller than -2^64 can't be serialized
     /// and will cause an error.
-    Integer(i128),
+    LargeSignedInteger(i128),
     /// Represents a floating point value.
     Float(f64),
     /// Represents a byte string.
@@ -84,7 +92,16 @@ impl Ord for Value {
             return self.major_type().cmp(&other.major_type());
         }
         match (self, other) {
-            (Integer(a), Integer(b)) => a.abs().cmp(&b.abs()),
+            (UnsignedInteger(a), UnsignedInteger(b)) => a.cmp(b),
+            // Use i128 to avoid possible panic if abs() is called on -2^63
+            (SignedInteger(a), SignedInteger(b)) => i128::from(*a).abs().cmp(&i128::from(*b).abs()),
+            (LargeSignedInteger(a), LargeSignedInteger(b)) => a.abs().cmp(&b.abs()),
+            (UnsignedInteger(a), SignedInteger(b)) => i128::from(*a).abs().cmp(&i128::from(*b).abs()),
+            (SignedInteger(a), UnsignedInteger(b)) => i128::from(*a).abs().cmp(&i128::from(*b).abs()),
+            (LargeSignedInteger(a), UnsignedInteger(b)) => a.abs().cmp(&i128::from(*b).abs()),
+            (UnsignedInteger(a), LargeSignedInteger(b)) => i128::from(*a).abs().cmp(&b.abs()),
+            (SignedInteger(a), LargeSignedInteger(b)) => i128::from(*a).abs().cmp(&b.abs()),
+            (LargeSignedInteger(a), SignedInteger(b)) => a.abs().cmp(&i128::from(*b).abs()),
             (Bytes(a), Bytes(b)) if a.len() != b.len() => a.len().cmp(&b.len()),
             (Text(a), Text(b)) if a.len() != b.len() => a.len().cmp(&b.len()),
             (Array(a), Array(b)) if a.len() != b.len() => a.len().cmp(&b.len()),
@@ -111,15 +128,15 @@ macro_rules! impl_from {
 }
 
 impl_from!(Value::Bool, bool);
-impl_from!(Value::Integer, i8);
-impl_from!(Value::Integer, i16);
-impl_from!(Value::Integer, i32);
-impl_from!(Value::Integer, i64);
+impl_from!(Value::SignedInteger, i8);
+impl_from!(Value::SignedInteger, i16);
+impl_from!(Value::SignedInteger, i32);
+impl_from!(Value::SignedInteger, i64);
 // i128 omitted because not all numbers fit in CBOR serialization
-impl_from!(Value::Integer, u8);
-impl_from!(Value::Integer, u16);
-impl_from!(Value::Integer, u32);
-impl_from!(Value::Integer, u64);
+impl_from!(Value::UnsignedInteger, u8);
+impl_from!(Value::UnsignedInteger, u16);
+impl_from!(Value::UnsignedInteger, u32);
+impl_from!(Value::UnsignedInteger, u64);
 // u128 omitted because not all numbers fit in CBOR serialization
 impl_from!(Value::Float, f32);
 impl_from!(Value::Float, f64);
@@ -135,13 +152,21 @@ impl Value {
         match self {
             Null => 7,
             Bool(_) => 7,
-            Integer(v) => {
+            UnsignedInteger(_) => 0,
+            SignedInteger(v) => {
                 if *v >= 0 {
                     0
                 } else {
                     1
                 }
-            }
+            },
+            LargeSignedInteger(v) => {
+                if *v >= 0 {
+                    0
+                } else {
+                    1
+                }
+            },
             Float(_) => 7,
             Bytes(_) => 2,
             Text(_) => 3,

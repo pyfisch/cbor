@@ -159,7 +159,7 @@ mod std_tests {
 
         // tuple-variants serialize like ["<variant>", values..]
         let number_s = to_vec_legacy(&Bar::Number(42)).unwrap();
-        let number_vec = vec![Value::Text("Number".to_string()), Value::Integer(42)];
+        let number_vec = vec![Value::Text("Number".to_string()), Value::UnsignedInteger(42)];
         let number_vec_s = to_vec_legacy(&number_vec).unwrap();
         assert_eq!(number_s, number_vec_s);
 
@@ -175,8 +175,8 @@ mod std_tests {
         // struct-variants serialize like ["<variant>", {struct..}]
         let point_s = to_vec_legacy(&Bar::Point { x: 5, y: -5 }).unwrap();
         let mut struct_map = BTreeMap::new();
-        struct_map.insert(Value::Text("x".to_string()), Value::Integer(5));
-        struct_map.insert(Value::Text("y".to_string()), Value::Integer(-5));
+        struct_map.insert(Value::Text("x".to_string()), Value::UnsignedInteger(5));
+        struct_map.insert(Value::Text("y".to_string()), Value::SignedInteger(-5));
         let point_vec = vec![
             Value::Text("Point".to_string()),
             Value::Map(struct_map.clone()),

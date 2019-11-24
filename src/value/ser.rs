@@ -20,7 +20,9 @@ impl serde::Serialize for Value {
         S: serde::Serializer,
     {
         match *self {
-            Value::Integer(v) => serializer.serialize_i128(v),
+            Value::UnsignedInteger(v) => serializer.serialize_u64(v),
+            Value::SignedInteger(v) => serializer.serialize_i64(v),
+            Value::LargeSignedInteger(v) => serializer.serialize_i128(v),
             Value::Bytes(ref v) => serializer.serialize_bytes(&v),
             Value::Text(ref v) => serializer.serialize_str(&v),
             Value::Array(ref v) => v.serialize(serializer),
@@ -69,11 +71,21 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_i64(self, value: i64) -> Result<Value, Error> {
-        self.serialize_i128(i128::from(value))
+        Ok(Value::SignedInteger(value))
     }
 
     fn serialize_i128(self, value: i128) -> Result<Value, Error> {
-        Ok(Value::Integer(value))
+        if value > 2i128.pow(64)-1 || value < -(2i128.pow(64)) {
+            return Err(Error::message("The number can't be stored in CBOR"));
+        }
+
+        if value >= 0 {
+            Ok(Value::UnsignedInteger(value as u64))
+        } else if value >= 2i128.pow(63) {
+            Ok(Value::SignedInteger(value as i64))
+        } else {
+            Ok(Value::LargeSignedInteger(value))
+        }
     }
 
     #[inline]
@@ -93,7 +105,7 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_u64(self, value: u64) -> Result<Value, Error> {
-        Ok(Value::Integer(value.into()))
+        Ok(Value::UnsignedInteger(value))
     }
 
     #[inline]

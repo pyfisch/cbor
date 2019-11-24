@@ -87,19 +87,19 @@ mod std_tests {
     #[test]
     fn test_numbers1() {
         let value: error::Result<Value> = de::from_slice(&[0x00]);
-        assert_eq!(value.unwrap(), Value::Integer(0));
+        assert_eq!(value.unwrap(), Value::UnsignedInteger(0));
     }
 
     #[test]
     fn test_numbers2() {
         let value: error::Result<Value> = de::from_slice(&[0x1a, 0x00, 0xbc, 0x61, 0x4e]);
-        assert_eq!(value.unwrap(), Value::Integer(12345678));
+        assert_eq!(value.unwrap(), Value::UnsignedInteger(12345678));
     }
 
     #[test]
     fn test_numbers3() {
         let value: error::Result<Value> = de::from_slice(&[0x39, 0x07, 0xde]);
-        assert_eq!(value.unwrap(), Value::Integer(-2015));
+        assert_eq!(value.unwrap(), Value::SignedInteger(-2015));
     }
 
     #[test]
@@ -120,9 +120,9 @@ mod std_tests {
         assert_eq!(
             value.unwrap(),
             Value::Array(vec![
-                Value::Integer(1),
-                Value::Integer(2),
-                Value::Integer(3)
+                Value::UnsignedInteger(1),
+                Value::UnsignedInteger(2),
+                Value::UnsignedInteger(3)
             ])
         );
     }
@@ -133,10 +133,10 @@ mod std_tests {
         assert_eq!(
             value.unwrap(),
             Value::Array(vec![
-                Value::Integer(1),
+                Value::UnsignedInteger(1),
                 Value::Array(vec![
-                    Value::Integer(2),
-                    Value::Array(vec![Value::Integer(3)])
+                    Value::UnsignedInteger(2),
+                    Value::Array(vec![Value::UnsignedInteger(3)])
                 ])
             ])
         );
@@ -158,10 +158,10 @@ mod std_tests {
     fn test_indefinite_object() {
         let value: error::Result<Value> = de::from_slice(b"\xbfaa\x01ab\x9f\x02\x03\xff\xff");
         let mut object = BTreeMap::new();
-        object.insert(Value::Text("a".to_owned()), Value::Integer(1));
+        object.insert(Value::Text("a".to_owned()), Value::UnsignedInteger(1));
         object.insert(
             Value::Text("b".to_owned()),
-            Value::Array(vec![Value::Integer(2), Value::Integer(3)]),
+            Value::Array(vec![Value::UnsignedInteger(2), Value::UnsignedInteger(3)]),
         );
         assert_eq!(value.unwrap(), Value::Map(object));
     }
@@ -172,9 +172,9 @@ mod std_tests {
         assert_eq!(
             value.unwrap(),
             Value::Array(vec![
-                Value::Integer(1),
-                Value::Integer(2),
-                Value::Integer(3)
+                Value::UnsignedInteger(1),
+                Value::UnsignedInteger(2),
+                Value::UnsignedInteger(3)
             ])
         );
     }
@@ -246,9 +246,9 @@ mod std_tests {
         assert_eq!(
             value,
             vec![
-                Value::Integer(123456789959),
-                Value::Integer(-34567897654325468),
-                Value::Integer(-456787678),
+                Value::UnsignedInteger(123456789959),
+                Value::SignedInteger(-34567897654325468),
+                Value::SignedInteger(-456787678),
                 Value::Bool(true),
                 Value::Null,
                 Value::Null,
@@ -330,7 +330,7 @@ mod std_tests {
     fn stream_deserializer() {
         let slice = b"\x01\x66foobar";
         let mut it = Deserializer::from_slice(slice).into_iter::<Value>();
-        assert_eq!(Value::Integer(1), it.next().unwrap().unwrap());
+        assert_eq!(Value::UnsignedInteger(1), it.next().unwrap().unwrap());
         assert_eq!(
             Value::Text("foobar".to_string()),
             it.next().unwrap().unwrap()
@@ -342,7 +342,7 @@ mod std_tests {
     fn stream_deserializer_eof() {
         let slice = b"\x01\x66foob";
         let mut it = Deserializer::from_slice(slice).into_iter::<Value>();
-        assert_eq!(Value::Integer(1), it.next().unwrap().unwrap());
+        assert_eq!(Value::UnsignedInteger(1), it.next().unwrap().unwrap());
         assert!(it.next().unwrap().unwrap_err().is_eof());
     }
 

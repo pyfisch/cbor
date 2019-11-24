@@ -1209,7 +1209,7 @@ where
 /// ];
 /// let mut it = Deserializer::from_slice(&data[..]).into_iter::<Value>();
 /// assert_eq!(
-///     Value::Integer(1),
+///     Value::UnsignedInteger(1),
 ///     it.next().unwrap().unwrap()
 /// );
 /// assert_eq!(

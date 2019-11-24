@@ -56,7 +56,7 @@ impl<'de> de::Deserialize<'de> for Value {
             where
                 E: de::Error,
             {
-                Ok(Value::Integer(v.into()))
+                Ok(Value::UnsignedInteger(v))
             }
 
             #[inline]
@@ -64,7 +64,7 @@ impl<'de> de::Deserialize<'de> for Value {
             where
                 E: de::Error,
             {
-                Ok(Value::Integer(v.into()))
+                Ok(Value::SignedInteger(v))
             }
 
             #[inline]
@@ -72,7 +72,17 @@ impl<'de> de::Deserialize<'de> for Value {
             where
                 E: de::Error,
             {
-                Ok(Value::Integer(v))
+                if v > 2i128.pow(64)-1 || v < -(2i128.pow(64)) {
+                    return Err(E::custom("Integer value must be between -2^64 and 2^64-1"));
+                }
+
+                if v >= 0 {
+                    Ok(Value::UnsignedInteger(v as u64))
+                } else if v >= 2i128.pow(63) {
+                    Ok(Value::SignedInteger(v as i64))
+                } else {
+                    Ok(Value::LargeSignedInteger(v))
+                }
             }
 
             #[inline]
