@@ -72,7 +72,7 @@ impl<'de> de::Deserialize<'de> for Value {
             where
                 E: de::Error,
             {
-                if v > 2i128.pow(64)-1 || v < -(2i128.pow(64)) {
+                if v > 2i128.pow(64) - 1 || v < -(2i128.pow(64)) {
                     return Err(E::custom("Integer value must be between -2^64 and 2^64-1"));
                 }
 

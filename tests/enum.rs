@@ -159,7 +159,10 @@ mod std_tests {
 
         // tuple-variants serialize like ["<variant>", values..]
         let number_s = to_vec_legacy(&Bar::Number(42)).unwrap();
-        let number_vec = vec![Value::Text("Number".to_string()), Value::UnsignedInteger(42)];
+        let number_vec = vec![
+            Value::Text("Number".to_string()),
+            Value::UnsignedInteger(42),
+        ];
         let number_vec_s = to_vec_legacy(&number_vec).unwrap();
         assert_eq!(number_s, number_vec_s);
 

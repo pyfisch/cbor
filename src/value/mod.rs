@@ -96,8 +96,12 @@ impl Ord for Value {
             // Use i128 to avoid possible panic if abs() is called on -2^63
             (SignedInteger(a), SignedInteger(b)) => i128::from(*a).abs().cmp(&i128::from(*b).abs()),
             (LargeSignedInteger(a), LargeSignedInteger(b)) => a.abs().cmp(&b.abs()),
-            (UnsignedInteger(a), SignedInteger(b)) => i128::from(*a).abs().cmp(&i128::from(*b).abs()),
-            (SignedInteger(a), UnsignedInteger(b)) => i128::from(*a).abs().cmp(&i128::from(*b).abs()),
+            (UnsignedInteger(a), SignedInteger(b)) => {
+                i128::from(*a).abs().cmp(&i128::from(*b).abs())
+            }
+            (SignedInteger(a), UnsignedInteger(b)) => {
+                i128::from(*a).abs().cmp(&i128::from(*b).abs())
+            }
             (LargeSignedInteger(a), UnsignedInteger(b)) => a.abs().cmp(&i128::from(*b).abs()),
             (UnsignedInteger(a), LargeSignedInteger(b)) => i128::from(*a).abs().cmp(&b.abs()),
             (SignedInteger(a), LargeSignedInteger(b)) => i128::from(*a).abs().cmp(&b.abs()),
@@ -159,14 +163,14 @@ impl Value {
                 } else {
                     1
                 }
-            },
+            }
             LargeSignedInteger(v) => {
                 if *v >= 0 {
                     0
                 } else {
                     1
                 }
-            },
+            }
             Float(_) => 7,
             Bytes(_) => 2,
             Text(_) => 3,

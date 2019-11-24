@@ -75,7 +75,7 @@ impl serde::Serializer for Serializer {
     }
 
     fn serialize_i128(self, value: i128) -> Result<Value, Error> {
-        if value > 2i128.pow(64)-1 || value < -(2i128.pow(64)) {
+        if value > 2i128.pow(64) - 1 || value < -(2i128.pow(64)) {
             return Err(Error::message("The number can't be stored in CBOR"));
         }
 
