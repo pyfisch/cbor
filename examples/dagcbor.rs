@@ -1,6 +1,7 @@
 use serde::de::{Deserialize, Deserializer};
 use serde::ser::{Serialize, Serializer};
-use serde_cbor::{DeserializerExt, SerializerExt, Value};
+use serde_cbor::tags::{DeserializerExt, SerializerExt};
+use serde_cbor::Value;
 use std::error::Error;
 use std::fs::File;
 use std::io::Cursor;

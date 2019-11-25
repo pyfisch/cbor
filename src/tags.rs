@@ -1,10 +1,11 @@
+//! Support for cbor tags
 use serde::de::{Deserializer, Error};
 use serde::ser::{Serialize, Serializer};
 
 /// signals that a newtype is from a CBOR tag
-pub const CBOR_NEWTYPE_NAME: &str = "\0cbor_tag";
+pub(crate) const CBOR_NEWTYPE_NAME: &str = "\0cbor_tag";
 
-/// extensions for all serde serializers
+/// extensions for all serde serializers to add cbor tag functionality
 pub trait SerializerExt: Serializer {
     /// basically serialize_newtype_struct with a cbor tag value
     fn serialize_cbor_tagged<T: Serialize>(
@@ -21,8 +22,13 @@ pub trait SerializerExt: Serializer {
 
 impl<S: Serializer> SerializerExt for S {}
 
-/// extensions for all serde deserializers
+/// extensions for all serde deserializers to add cbor tag functionality
 pub trait DeserializerExt<'de>: Deserializer<'de> {
+    /// get the current cbor tag
+    fn get_cbor_tag(&self) -> Option<u64> {
+        get_tag()
+    }
+
     /// expect the given cbor tag
     fn expect_cbor_tag(&self, tag: u64) -> Result<(), Self::Error> {
         match get_tag() {
@@ -36,20 +42,20 @@ pub trait DeserializerExt<'de>: Deserializer<'de> {
 impl<'de, D: Deserializer<'de>> DeserializerExt<'de> for D {}
 
 #[cfg(feature = "tags")]
-pub fn set_tag(value: Option<u64>) {
+pub(crate) fn set_tag(value: Option<u64>) {
     CBOR_TAG.with(|f| *f.borrow_mut() = value);
 }
 
 #[cfg(feature = "tags")]
-pub fn get_tag() -> Option<u64> {
+pub(crate) fn get_tag() -> Option<u64> {
     CBOR_TAG.with(|f| *f.borrow())
 }
 
 #[cfg(not(feature = "tags"))]
-pub fn set_tag(_value: Option<u64>) {}
+pub(crate) fn set_tag(_value: Option<u64>) {}
 
 #[cfg(not(feature = "tags"))]
-pub fn get_tag() -> Option<u64> {
+pub(crate) fn get_tag() -> Option<u64> {
     None
 }
 

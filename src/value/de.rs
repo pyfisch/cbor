@@ -3,7 +3,7 @@ use std::fmt;
 
 use serde::de;
 
-use crate::tags::get_tag;
+use crate::tags::DeserializerExt;
 use crate::value::Value;
 
 impl<'de> de::Deserialize<'de> for Value {
@@ -140,7 +140,7 @@ impl<'de> de::Deserialize<'de> for Value {
             where
                 D: serde::Deserializer<'de>,
             {
-                let tag = get_tag();
+                let tag = deserializer.get_cbor_tag();
                 let value = deserializer.deserialize_any(self)?;
                 Ok(match tag {
                     Some(tag) => Value::Tag(tag, Box::new(value)),

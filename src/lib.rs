@@ -271,7 +271,7 @@ pub mod de;
 pub mod error;
 mod read;
 pub mod ser;
-mod tags;
+pub mod tags;
 mod write;
 
 #[cfg(feature = "std")]
@@ -309,5 +309,3 @@ pub use crate::ser::to_writer;
 #[cfg(feature = "std")]
 #[doc(inline)]
 pub use crate::value::Value;
-
-pub use crate::tags::{DeserializerExt, SerializerExt};
