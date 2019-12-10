@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 use crate::error::Error;
 use serde::{self, Serialize};
 
-use crate::tags::SerializerExt;
+use crate::tags::Tagged;
 use crate::value::Value;
 
 impl serde::Serialize for Value {
@@ -26,9 +26,9 @@ impl serde::Serialize for Value {
             Value::Text(ref v) => serializer.serialize_str(&v),
             Value::Array(ref v) => v.serialize(serializer),
             Value::Map(ref v) => v.serialize(serializer),
+            Value::Tag(tag, ref v) => Tagged::new(Some(tag), v).serialize(serializer),
             Value::Float(v) => serializer.serialize_f64(v),
             Value::Bool(v) => serializer.serialize_bool(v),
-            Value::Tag(tag, ref v) => serializer.serialize_cbor_tagged(tag, v),
             Value::Null => serializer.serialize_unit(),
             Value::__Hidden => unreachable!(),
         }

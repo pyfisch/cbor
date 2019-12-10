@@ -1,10 +1,8 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use serde::de;
-
-use crate::tags::DeserializerExt;
 use crate::value::Value;
+use serde::de;
 
 impl<'de> de::Deserialize<'de> for Value {
     #[inline]
@@ -140,12 +138,12 @@ impl<'de> de::Deserialize<'de> for Value {
             where
                 D: serde::Deserializer<'de>,
             {
-                let tag = deserializer.get_cbor_tag();
-                let value = deserializer.deserialize_any(self)?;
-                Ok(match tag {
-                    Some(tag) => Value::Tag(tag, Box::new(value)),
-                    None => value,
-                })
+                let tag = crate::tags::get_tag();
+                let inner = deserializer.deserialize_any(self);
+                match tag {
+                    Some(tag) => inner.map(|v| Value::Tag(tag, Box::new(v))),
+                    None => inner,
+                }
             }
         }
 
