@@ -17,9 +17,13 @@ impl Serialize for Date {
 
 impl<'de> Deserialize<'de> for Date {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Tagged::<String>::deserialize(deserializer)?
-            .unwrap_if_tag::<D>(0)
-            .map(Date)
+        let tagged = Tagged::<String>::deserialize(deserializer)?;
+        match tagged.tag {
+            Some(0) => Ok(Date(tagged.value)),
+            Some(_) => Err(serde::de::Error::custom("unexpected tag")),
+            // allow deserialization even if there is no tag. Allows roundtrip via other formats such as json
+            None => Ok(Date(tagged.value)),
+        }
     }
 }
 
@@ -34,9 +38,12 @@ impl Serialize for Uri {
 }
 impl<'de> Deserialize<'de> for Uri {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Tagged::<String>::deserialize(deserializer)?
-            .unwrap_if_tag::<D>(32)
-            .map(Uri)
+        let tagged = Tagged::<String>::deserialize(deserializer)?;
+        match tagged.tag {
+            Some(0) => Ok(Uri(tagged.value)),
+            Some(_) => Err(serde::de::Error::custom("unexpected tag")),
+            None => Ok(Uri(tagged.value)),
+        }
     }
 }
 
@@ -70,5 +77,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     // check that the roundtrip was successful
     assert_eq!(value1, value2);
     assert_eq!(bookmark, result);
+
+    // check that going via a format that does not support tags does work
+    // let json = serde_json::to_vec(&bookmark)?;
+    // let result: Bookmark = serde_json::from_slice(&json)?;
+    // assert_eq!(bookmark, result);
     Ok(())
 }
