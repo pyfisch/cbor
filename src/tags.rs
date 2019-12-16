@@ -68,7 +68,7 @@ where
     }
 }
 
-struct NoneDeserializer<E>(core::marker::PhantomData<E>);
+struct NoneDeserializer<E>(PhantomData<E>);
 
 impl<'de, E> Deserializer<'de> for NoneDeserializer<E>
 where
@@ -87,8 +87,27 @@ where
     }
 }
 
+struct BytesDeserializer<'a, E>(&'a [u8], PhantomData<E>);
+
+impl<'de, 'a, E> Deserializer<'de> for BytesDeserializer<'a, E>
+where
+    E: serde::de::Error,
+{
+    type Error = E;
+
+    fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        visitor.visit_bytes(self.0)
+    }
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+        bytes byte_buf option unit unit_struct newtype_struct seq tuple
+        tuple_struct map struct enum identifier ignored_any
+    }
+}
+
 /// A visitor that intercepts *just* visit_newtype_struct and passes through everything else.
-struct MaybeTaggedVisitor<T>(core::marker::PhantomData<T>);
+struct MaybeTaggedVisitor<T>(PhantomData<T>);
 
 impl<'de, T: Deserialize<'de>> Visitor<'de> for MaybeTaggedVisitor<T> {
     type Value = Tagged<T>;
@@ -116,14 +135,16 @@ impl<'de, T: Deserialize<'de>> Visitor<'de> for MaybeTaggedVisitor<T> {
     delegate!(visit_str, &str);
     delegate!(visit_borrowed_str, &'de str);
 
-    // delegate!(visit_bytes, &[u8]);
-
     #[cfg(feature = "std")]
     delegate!(visit_byte_buf, Vec<u8>);
 
     #[cfg(feature = "std")]
     delegate!(visit_string, String);
-    
+
+    fn visit_bytes<E: serde::de::Error>(self, value: &[u8]) -> Result<Self::Value, E> {
+        T::deserialize(BytesDeserializer(value, PhantomData)).map(untagged)
+    }
+
     fn visit_borrowed_bytes<E: serde::de::Error>(self, value: &'de [u8]) -> Result<Self::Value, E> {
         T::deserialize(serde::de::value::BorrowedBytesDeserializer::new(value)).map(untagged)
     }
@@ -133,7 +154,7 @@ impl<'de, T: Deserialize<'de>> Visitor<'de> for MaybeTaggedVisitor<T> {
     }
 
     fn visit_none<E: serde::de::Error>(self) -> Result<Self::Value, E> {
-        T::deserialize(NoneDeserializer(core::marker::PhantomData)).map(untagged)
+        T::deserialize(NoneDeserializer(PhantomData)).map(untagged)
     }
 
     fn visit_some<D: Deserializer<'de>>(self, deserializer: D) -> Result<Self::Value, D::Error> {
