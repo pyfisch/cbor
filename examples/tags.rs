@@ -19,10 +19,8 @@ impl<'de> Deserialize<'de> for Date {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let tagged = Tagged::<String>::deserialize(deserializer)?;
         match tagged.tag {
-            Some(0) => Ok(Date(tagged.value)),
+            Some(0) | None => Ok(Date(tagged.value)),
             Some(_) => Err(serde::de::Error::custom("unexpected tag")),
-            // allow deserialization even if there is no tag. Allows roundtrip via other formats such as json
-            None => Ok(Date(tagged.value)),
         }
     }
 }
@@ -40,9 +38,9 @@ impl<'de> Deserialize<'de> for Uri {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let tagged = Tagged::<String>::deserialize(deserializer)?;
         match tagged.tag {
-            Some(0) => Ok(Uri(tagged.value)),
+            // allow deserialization even if there is no tag. Allows roundtrip via other formats such as json
+            Some(0) | None => Ok(Uri(tagged.value)),
             Some(_) => Err(serde::de::Error::custom("unexpected tag")),
-            None => Ok(Uri(tagged.value)),
         }
     }
 }
