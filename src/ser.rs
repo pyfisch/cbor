@@ -51,6 +51,9 @@ where
 pub struct Serializer<W> {
     writer: W,
     packed: bool,
+    current_nesting_depth: u32,
+    pack_to_depth: u32,
+    packing_offset: u32,
     enum_as_map: bool,
 }
 
@@ -66,6 +69,9 @@ where
         Serializer {
             writer,
             packed: false,
+            current_nesting_depth: 0,
+            pack_to_depth: 0,
+            packing_offset: 0,
             enum_as_map: true,
         }
     }
@@ -76,6 +82,26 @@ where
     /// are replaced with numeric indizes to conserve space.
     pub fn packed_format(mut self) -> Self {
         self.packed = true;
+        self.pack_to_depth = !0;
+        self
+    }
+
+    /// Set numeric index to start with in packed format.
+    ///
+    /// By default, the packed format starts indexing fields
+    /// with 0. This allows starting with 1, or any other value.
+    pub fn pack_starting_with(mut self, offset: u32) -> Self {
+        self.packing_offset = offset;
+        self
+    }
+
+    /// Set nesting depth to pack to, if using packed format.
+    ///
+    /// By default, packed format packs all enum variants and
+    /// field names. Sometimes, only top-level structs are to
+    /// be packed. In this case, depth can be set to one.
+    pub fn pack_to_depth(mut self, depth: u32) -> Self {
+        self.pack_to_depth = depth;
         self
     }
 
@@ -392,7 +418,7 @@ where
         variant_index: u32,
         variant: &'static str,
     ) -> Result<()> {
-        if self.packed {
+        if self.packed && self.current_nesting_depth <= self.pack_to_depth {
             self.serialize_u32(variant_index)
         } else {
             self.serialize_str(variant)
@@ -488,7 +514,12 @@ where
     #[inline]
     fn serialize_struct(self, _name: &'static str, len: usize) -> Result<StructSerializer<'a, W>> {
         self.write_u64(5, len as u64)?;
-        Ok(StructSerializer { ser: self, idx: 0 })
+        let offset = self.packing_offset;
+        self.current_nesting_depth += 1;
+        Ok(StructSerializer {
+            ser: self,
+            idx: offset,
+        })
     }
 
     #[inline]
@@ -592,7 +623,7 @@ where
     where
         T: ?Sized + ser::Serialize,
     {
-        if self.ser.packed {
+        if self.ser.packed && self.ser.current_nesting_depth <= self.ser.pack_to_depth {
             self.idx.serialize(&mut *self.ser)?;
         } else {
             key.serialize(&mut *self.ser)?;
@@ -610,6 +641,7 @@ where
 
     #[inline]
     fn end_inner(self) -> Result<()> {
+        self.ser.current_nesting_depth -= 1;
         Ok(())
     }
 }
