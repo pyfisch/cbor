@@ -132,6 +132,8 @@ pub struct Deserializer<R> {
     accept_packed: bool,
     accept_standard_enums: bool,
     accept_legacy_enums: bool,
+    packing_offset: u8,
+    deserializing_struct_key: bool,
 }
 
 #[cfg(feature = "std")]
@@ -190,6 +192,8 @@ where
             accept_packed: true,
             accept_standard_enums: true,
             accept_legacy_enums: true,
+            packing_offset: 0,
+            deserializing_struct_key: false,
         }
     }
 
@@ -214,6 +218,16 @@ where
     /// Don't accept the old enum format used by `serde_cbor` versions <= v0.9.
     pub fn disable_legacy_enums(mut self) -> Self {
         self.accept_legacy_enums = false;
+        self
+    }
+
+    /// Set numeric index packed format starts with.
+    ///
+    /// By default, the packed format starts indexing fields
+    /// with 0. This allows deserializing packed formats that starting with 1,
+    /// or any other value small enough that field indices don't wrap.
+    pub fn packed_starts_with(mut self, offset: u8) -> Self {
+        self.packing_offset = offset;
         self
     }
 
@@ -258,7 +272,13 @@ where
 
     fn parse_u8(&mut self) -> Result<u8> {
         match self.next()? {
-            Some(byte) => Ok(byte),
+            Some(byte) => {
+                if self.deserializing_struct_key {
+                    Ok(byte - self.packing_offset)
+                } else {
+                    Ok(byte)
+                }
+            }
             None => Err(self.error(ErrorCode::EofWhileParsingValue)),
         }
     }
@@ -971,8 +991,11 @@ where
         *self.len -= 1;
 
         match self.de.peek()? {
-            Some(_byte @ 0x00..=0x1b) if !self.accept_packed => {
-                return Err(self.de.error(ErrorCode::WrongStructFormat));
+            Some(_byte @ 0x00..=0x1b) => {
+                if !self.accept_packed {
+                    return Err(self.de.error(ErrorCode::WrongStructFormat));
+                }
+                self.de.deserializing_struct_key = true;
             }
             Some(_byte @ 0x60..=0x7f) if !self.accept_named => {
                 return Err(self.de.error(ErrorCode::WrongStructFormat));
@@ -981,6 +1004,7 @@ where
         };
 
         let value = seed.deserialize(&mut *self.de)?;
+        self.de.deserializing_struct_key = false;
         Ok(Some(value))
     }
 
@@ -1022,8 +1046,11 @@ where
         K: de::DeserializeSeed<'de>,
     {
         match self.de.peek()? {
-            Some(_byte @ 0x00..=0x1b) if !self.accept_packed => {
-                return Err(self.de.error(ErrorCode::WrongStructFormat))
+            Some(_byte @ 0x00..=0x1b) => {
+                if !self.accept_packed {
+                    return Err(self.de.error(ErrorCode::WrongStructFormat));
+                }
+                self.de.deserializing_struct_key = true;
             }
             Some(_byte @ 0x60..=0x7f) if !self.accept_named => {
                 return Err(self.de.error(ErrorCode::WrongStructFormat))
@@ -1034,6 +1061,7 @@ where
         }
 
         let value = seed.deserialize(&mut *self.de)?;
+        self.de.deserializing_struct_key = false;
         Ok(Some(value))
     }
 
