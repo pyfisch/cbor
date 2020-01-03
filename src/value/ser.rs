@@ -21,6 +21,7 @@ impl serde::Serialize for Value {
     {
         match *self {
             Value::Integer(v) => serializer.serialize_i128(v),
+            Value::Unsigned(v) => serializer.serialize_u128(v),
             Value::Bytes(ref v) => serializer.serialize_bytes(&v),
             Value::Text(ref v) => serializer.serialize_str(&v),
             Value::Array(ref v) => v.serialize(serializer),
@@ -78,22 +79,27 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_u8(self, value: u8) -> Result<Value, Error> {
-        self.serialize_u64(u64::from(value))
+        self.serialize_u128(u128::from(value))
     }
 
     #[inline]
     fn serialize_u16(self, value: u16) -> Result<Value, Error> {
-        self.serialize_u64(u64::from(value))
+        self.serialize_u128(u128::from(value))
     }
 
     #[inline]
     fn serialize_u32(self, value: u32) -> Result<Value, Error> {
-        self.serialize_u64(u64::from(value))
+        self.serialize_u128(u128::from(value))
     }
 
     #[inline]
     fn serialize_u64(self, value: u64) -> Result<Value, Error> {
-        Ok(Value::Integer(value.into()))
+        self.serialize_u128(u128::from(value))
+    }
+
+    #[inline]
+    fn serialize_u128(self, value: u128) -> Result<Value, Error> {
+        Ok(Value::Unsigned(value))
     }
 
     #[inline]

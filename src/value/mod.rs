@@ -25,13 +25,10 @@ pub enum Value {
     Null,
     /// Represents a boolean value.
     Bool(bool),
-    /// Integer CBOR numbers.
-    ///
-    /// The biggest value that can be represented is 2^64 - 1.
-    /// While the smallest value is -2^64.
-    /// Values outside this range can't be serialized
-    /// and will cause an error.
+    /// Signed integer CBOR numbers.
     Integer(i128),
+    /// Unsigned integer CBOR numbers.
+    Unsigned(u128),
     /// Represents a floating point value.
     Float(f64),
     /// Represents a byte string.
@@ -85,6 +82,9 @@ impl Ord for Value {
         }
         match (self, other) {
             (Integer(a), Integer(b)) => a.abs().cmp(&b.abs()),
+            (Unsigned(a), Unsigned(b)) => a.cmp(&b),
+            (Integer(a), Unsigned(b)) => (a.abs() as u128).cmp(&b),
+            (Unsigned(a), Integer(b)) => a.cmp(&(b.abs() as u128)),
             (Bytes(a), Bytes(b)) if a.len() != b.len() => a.len().cmp(&b.len()),
             (Text(a), Text(b)) if a.len() != b.len() => a.len().cmp(&b.len()),
             (Array(a), Array(b)) if a.len() != b.len() => a.len().cmp(&b.len()),
@@ -115,12 +115,12 @@ impl_from!(Value::Integer, i8);
 impl_from!(Value::Integer, i16);
 impl_from!(Value::Integer, i32);
 impl_from!(Value::Integer, i64);
-// i128 omitted because not all numbers fit in CBOR serialization
-impl_from!(Value::Integer, u8);
-impl_from!(Value::Integer, u16);
-impl_from!(Value::Integer, u32);
-impl_from!(Value::Integer, u64);
-// u128 omitted because not all numbers fit in CBOR serialization
+impl_from!(Value::Integer, i128);
+impl_from!(Value::Unsigned, u8);
+impl_from!(Value::Unsigned, u16);
+impl_from!(Value::Unsigned, u32);
+impl_from!(Value::Unsigned, u64);
+impl_from!(Value::Unsigned, u128);
 impl_from!(Value::Float, f32);
 impl_from!(Value::Float, f64);
 impl_from!(Value::Bytes, Vec<u8>);
@@ -136,10 +136,19 @@ impl Value {
             Null => 7,
             Bool(_) => 7,
             Integer(v) => {
-                if *v >= 0 {
+                if v.abs() > i128::from(u64::max_value()) {
+                    6
+                } else if *v >= 0 {
                     0
                 } else {
                     1
+                }
+            }
+            Unsigned(v) => {
+                if *v > u128::from(u64::max_value()) {
+                    6
+                } else {
+                    0
                 }
             }
             Float(_) => 7,

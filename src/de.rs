@@ -283,6 +283,33 @@ where
             .map(|()| u64::from_be_bytes(buf))
     }
 
+    fn parse_bigint<V>(&mut self, signed: bool, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        let desc = match self.peek()? {
+            Some(desc) => desc,
+            None => return Err(self.error(ErrorCode::EofWhileParsingValue)),
+        };
+        let ty = desc >> 5;
+        if ty != 2 {
+            return self.parse_value(visitor);
+        }
+        self.consume();
+        let len = desc & 0x1f;
+        if len > 16 {
+            return Err(self.error(ErrorCode::LengthOutOfRange));
+        }
+        let mut buf = [0; 16];
+        self.read.read_into(&mut buf[usize::from(16 - len)..])?;
+        let num = BigEndian::read_u128(&buf);
+        if !signed {
+            visitor.visit_u128(num)
+        } else {
+            visitor.visit_i128(-1 - num as i128)
+        }
+    }
+
     fn parse_bytes<V>(&mut self, len: usize, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
@@ -742,8 +769,7 @@ where
             }
             0xfc..=0xfe => Err(self.error(ErrorCode::UnassignedCode)),
             0xff => Err(self.error(ErrorCode::UnexpectedCode)),
-
-            _ => unreachable!(),
+            _ => unreachable!(), // Remove this once minimum supported rustc version is 1.33.0.
         }
     }
 }
@@ -848,12 +874,34 @@ where
     }
 
     #[inline]
+    fn deserialize_i128<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_u128(visitor)
+    }
+
+    #[inline]
+    fn deserialize_u128<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self.peek()? {
+            Some(tag @ 0xc2..=0xc3) => {
+                self.consume();
+                self.parse_bigint(tag == 0xc3 /* signed */, visitor)
+            }
+            _ => self.parse_value(visitor),
+        }
+    }
+
+    #[inline]
     fn is_human_readable(&self) -> bool {
         false
     }
 
     serde::forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string unit
+        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string unit
         unit_struct seq tuple tuple_struct map struct identifier ignored_any
         bytes byte_buf
     }

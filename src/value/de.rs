@@ -68,6 +68,14 @@ impl<'de> de::Deserialize<'de> for Value {
             }
 
             #[inline]
+            fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(Value::Unsigned(v))
+            }
+
+            #[inline]
             fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
             where
                 E: de::Error,
