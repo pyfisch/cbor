@@ -60,7 +60,7 @@ impl Error {
     pub fn scratch_too_small(offset: u64) -> Error {
         Error(ErrorImpl {
             code: ErrorCode::ScratchTooSmall,
-            offset: offset,
+            offset,
         })
     }
 

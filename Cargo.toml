@@ -1,6 +1,6 @@
 [package]
 name = "serde_cbor"
-version = "0.10.0"
+version = "0.10.3"
 authors = [
     "Pyfisch <pyfisch@gmail.com>",
     "Steven Fackler <sfackler@gmail.com>"]
@@ -8,7 +8,7 @@ repository = "https://github.com/pyfisch/cbor"
 readme = "README.md"
 license = "MIT/Apache-2.0"
 description = "CBOR support for serde."
-keywords = ["serde", "cbor", "serialization"]
+keywords = ["serde", "cbor", "serialization", "no_std"]
 categories = ["encoding"]
 edition = "2018"
 
@@ -25,5 +25,8 @@ serde_derive = { version = "1.0.14", default-features = false }
 
 [features]
 default = ["std"]
+# Uses `alloc` library and adds support for vector functions with
+# `no_std`.
+alloc = ["serde/alloc"]
 std = ["serde/std" ]
 unsealed_read_write = []

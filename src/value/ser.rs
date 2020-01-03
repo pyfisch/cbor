@@ -344,7 +344,7 @@ impl serde::ser::SerializeMap for SerializeMap {
     where
         T: Serialize,
     {
-        self.next_key = Some(Value::from(to_value(&key)?));
+        self.next_key = Some(to_value(&key)?);
         Ok(())
     }
 

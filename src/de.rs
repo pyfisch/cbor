@@ -14,11 +14,12 @@ use crate::error::{Error, ErrorCode, Result};
 use crate::read::EitherLifetime;
 #[cfg(feature = "unsealed_read_write")]
 pub use crate::read::EitherLifetime;
-use crate::read::Offset;
 #[cfg(feature = "std")]
-pub use crate::read::{IoRead, SliceRead};
+pub use crate::read::IoRead;
+use crate::read::Offset;
+#[cfg(any(feature = "std", feature = "alloc"))]
+pub use crate::read::SliceRead;
 pub use crate::read::{MutSliceRead, Read, SliceReadFixed};
-
 /// Decodes a value from CBOR data in a slice.
 ///
 /// # Examples
@@ -40,7 +41,7 @@ pub use crate::read::{MutSliceRead, Read, SliceReadFixed};
 /// let value: &str = de::from_slice(&v[..]).unwrap();
 /// assert_eq!(value, "foobar");
 /// ```
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "alloc"))]
 pub fn from_slice<'a, T>(slice: &'a [u8]) -> Result<T>
 where
     T: de::Deserialize<'a>,
@@ -143,7 +144,7 @@ where
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "alloc"))]
 impl<'a> Deserializer<SliceRead<'a>> {
     /// Constructs a `Deserializer` which reads from a slice.
     ///
@@ -225,6 +226,7 @@ where
     }
 
     /// Turn a CBOR deserializer into an iterator over values of type T.
+    #[allow(clippy::should_implement_trait)] // Trait doesn't allow unconstrained T.
     pub fn into_iter<T>(self) -> StreamDeserializer<'de, R, T>
     where
         T: de::Deserialize<'de>,
@@ -597,7 +599,7 @@ where
             0x3b => {
                 let value = self.parse_u64()?;
                 if value > i64::max_value() as u64 {
-                    return visitor.visit_i128(-1 - value as i128);
+                    return visitor.visit_i128(-1 - i128::from(value));
                 }
                 visitor.visit_i64(-1 - value as i64)
             }
@@ -700,22 +702,22 @@ where
             0xbf => self.parse_indefinite_map(visitor),
 
             // Major type 6: optional semantic tagging of other major types
-            0xc0..=0xd7 => self.parse_value(visitor),
+            0xc0..=0xd7 => self.recursion_checked(|de| de.parse_value(visitor)),
             0xd8 => {
                 self.parse_u8()?;
-                self.parse_value(visitor)
+                self.recursion_checked(|de| de.parse_value(visitor))
             }
             0xd9 => {
                 self.parse_u16()?;
-                self.parse_value(visitor)
+                self.recursion_checked(|de| de.parse_value(visitor))
             }
             0xda => {
                 self.parse_u32()?;
-                self.parse_value(visitor)
+                self.recursion_checked(|de| de.parse_value(visitor))
             }
             0xdb => {
                 self.parse_u64()?;
-                self.parse_value(visitor)
+                self.recursion_checked(|de| de.parse_value(visitor))
             }
             0xdc..=0xdf => Err(self.error(ErrorCode::UnassignedCode)),
 

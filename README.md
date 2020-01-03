@@ -4,7 +4,7 @@
 [![Documentation](https://docs.rs/serde_cbor/badge.svg)](https://docs.rs/serde_cbor)
 
 This crate implements the Concise Binary Object Representation from [RFC 7049].
-It builds on [Serde] the generic serialization  framework for Rust.
+It builds on [Serde], the generic serialization framework for Rust.
 CBOR provides a binary encoding for a superset
 of the JSON data model that is small and very fast to parse.
 
@@ -16,7 +16,7 @@ of the JSON data model that is small and very fast to parse.
 Serde CBOR supports Rust 1.31 and up. Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
-serde_cbor = "0.10"
+serde_cbor = "0.10.3"
 ```
 
 Storing and loading Rust types is easy and requires only
