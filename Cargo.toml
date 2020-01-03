@@ -17,11 +17,7 @@ travis-ci = { repository = "pyfisch/cbor" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-byteorder = { version = "1.0.0", default-features = false }
-# Starting with v1.4.0 half requires Rust v1.32 or newer
-# serde_cbor v0.10.0 msrv is v1.31
-# remove when next minor version is released 
-half = ">= 1.2.0, < 1.4.0"
+half = "1.2.0"
 serde = { version = "1.0.14", default-features = false }
 
 [dev-dependencies]
