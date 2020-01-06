@@ -1,6 +1,5 @@
 //! Deserialization.
 
-use byteorder::{BigEndian, ByteOrder};
 use core::f32;
 use core::marker::PhantomData;
 use core::result;
@@ -265,20 +264,23 @@ where
 
     fn parse_u16(&mut self) -> Result<u16> {
         let mut buf = [0; 2];
-        self.read.read_into(&mut buf)?;
-        Ok(BigEndian::read_u16(&buf))
+        self.read
+            .read_into(&mut buf)
+            .map(|()| u16::from_be_bytes(buf))
     }
 
     fn parse_u32(&mut self) -> Result<u32> {
         let mut buf = [0; 4];
-        self.read.read_into(&mut buf)?;
-        Ok(BigEndian::read_u32(&buf))
+        self.read
+            .read_into(&mut buf)
+            .map(|()| u32::from_be_bytes(buf))
     }
 
     fn parse_u64(&mut self) -> Result<u64> {
         let mut buf = [0; 8];
-        self.read.read_into(&mut buf)?;
-        Ok(BigEndian::read_u64(&buf))
+        self.read
+            .read_into(&mut buf)
+            .map(|()| u64::from_be_bytes(buf))
     }
 
     fn parse_bytes<V>(&mut self, len: usize, visitor: V) -> Result<V::Value>
@@ -544,15 +546,11 @@ where
     }
 
     fn parse_f32(&mut self) -> Result<f32> {
-        let mut buf = [0; 4];
-        self.read.read_into(&mut buf)?;
-        Ok(BigEndian::read_f32(&buf))
+        self.parse_u32().map(|i| f32::from_bits(i))
     }
 
     fn parse_f64(&mut self) -> Result<f64> {
-        let mut buf = [0; 8];
-        self.read.read_into(&mut buf)?;
-        Ok(BigEndian::read_f64(&buf))
+        self.parse_u64().map(|i| f64::from_bits(i))
     }
 
     // Don't warn about the `unreachable!` in case
