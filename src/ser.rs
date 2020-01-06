@@ -13,6 +13,8 @@ use serde::ser::{self, Serialize};
 #[cfg(feature = "std")]
 use std::io;
 
+use crate::tags::{get_tag, CBOR_NEWTYPE_NAME};
+
 /// Serializes a value to a vector.
 #[cfg(any(feature = "std", feature = "alloc"))]
 pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
@@ -399,10 +401,15 @@ where
     }
 
     #[inline]
-    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
+    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + ser::Serialize,
     {
+        if name == CBOR_NEWTYPE_NAME {
+            for tag in get_tag().into_iter() {
+                self.write_u64(6, tag)?;
+            }
+        }
         value.serialize(self)
     }
 
