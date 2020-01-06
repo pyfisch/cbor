@@ -732,11 +732,11 @@ where
             0xf8 => Err(self.error(ErrorCode::UnassignedCode)),
             0xf9 => {
                 let value = self.parse_f16()?;
-                visitor.visit_f32(value)
+                visitor.visit_f64(value as f64)
             }
             0xfa => {
                 let value = self.parse_f32()?;
-                visitor.visit_f32(value)
+                visitor.visit_f64(value as f64)
             }
             0xfb => {
                 let value = self.parse_f64()?;

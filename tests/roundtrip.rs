@@ -2,7 +2,6 @@
 extern crate serde_derive;
 
 use serde_cbor;
-use serde_cbor::de;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 struct MyStuff {
@@ -12,19 +11,15 @@ struct MyStuff {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 enum MyStuffType {
-    ver1 {
-        x: f64,
-    },
-    ver2
+    Ver1 { x: f64, y: f32 },
+    Ver2,
 }
 
 #[test]
 /// Test roundtrip operation on a serde data structure.
 fn test_roundtrip() {
     let stuff1 = MyStuff {
-        data: MyStuffType::ver1 {
-            x: 2.5
-        }
+        data: MyStuffType::Ver1 { x: 2.5, y: 2.5 },
     };
     let data_bytes = serde_cbor::to_vec(&stuff1).unwrap();
     let stuff2 = serde_cbor::from_slice(&data_bytes).unwrap();
