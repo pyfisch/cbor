@@ -1,9 +1,8 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use serde::de;
-
 use crate::value::Value;
+use serde::de;
 
 impl<'de> de::Deserialize<'de> for Value {
     #[inline]
@@ -133,6 +132,18 @@ impl<'de> de::Deserialize<'de> for Value {
                 E: de::Error,
             {
                 Ok(Value::Float(v))
+            }
+
+            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                let tag = crate::tags::get_tag();
+                let inner = deserializer.deserialize_any(self);
+                match tag {
+                    Some(tag) => inner.map(|v| Value::Tag(tag, Box::new(v))),
+                    None => inner,
+                }
             }
         }
 

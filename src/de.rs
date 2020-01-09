@@ -20,6 +20,7 @@ use crate::read::Offset;
 #[cfg(any(feature = "std", feature = "alloc"))]
 pub use crate::read::SliceRead;
 pub use crate::read::{MutSliceRead, Read, SliceReadFixed};
+use crate::tags::set_tag;
 /// Decodes a value from CBOR data in a slice.
 ///
 /// # Examples
@@ -399,6 +400,18 @@ where
         }
     }
 
+    fn handle_tagged_value<V>(&mut self, tag: u64, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.recursion_checked(|d| {
+            set_tag(Some(tag));
+            let r = visitor.visit_newtype_struct(d);
+            set_tag(None);
+            r
+        })
+    }
+
     fn recursion_checked<F, T>(&mut self, f: F) -> Result<T>
     where
         F: FnOnce(&mut Deserializer<R>) -> Result<T>,
@@ -702,22 +715,25 @@ where
             0xbf => self.parse_indefinite_map(visitor),
 
             // Major type 6: optional semantic tagging of other major types
-            0xc0..=0xd7 => self.recursion_checked(|de| de.parse_value(visitor)),
+            0xc0..=0xd7 => {
+                let tag = u64::from(byte) - 0xc0;
+                self.handle_tagged_value(tag, visitor)
+            }
             0xd8 => {
-                self.parse_u8()?;
-                self.recursion_checked(|de| de.parse_value(visitor))
+                let tag = self.parse_u8()?;
+                self.handle_tagged_value(tag.into(), visitor)
             }
             0xd9 => {
-                self.parse_u16()?;
-                self.recursion_checked(|de| de.parse_value(visitor))
+                let tag = self.parse_u16()?;
+                self.handle_tagged_value(tag.into(), visitor)
             }
             0xda => {
-                self.parse_u32()?;
-                self.recursion_checked(|de| de.parse_value(visitor))
+                let tag = self.parse_u32()?;
+                self.handle_tagged_value(tag.into(), visitor)
             }
             0xdb => {
-                self.parse_u64()?;
-                self.recursion_checked(|de| de.parse_value(visitor))
+                let tag = self.parse_u64()?;
+                self.handle_tagged_value(tag, visitor)
             }
             0xdc..=0xdf => Err(self.error(ErrorCode::UnassignedCode)),
 

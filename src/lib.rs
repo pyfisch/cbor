@@ -271,6 +271,7 @@ pub mod de;
 pub mod error;
 mod read;
 pub mod ser;
+pub mod tags;
 mod write;
 
 #[cfg(feature = "std")]
