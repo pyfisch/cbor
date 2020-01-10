@@ -66,10 +66,19 @@
 //! # Packed Encoding
 //! When serializing structs or enums in CBOR the keys or enum variant names will be serialized
 //! as string keys to a map. Especially in embedded environments this can increase the file
-//! size too much. In packed encoding the keys and variants will be serialized as variable sized
-//! integers. The first 24 entries in any struct consume only a single byte!
+//! size too much. In packed encoding all struct keys, as well as any enum variant that has no data,
+//! will be serialized as variable sized integers. The first 24 entries in any struct consume only a
+//! single byte!  Packed encoding uses serde's preferred [externally tagged enum
+//! format](https://serde.rs/enum-representations.html) and therefore serializes enum variant names
+//! as string keys when that variant contains data.  So, in the packed encoding example, `FirstVariant`
+//! encodes to a single byte, but encoding `SecondVariant` requires 16 bytes.
+//!
 //! To serialize a document in this format use `Serializer::new(writer).packed_format()` or
 //! the shorthand `ser::to_vec_packed`. The deserialization works without any changes.
+//!
+//! If you would like to omit the enum variant encoding for all variants, including ones that
+//! contain data, you can add `legacy_enums()` in addition to `packed_format()`, as can seen
+//! in the Serialize using minimal encoding example.
 //!
 //! # Self describing documents
 //! In some contexts different formats are used but there is no way to declare the format used
@@ -130,6 +139,55 @@
 //! assert_eq!(value, "foobar");
 //! assert_eq!(rest, &[0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72]);
 //! # }
+//! ```
+//!
+//! Serialize using packed encoding
+//!
+//! ```rust
+//! use serde_derive::{Deserialize, Serialize};
+//! use serde_cbor::ser::to_vec_packed;
+//! use WithTwoVariants::*;
+//!
+//! #[derive(Debug, Serialize, Deserialize)]
+//! enum WithTwoVariants {
+//!     FirstVariant,
+//!     SecondVariant(u8),
+//! }
+//!
+//! let cbor = to_vec_packed(&FirstVariant).unwrap();
+//! assert_eq!(cbor.len(), 1);
+//!
+//! let cbor = to_vec_packed(&SecondVariant(0)).unwrap();
+//! assert_eq!(cbor.len(), 16); // Includes 13 bytes of "SecondVariant"
+//! ```
+//!
+//! Serialize using minimal encoding
+//!
+//! ```rust
+//! use serde_derive::{Deserialize, Serialize};
+//! use serde_cbor::{Result, Serializer, ser::{self, IoWrite}};
+//! use WithTwoVariants::*;
+//!
+//! fn to_vec_minimal<T>(value: &T) -> Result<Vec<u8>>
+//! where
+//!     T: serde::Serialize,
+//! {
+//!     let mut vec = Vec::new();
+//!     value.serialize(&mut Serializer::new(&mut IoWrite::new(&mut vec)).packed_format().legacy_enums())?;
+//!     Ok(vec)
+//! }
+//!
+//! #[derive(Debug, Serialize, Deserialize)]
+//! enum WithTwoVariants {
+//!     FirstVariant,
+//!     SecondVariant(u8),
+//! }
+//!
+//! let cbor = to_vec_minimal(&FirstVariant).unwrap();
+//! assert_eq!(cbor.len(), 1);
+//!
+//! let cbor = to_vec_minimal(&SecondVariant(0)).unwrap();
+//! assert_eq!(cbor.len(), 3);
 //! ```
 //!
 //! # `no-std` support
