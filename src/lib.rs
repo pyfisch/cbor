@@ -63,13 +63,25 @@
 //!
 //! The CBOR API also provides an enum `serde_cbor::Value`.
 //!
-//! # Packed Encoding
+//! # Smaller Encodings
 //! When serializing structs or enums in CBOR the keys or enum variant names will be serialized
 //! as string keys to a map. Especially in embedded environments this can increase the file
-//! size too much. In packed encoding the keys and variants will be serialized as variable sized
-//! integers. The first 24 entries in any struct consume only a single byte!
+//! size too much. Serde CBOR provides two encodings that reduce the size of encoded structs and
+//! enums.
+//!
+//! ## Packed Encoding
+//! In packed encoding all struct keys, as well as any enum variant that has no data, will
+//! be serialized as variable sized integers. The first 24 entries in any struct consume only a
+//! single byte!  Packed encoding uses serde's preferred
+//! [externally tagged enum format](https://serde.rs/enum-representations.html) and therefore
+//! serializes enum variant names as string keys when that variant contains data.
 //! To serialize a document in this format use `Serializer::new(writer).packed_format()` or
 //! the shorthand `ser::to_vec_packed`. The deserialization works without any changes.
+//!
+//! ## Minimal Encoding
+//! If you want the smallest encoding possible, even though enums will no longer be externally
+//! tagged, use `Serializer::new(writer).packed_format().legacy_enums()` or the shorthand
+//! `ser::to_vec_minimal`. Like `to_vec_packed`, the deserialization works without any changes.
 //!
 //! # Self describing documents
 //! In some contexts different formats are used but there is no way to declare the format used

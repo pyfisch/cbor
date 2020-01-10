@@ -26,7 +26,7 @@ where
     Ok(vec)
 }
 
-/// Serializes a value to a vector in packed format.
+/// Serializes a value to a vector in packed format using externally tagged enums.
 #[cfg(feature = "std")]
 pub fn to_vec_packed<T>(value: &T) -> Result<Vec<u8>>
 where
@@ -34,6 +34,17 @@ where
 {
     let mut vec = Vec::new();
     value.serialize(&mut Serializer::new(&mut IoWrite::new(&mut vec)).packed_format())?;
+    Ok(vec)
+}
+
+/// Serializes a value to a vector in the most compressed format, albeit enums are not externally tagged.
+#[cfg(feature = "std")]
+pub fn to_vec_minimal<T>(value: &T) -> Result<Vec<u8>>
+where
+    T: ser::Serialize,
+{
+    let mut vec = Vec::new();
+    value.serialize(&mut Serializer::new(&mut IoWrite::new(&mut vec)).packed_format().legacy_enums())?;
     Ok(vec)
 }
 
