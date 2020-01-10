@@ -1,6 +1,6 @@
 [package]
 name = "serde_cbor"
-version = "0.10.3"
+version = "0.11.0"
 authors = [
     "Pyfisch <pyfisch@gmail.com>",
     "Steven Fackler <sfackler@gmail.com>"]
@@ -14,7 +14,7 @@ edition = "2018"
 
 [badges]
 travis-ci = { repository = "pyfisch/cbor" }
-maintenance = { status = "actively-developed" }
+maintenance = { status = "passively-maintained" }
 
 [dependencies]
 half = "1.2.0"
