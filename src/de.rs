@@ -20,6 +20,7 @@ use crate::read::Offset;
 #[cfg(any(feature = "std", feature = "alloc"))]
 pub use crate::read::SliceRead;
 pub use crate::read::{MutSliceRead, Read, SliceReadFixed};
+#[cfg(feature = "tags")]
 use crate::tags::set_tag;
 /// Decodes a value from CBOR data in a slice.
 ///
@@ -400,6 +401,7 @@ where
         }
     }
 
+    #[cfg(feature = "tags")]
     fn handle_tagged_value<V>(&mut self, tag: u64, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
@@ -410,6 +412,14 @@ where
             set_tag(None);
             r
         })
+    }
+
+    #[cfg(not(feature = "tags"))]
+    fn handle_tagged_value<V>(&mut self, _tag: u64, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.recursion_checked(|de| de.parse_value(visitor))
     }
 
     fn recursion_checked<F, T>(&mut self, f: F) -> Result<T>
