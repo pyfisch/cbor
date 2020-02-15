@@ -1,5 +1,103 @@
-# Serde CBOR
 [![Build Status](https://travis-ci.org/pyfisch/cbor.svg?branch=master)](https://travis-ci.org/pyfisch/cbor)
+
+This repository manages 2 packages; ll_cbor and serde_cbor.
+
+# LL CBOR
+[![Crates.io](https://img.shields.io/crates/v/serde_cbor.svg)](https://crates.io/crates/ll_cbor)
+[![Documentation](https://docs.rs/serde_cbor/badge.svg)](https://docs.rs/ll_cbor)
+
+LL CBOR is a low level CBOR serialization and deserialization API that allows people to
+serialize and deserialize CBOR without any framework, in the Schema they want.
+
+This crate comes from the need for developers to support CBOR values that aren't natively
+supported by other serialization platform (like serde). An example of this is large integers
+and dates; Serde does not support bit integer types or special object types, but CBOR has
+them and an application might want to serialize or deserialize using those (or the full
+CBOR spectrum, or custom made tags).
+
+## Usage
+LL CBOR supports Rust 1.38 and up. To install it add this to your `Cargo.toml`:
+```toml
+[dependencies]
+ll_cbor = "0.1.0"
+```
+
+Then, for serializing values:
+
+```rust
+use ll_cbor::serialize::values as cbor;
+use ll_cbor::serialize::builders;
+
+fn main() -> Result<(), std::error::Error> {
+    // Serialize a single u64.
+    let some_value = cbor::u64(0);
+
+    // Serialize a vector of u32.
+    let some_vector = cbor::vector(vec![cbor::u32(1), cbor::u32(2), cbor::u32(3)]);
+
+    // Serialize a map of variable values.
+    // This is a HashMap<ll_cbor::Value, ll_cbor::Value>.
+    let hash = std::collections::HashMap::new();
+    hash.insert(cbor::string("hello"), cbor::i8(-100));
+    // It is legal in CBOR to have different type of keys in maps, but impossible to represent
+    // natively with Serde.
+    hash.insert(cbor::u32(1), cbor::string("World"));
+    let some_map = cbor::dictionary(&hash);
+
+    // We can also just pass in bytes and get an untrusted ll_cbor::Value from it:
+    let value = ll_cbor::Value::from_untrusted_slice(&[1, 2, 3]);
+
+    // When we don't know how many objects in advance, we can use a builder.
+    let some_map_builder = builders::dictionary();
+    for i in 0..1000 {
+        // It is also possible in CBOR to have multiple values with the same key.
+        some_map_builder.insert(cbor::string("key"), cbor::u32(i));
+    }
+
+    // Adding a CBOR tag to it.
+    let some_map2 = cbor::tag(55799, some_map_builder.build());
+
+    // Getting the bytes for the second map.
+    println("{}", hex::encode(&some_map2));
+
+    Ok(())
+}
+```
+
+For deserialization, there are multiple ways. The main way is to use various `try_from`
+to check if a byte stream is of the right type. You can also build a schema and validate
+the input with it.
+
+```rust
+use ll_cbor::deserialize::values as cbor_de;
+use ll_cbor::schema;
+
+fn main() -> Result<(), std::error::Error> {
+    let bytes: Vec<u8> = vec![1, 2, 3];
+
+    // These will be of type Result<u64, ll_cbor::deserialize::Error>.
+    let maybe_u64 = cbor_de::u64::try_from(&bytes);
+    let maybe_string = cbor_de::string::try_from(&bytes);
+
+    // A vector can contain any elements.
+    let maybe_vec = cbor_de::vec::try_from(&bytes);
+
+    // So we have to map and test all items.
+    // TODO: correct the unwrap() calls with results.
+    let maybe_vec_of_u32 = maybe_vec.map(|v| v.iter().map(|i| cbor_de::u32::try_from(i)).collect());
+
+    // This will create a schema for a dictionary of string -> tag + i8.
+    let s = schema::dictionary(schema::string, schema::tag(schema::i8));
+    // Validate bytes match the schema.
+    // This returns a `Result<BTreeMap<String, i8>, ll_cbor::schema::Error>`.
+    let maybe_v = s.validate(&bytes);
+
+    Ok(())
+}
+```
+
+
+# Serde CBOR
 [![Crates.io](https://img.shields.io/crates/v/serde_cbor.svg)](https://crates.io/crates/serde_cbor)
 [![Documentation](https://docs.rs/serde_cbor/badge.svg)](https://docs.rs/serde_cbor)
 
