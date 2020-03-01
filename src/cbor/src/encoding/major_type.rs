@@ -14,7 +14,7 @@ pub enum MajorType<'a> {
     NegativeInteger(MinorType),
 
     /// Major type 2: a byte string.
-    Bytes { length: MinorType, bytes: &'a [u8] },
+    ByteArray { length: MinorType, bytes: &'a [u8] },
 
     /// Major type 3: a text string.
     Text { length: MinorType, string: &'a str },
@@ -25,7 +25,8 @@ pub enum MajorType<'a> {
         values: &'a [Value<'a>],
     },
 
-    /// Major type 4 (subtype 31): an indefinite size array.
+    /// Major type 4 (subtype 31): an indefinite size array. This has no size, and ends
+    /// with a break.
     IndefiniteArrayStart,
 
     /// Major type 5: a map of pairs.
@@ -53,16 +54,18 @@ pub enum MajorType<'a> {
     /// Major type 7, subtype 23
     Undefined,
 
-    /// Major type 7, subtype 0..19, 28..30, 32..255.
-    /// This exists to allow for decoding of values without loss of information.
-    Unassigned(u8),
-
-    /// Major type 7, subtype 25
-    HalfFloat(f32),
+    /// Major type 7, subtype 25. This is only used for passing values if they are already
+    /// decoded / encoded. You need the "half_float" feature enabled to be able to serialize
+    /// or deserialize those.
+    HalfFloat(u16),
     /// Major type 7, subtype 26
     SingleFloat(f32),
     /// Major type 7, subtype 27
     DoubleFloat(f64),
+
+    /// Major type 7, subtype 0..19, 24, 28-30. Map to subtypes 0..19, 28..30, 32..255.
+    /// This exists to allow for decoding of values without loss of information.
+    Unassigned(u8),
 
     /// Major type 7, subtype 31
     Break,
@@ -78,7 +81,7 @@ impl MajorType<'_> {
         match self {
             MajorType::UnsignedInteger(bytes) => 1 + bytes.len(),
             MajorType::NegativeInteger(bytes) => 1 + bytes.len(),
-            MajorType::Bytes { length, bytes } => 1 + length.len() + bytes.len(),
+            MajorType::ByteArray { length, bytes } => 1 + length.len() + bytes.len(),
             MajorType::Text { length, string } => 1 + length.len() + string.len(),
             MajorType::Array { length, values } => {
                 let mut l = 1 + length.len();
@@ -87,6 +90,7 @@ impl MajorType<'_> {
                 }
                 l
             }
+            MajorType::IndefiniteArrayStart => 1,
             MajorType::Map { length, pairs } => {
                 let mut l = 1 + length.len();
                 for i in 0..pairs.len() {
@@ -94,13 +98,17 @@ impl MajorType<'_> {
                 }
                 l
             }
+            MajorType::IndefiniteMapStart => 1,
             MajorType::Tag { tag, value } => 1 + tag.len() + value.len(),
             MajorType::False => 1,
             MajorType::True => 1,
             MajorType::Null => 1,
             MajorType::Undefined => 1,
-            MajorType::UnassignedMajorType7(_) => 1,
-            MajorType(_) => 1,
+            MajorType::HalfFloat(_) => 3,
+            MajorType::SingleFloat(_) => 5,
+            MajorType::DoubleFloat(_) => 9,
+            MajorType::Unassigned(_) => 1,
+            MajorType::Break => 1,
         }
     }
 
@@ -114,7 +122,7 @@ impl MajorType<'_> {
                 w.write(&[(1 << 5) + bytes.minor()])?;
                 bytes.write(w)
             }
-            MajorType::Bytes { length, bytes } => {
+            MajorType::ByteArray { length, bytes } => {
                 w.write(&[(2 << 5) + length.minor()])?;
                 length.write(w)?;
                 w.write(*bytes)
@@ -146,6 +154,36 @@ impl MajorType<'_> {
                 tag.write(w)?;
                 value.write(w)
             }
+            MajorType::False => w.write(&[(7 << 5) + 20]),
+            MajorType::True => w.write(&[(7 << 5) + 21]),
+            MajorType::Null => w.write(&[(7 << 5) + 22]),
+            MajorType::Undefined => w.write(&[(7 << 5) + 23]),
+            MajorType::HalfFloat(f) => w.write(&[(7 << 5) + 25, (*f >> 8) as u8, *f as u8]),
+            MajorType::SingleFloat(f) => {
+                let u = f.to_bits();
+                w.write(&[
+                    (7 << 5) + 26,
+                    (u >> 24) as u8,
+                    (u >> 16) as u8,
+                    (u >> 8) as u8,
+                    u as u8,
+                ])
+            }
+            MajorType::DoubleFloat(f) => {
+                let u = f.to_bits();
+                w.write(&[
+                    (7 << 5) + 27,
+                    (u >> 56) as u8,
+                    (u >> 48) as u8,
+                    (u >> 40) as u8,
+                    (u >> 32) as u8,
+                    (u >> 24) as u8,
+                    (u >> 16) as u8,
+                    (u >> 8) as u8,
+                    u as u8,
+                ])
+            }
+            _ => unreachable!(),
         }
     }
 }

@@ -7,5 +7,5 @@ pub fn bytes(bytes: &[u8]) -> Value {
         _ => unreachable!(),
     };
 
-    MajorType::Bytes { length, bytes }.into()
+    MajorType::ByteArray { length, bytes }.into()
 }

@@ -23,6 +23,11 @@ pub use numbers::*;
 #[cfg(test)]
 mod numbers_test;
 
+mod simple;
+pub use simple::*;
+#[cfg(test)]
+mod simple_test;
+
 mod tag;
 pub use tag::*;
 #[cfg(test)]
@@ -43,7 +48,7 @@ mod text_test;
 /// data itself. For this, use an [OwnedValue] (which is incompatible with no_std).
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Value<'a> {
-    pub(crate) inner: MajorType<'a>,
+    inner: MajorType<'a>,
 }
 
 impl Value<'_> {
@@ -88,7 +93,7 @@ impl Value<'_> {
 }
 
 impl<'a> From<MajorType<'a>> for Value<'a> {
-    fn from(v: MajorType<'a>) -> Self {
-        Value { inner: v }
+    fn from(inner: MajorType<'a>) -> Self {
+        Value { inner }
     }
 }
