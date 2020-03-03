@@ -9,3 +9,7 @@ pub fn text(string: &str) -> Value {
 
     MajorType::Text { length, string }.into()
 }
+
+pub fn indefinite_text<'a>(chunks: &'a [&'a str]) -> Value<'a> {
+    MajorType::IndefiniteText { chunks }.into()
+}

@@ -48,7 +48,7 @@ mod text_test;
 /// data itself. For this, use an [OwnedValue] (which is incompatible with no_std).
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Value<'a> {
-    inner: MajorType<'a>,
+    pub(crate) inner: MajorType<'a>,
 }
 
 impl Value<'_> {

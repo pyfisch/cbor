@@ -36,3 +36,13 @@ fn text_445() {
         "696d20696420657374206c61626f72756d2e"),
     );
 }
+
+#[test]
+fn indefinite_text_small() {
+    let chunks = ["Hello", " ", "World"];
+
+    assert_value(
+        values::indefinite_text(&chunks),
+        "7f6548656c6c6f612065576f726c64ff",
+    );
+}

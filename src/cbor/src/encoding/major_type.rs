@@ -14,10 +14,16 @@ pub enum MajorType<'a> {
     NegativeInteger(MinorType),
 
     /// Major type 2: a byte string.
-    ByteArray { length: MinorType, bytes: &'a [u8] },
+    ByteString { length: MinorType, bytes: &'a [u8] },
+
+    /// Major type 2 (subtype 31): an indefinite size byte string. This is split into chunks.
+    IndefiniteByteString { chunks: &'a [&'a [u8]] },
 
     /// Major type 3: a text string.
     Text { length: MinorType, string: &'a str },
+
+    /// Major type 3 (subtype 31): an indefinite size text string. This is split into chunks.
+    IndefiniteText { chunks: &'a [&'a str] },
 
     /// Major type 4: an array.
     Array {
@@ -26,8 +32,10 @@ pub enum MajorType<'a> {
     },
 
     /// Major type 4 (subtype 31): an indefinite size array. This has no size, and ends
-    /// with a break.
-    IndefiniteArrayStart,
+    /// with a break. Because of constraints of this API, we are forced to have a sized
+    /// slice as the member (it is impossible to implement Copy and Iterators properly).
+    /// If you need to use indefinite iterators, use the serialization API directly.
+    IndefiniteArray { values: &'a [Value<'a>] },
 
     /// Major type 5: a map of pairs.
     Map {
@@ -35,8 +43,10 @@ pub enum MajorType<'a> {
         pairs: &'a [(Value<'a>, Value<'a>)],
     },
 
-    /// Major type 5 (subtype 31): an indefinite size map.
-    IndefiniteMapStart,
+    /// Major type 5 (subtype 31): an indefinite size map. Similar to IndefiniteArray,
+    /// this cannot use an actual indefinite iterator. If you need to use indefinite
+    /// iterators, use the serialization API directly.
+    IndefiniteMap { pairs: &'a [(Value<'a>, Value<'a>)] },
 
     /// Major type 6: a semantic tagging of MajorType.
     Tag {
@@ -81,8 +91,10 @@ impl MajorType<'_> {
         match self {
             MajorType::UnsignedInteger(bytes) => 1 + bytes.len(),
             MajorType::NegativeInteger(bytes) => 1 + bytes.len(),
-            MajorType::ByteArray { length, bytes } => 1 + length.len() + bytes.len(),
+            MajorType::ByteString { length, bytes } => 1 + length.len() + bytes.len(),
+            MajorType::IndefiniteByteString { chunks: _ } => 1,
             MajorType::Text { length, string } => 1 + length.len() + string.len(),
+            MajorType::IndefiniteText { chunks: _ } => 1,
             MajorType::Array { length, values } => {
                 let mut l = 1 + length.len();
                 for i in 0..values.len() {
@@ -90,7 +102,7 @@ impl MajorType<'_> {
                 }
                 l
             }
-            MajorType::IndefiniteArrayStart => 1,
+            MajorType::IndefiniteArray { values: _ } => 1,
             MajorType::Map { length, pairs } => {
                 let mut l = 1 + length.len();
                 for i in 0..pairs.len() {
@@ -98,7 +110,7 @@ impl MajorType<'_> {
                 }
                 l
             }
-            MajorType::IndefiniteMapStart => 1,
+            MajorType::IndefiniteMap { pairs: _ } => 1,
             MajorType::Tag { tag, value } => 1 + tag.len() + value.len(),
             MajorType::False => 1,
             MajorType::True => 1,
@@ -122,15 +134,47 @@ impl MajorType<'_> {
                 w.write(&[(1 << 5) + bytes.minor()])?;
                 bytes.write(w)
             }
-            MajorType::ByteArray { length, bytes } => {
+            MajorType::ByteString { length, bytes } => {
                 w.write(&[(2 << 5) + length.minor()])?;
                 length.write(w)?;
                 w.write(*bytes)
+            }
+            MajorType::IndefiniteByteString { chunks } => {
+                use crate::serialize::values::uint;
+
+                w.write(&[(2 << 5) + 31])?;
+                for c in 0..chunks.len() {
+                    let chunk = chunks[c];
+                    // Match and write the bytes for the size.
+                    let length = match uint(chunk.len() as u64).inner {
+                        MajorType::UnsignedInteger(bytes) => bytes,
+                        _ => unreachable!(),
+                    };
+                    w.write(&[(2 << 5) + length.minor()])?;
+                    w.write(chunk)?;
+                }
+                w.write(&[(7 << 5) + 31])
             }
             MajorType::Text { length, string } => {
                 w.write(&[(3 << 5) + length.minor()])?;
                 length.write(w)?;
                 w.write(string.as_bytes())
+            }
+            MajorType::IndefiniteText { chunks } => {
+                use crate::serialize::values::uint;
+
+                w.write(&[(3 << 5) + 31])?;
+                for c in 0..chunks.len() {
+                    let chunk = chunks[c];
+                    // Match and write the bytes for the size.
+                    let length = match uint(chunk.len() as u64).inner {
+                        MajorType::UnsignedInteger(bytes) => bytes,
+                        _ => unreachable!(),
+                    };
+                    w.write(&[(3 << 5) + length.minor()])?;
+                    w.write(chunk.as_bytes())?;
+                }
+                w.write(&[(7 << 5) + 31])
             }
             MajorType::Array { length, values } => {
                 w.write(&[(4 << 5) + length.minor()])?;
@@ -140,6 +184,13 @@ impl MajorType<'_> {
                 }
                 Ok(())
             }
+            MajorType::IndefiniteArray { values } => {
+                w.write(&[(4 << 5) + 31])?;
+                for i in 0..values.len() {
+                    values[i].write(w)?;
+                }
+                w.write(&[(7 << 5) + 31])
+            }
             MajorType::Map { length, pairs } => {
                 w.write(&[(5 << 5) + length.minor()])?;
                 length.write(w)?;
@@ -148,6 +199,14 @@ impl MajorType<'_> {
                     pairs[i].1.write(w)?;
                 }
                 Ok(())
+            }
+            MajorType::IndefiniteMap { pairs } => {
+                w.write(&[(5 << 5) + 31])?;
+                for i in 0..pairs.len() {
+                    pairs[i].0.write(w)?;
+                    pairs[i].1.write(w)?;
+                }
+                w.write(&[(7 << 5) + 31])
             }
             MajorType::Tag { tag, value } => {
                 w.write(&[(6 << 5) + tag.minor()])?;

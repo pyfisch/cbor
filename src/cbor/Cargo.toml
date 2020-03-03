@@ -8,6 +8,6 @@ edition = "2018"
 half = { version = "1.4.1", optional = true }
 
 [features]
+default = ["std"]
 half_float = ["half"]
 std = []
-default = ["std"]

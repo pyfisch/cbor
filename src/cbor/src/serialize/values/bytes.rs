@@ -7,5 +7,9 @@ pub fn bytes(bytes: &[u8]) -> Value {
         _ => unreachable!(),
     };
 
-    MajorType::ByteArray { length, bytes }.into()
+    MajorType::ByteString { length, bytes }.into()
+}
+
+pub fn indefinite_bytes<'a>(chunks: &'a [&'a [u8]]) -> Value<'a> {
+    MajorType::IndefiniteByteString { chunks }.into()
 }

@@ -63,3 +63,12 @@ fn bytes_260() {
         ),
     );
 }
+
+#[test]
+fn indefinite_bytes_spec() {
+    let chunk1: [u8; 4] = [0xAA, 0xBB, 0xCC, 0xDD];
+    let chunk2: [u8; 3] = [0xEE, 0xFF, 0x99];
+    let chunks: [&[u8]; 2] = [&chunk1, &chunk2];
+
+    assert_value(values::indefinite_bytes(&chunks), "5f44aabbccdd43eeff99ff");
+}

@@ -34,3 +34,19 @@ fn array_recurse() {
         "81850018011900021a000000031b0000000000000004",
     );
 }
+
+#[test]
+fn indefinite_array() {
+    let values = [
+        values::usmall(1),
+        values::usmall(2),
+        values::usmall(3),
+        values::usmall(4),
+        values::usmall(5),
+        values::usmall(6),
+        values::usmall(7),
+        values::usmall(8),
+    ];
+
+    assert_value(values::indefinite_array(&values), "9f0102030405060708ff");
+}

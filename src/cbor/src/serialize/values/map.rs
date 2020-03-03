@@ -13,3 +13,7 @@ pub fn map<'a>(pairs: &'a [(Value<'a>, Value<'a>)]) -> Value<'a> {
 
     MajorType::Map { length, pairs }.into()
 }
+
+pub fn indefinite_map<'a>(pairs: &'a [(Value<'a>, Value<'a>)]) -> Value<'a> {
+    MajorType::IndefiniteMap { pairs }.into()
+}
