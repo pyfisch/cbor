@@ -1,15 +1,9 @@
-use crate::encoding::major_type::MajorType;
-use crate::serialize::values::{uint, Value};
+use crate::serialize::values::Value;
 
 pub fn array<'a>(values: &'a [Value<'a>]) -> Value<'a> {
-    let length = match uint(values.len() as u64).inner {
-        MajorType::UnsignedInteger(bytes) => bytes,
-        _ => unreachable!(),
-    };
-
-    MajorType::Array { length, values }.into()
+    Value::from_array(values)
 }
 
 pub fn indefinite_array<'a>(values: &'a [Value<'a>]) -> Value<'a> {
-    MajorType::IndefiniteArray { values }.into()
+    Value::from_indefinite_array(values)
 }

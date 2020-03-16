@@ -22,5 +22,5 @@ fn hex_decode<T: AsRef<[u8]>>(hex: T) -> Vec<u8> {
 }
 
 pub fn assert_value<T: AsRef<[u8]>>(value: Value, hex: T) {
-    assert_eq!(value.to_bytes(), hex_decode(hex), "{:?}", value);
+    assert_eq!(value.to_vec(), hex_decode(hex), "{:?}", value);
 }

@@ -5,42 +5,26 @@ use crate::serialize::values::Value;
 /// A small natural (23 or less). This will clamp the number.
 pub fn usmall(v: u8) -> Value<'static> {
     if v < 24 {
-        MajorType::UnsignedInteger(MinorType::SameByte(v)).into()
+        Value::simple(MajorType::UnsignedInteger(MinorType::SameByte(v)))
     } else {
-        MajorType::UnsignedInteger(MinorType::SameByte(23)).into()
+        Value::simple(MajorType::UnsignedInteger(MinorType::SameByte(23)))
     }
 }
 
 pub fn u8(v: u8) -> Value<'static> {
-    MajorType::UnsignedInteger(MinorType::OneByte(v)).into()
+    Value::simple(MajorType::UnsignedInteger(MinorType::OneByte(v)))
 }
 
 pub fn u16(v: u16) -> Value<'static> {
-    MajorType::UnsignedInteger(MinorType::TwoBytes((v >> 8) as u8, v as u8)).into()
+    Value::simple(MajorType::UnsignedInteger(MinorType::TwoBytes(v)))
 }
 
 pub fn u32(v: u32) -> Value<'static> {
-    MajorType::UnsignedInteger(MinorType::FourBytes(
-        (v >> 24) as u8,
-        (v >> 16) as u8,
-        (v >> 8) as u8,
-        v as u8,
-    ))
-    .into()
+    Value::simple(MajorType::UnsignedInteger(MinorType::FourBytes(v)))
 }
 
 pub fn u64(v: u64) -> Value<'static> {
-    MajorType::UnsignedInteger(MinorType::EightBytes(
-        (v >> 56) as u8,
-        (v >> 48) as u8,
-        (v >> 40) as u8,
-        (v >> 32) as u8,
-        (v >> 24) as u8,
-        (v >> 16) as u8,
-        (v >> 8) as u8,
-        v as u8,
-    ))
-    .into()
+    Value::simple(MajorType::UnsignedInteger(MinorType::EightBytes(v)))
 }
 
 pub fn uint(v: u64) -> Value<'static> {
@@ -69,10 +53,10 @@ pub fn uint(v: u64) -> Value<'static> {
 /// Using `negative_small(3)` is supposed to represent -4. Similarly, `negative_small(0)` is
 /// -1.
 pub fn negative_usmall(v: u8) -> Value<'static> {
-    if v > 23 {
-        MajorType::NegativeInteger(MinorType::SameByte(23)).into()
+    if v < 24 {
+        Value::simple(MajorType::NegativeInteger(MinorType::SameByte(v)))
     } else {
-        MajorType::NegativeInteger(MinorType::SameByte(v)).into()
+        Value::simple(MajorType::NegativeInteger(MinorType::SameByte(23)))
     }
 }
 
@@ -85,7 +69,7 @@ pub fn negative_usmall(v: u8) -> Value<'static> {
 /// A 1 byte negative number, in the range of [-256, -1]. As with [negative_small], this
 /// function encodes the number as is, e.g. `negative_i8(200)` is actually encoding -201.
 pub fn negative_u8(v: u8) -> Value<'static> {
-    MajorType::NegativeInteger(MinorType::OneByte(v)).into()
+    Value::simple(MajorType::NegativeInteger(MinorType::OneByte(v)))
 }
 
 /// The negative raw encoding methods. These should only be used if you know what you're
@@ -97,7 +81,7 @@ pub fn negative_u8(v: u8) -> Value<'static> {
 /// A 2 bytes negative number, in the range of [-65536, -1]. As with [negative_small], this
 /// function encodes the number as is, e.g. `negative_i8(200)` is actually encoding -201.
 pub fn negative_u16(v: u16) -> Value<'static> {
-    MajorType::NegativeInteger(MinorType::TwoBytes((v >> 8) as u8, v as u8)).into()
+    Value::simple(MajorType::NegativeInteger(MinorType::TwoBytes(v)))
 }
 
 /// The negative raw encoding methods. These should only be used if you know what you're
@@ -109,13 +93,7 @@ pub fn negative_u16(v: u16) -> Value<'static> {
 /// A 4 bytes negative number, in the range of [-2**32 - 1, -1]. As with [negative_usmall], this
 /// function encodes the number as is, e.g. `negative_i8(200)` is actually encoding -201.
 pub fn negative_u32(v: u32) -> Value<'static> {
-    MajorType::NegativeInteger(MinorType::FourBytes(
-        (v >> 24) as u8,
-        (v >> 16) as u8,
-        (v >> 8) as u8,
-        v as u8,
-    ))
-    .into()
+    Value::simple(MajorType::NegativeInteger(MinorType::FourBytes(v)))
 }
 
 /// The negative raw encoding methods. These should only be used if you know what you're
@@ -127,17 +105,7 @@ pub fn negative_u32(v: u32) -> Value<'static> {
 /// A 8 bytes negative number, in the range of [-2**64 - 1, -1]. As with [negative_usmall], this
 /// function encodes the number as is, e.g. `negative_i8(200)` is actually encoding -201.
 pub fn negative_u64(v: u64) -> Value<'static> {
-    MajorType::NegativeInteger(MinorType::EightBytes(
-        (v >> 56) as u8,
-        (v >> 48) as u8,
-        (v >> 40) as u8,
-        (v >> 32) as u8,
-        (v >> 24) as u8,
-        (v >> 16) as u8,
-        (v >> 8) as u8,
-        v as u8,
-    ))
-    .into()
+    Value::simple(MajorType::NegativeInteger(MinorType::EightBytes(v)))
 }
 
 /// The negative raw encoding methods. These should only be used if you know what you're

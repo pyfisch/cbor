@@ -34,9 +34,78 @@ pub use tag::*;
 mod tag_test;
 
 mod text;
+use crate::encoding::minor_type::MinorType;
 pub use text::*;
+
 #[cfg(test)]
 mod text_test;
+
+/// Inner Value type. This will contain references to data that is needed to serialize the
+/// value. It has no ownership, however.
+/// If there are no references needed (e.g. if the whole data is contained in the Major+
+/// Minor types), use NoRef().
+#[derive(Copy, Clone, Debug, PartialEq)]
+enum ValueInner<'a> {
+    NoRef(),
+    ByteString(&'a [u8]),
+    Text(&'a str),
+    Array(&'a [Value<'a>]),
+    Map(&'a [(Value<'a>, Value<'a>)]),
+    IndefiniteByteString(&'a [&'a [u8]]),
+    IndefiniteText(&'a [&'a str]),
+    IndefiniteArray(&'a [Value<'a>]),
+    IndefiniteMap(&'a [(Value<'a>, Value<'a>)]),
+    Tag(&'a Value<'a>),
+}
+
+impl<'a> ValueInner<'a> {
+    fn write_to<W: Write>(&self, w: &mut W) -> Result<(), WriteError> {
+        match self {
+            ValueInner::NoRef() => Ok(()),
+            ValueInner::ByteString(s) => w.write(*s),
+            ValueInner::Text(t) => w.write(t.as_bytes()),
+            ValueInner::Array(a) => {
+                for i in 0..a.len() {
+                    a[i].write_to(w)?;
+                }
+                Ok(())
+            }
+            ValueInner::Map(kv) => {
+                for i in 0..kv.len() {
+                    kv[i].0.write_to(w)?;
+                    kv[i].1.write_to(w)?;
+                }
+                Ok(())
+            }
+            ValueInner::IndefiniteByteString(chunks) => {
+                for i in 0..chunks.len() {
+                    Value::from_byte_string(chunks[i]).write_to(w)?;
+                }
+                MajorType::Break().write_to(w)
+            }
+            ValueInner::IndefiniteText(chunks) => {
+                for i in 0..chunks.len() {
+                    Value::from_text(chunks[i]).write_to(w)?;
+                }
+                MajorType::Break().write_to(w)
+            }
+            ValueInner::IndefiniteArray(values) => {
+                for i in 0..values.len() {
+                    values[i].write_to(w)?;
+                }
+                MajorType::Break().write_to(w)
+            }
+            ValueInner::IndefiniteMap(pairs) => {
+                for i in 0..pairs.len() {
+                    pairs[i].0.write_to(w)?;
+                    pairs[i].1.write_to(w)?;
+                }
+                MajorType::Break().write_to(w)
+            }
+            ValueInner::Tag(v) => v.write_to(w),
+        }
+    }
+}
 
 /// A CBOR Value. Can represent any definitely-sized CBOR value possible.
 ///
@@ -48,17 +117,120 @@ mod text_test;
 /// data itself. For this, use an [OwnedValue] (which is incompatible with no_std).
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Value<'a> {
-    pub(crate) inner: MajorType<'a>,
+    major: MajorType,
+    inner: ValueInner<'a>,
 }
 
-impl Value<'_> {
+impl<'a> Value<'a> {
+    /// We do not expose this method because a user should use the values functions (like
+    /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
+    /// could be created.
+    pub(crate) fn simple(major: MajorType) -> Self {
+        Self::with_inner(major, ValueInner::NoRef())
+    }
+
+    /// We do not expose this method because a user should use the values functions (like
+    /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
+    /// could be created.
+    pub(crate) fn from_byte_string(byte_string: &'a [u8]) -> Self {
+        Self::with_inner(
+            MajorType::ByteString(MinorType::size(byte_string.len())),
+            ValueInner::ByteString(byte_string),
+        )
+    }
+
+    /// We do not expose this method because a user should use the values functions (like
+    /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
+    /// could be created.
+    pub(crate) fn from_text(text: &'a str) -> Self {
+        Self::with_inner(
+            MajorType::Text(MinorType::size(text.len())),
+            ValueInner::Text(text),
+        )
+    }
+
+    /// We do not expose this method because a user should use the values functions (like
+    /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
+    /// could be created.
+    pub(crate) fn from_array(array: &'a [Value<'a>]) -> Self {
+        Self::with_inner(
+            MajorType::Array(MinorType::size(array.len())),
+            ValueInner::Array(array),
+        )
+    }
+
+    /// We do not expose this method because a user should use the values functions (like
+    /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
+    /// could be created.
+    pub(crate) fn from_map(map: &'a [(Value<'a>, Value<'a>)]) -> Self {
+        Self::with_inner(
+            MajorType::Map(MinorType::size(map.len())),
+            ValueInner::Map(map),
+        )
+    }
+
+    /// We do not expose this method because a user should use the values functions (like
+    /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
+    /// could be created.
+    pub(crate) fn from_indefinite_byte_string(indefinite_byte_string: &'a [&'a [u8]]) -> Self {
+        Self::with_inner(
+            MajorType::ByteString(MinorType::Indefinite()),
+            ValueInner::IndefiniteByteString(indefinite_byte_string),
+        )
+    }
+
+    /// We do not expose this method because a user should use the values functions (like
+    /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
+    /// could be created.
+    pub(crate) fn from_indefinite_text(indefinite_text: &'a [&'a str]) -> Self {
+        Self::with_inner(
+            MajorType::Text(MinorType::Indefinite()),
+            ValueInner::IndefiniteText(indefinite_text),
+        )
+    }
+
+    /// We do not expose this method because a user should use the values functions (like
+    /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
+    /// could be created.
+    pub(crate) fn from_indefinite_array(indefinite_array: &'a [Value<'a>]) -> Self {
+        Self::with_inner(
+            MajorType::Array(MinorType::Indefinite()),
+            ValueInner::IndefiniteArray(indefinite_array),
+        )
+    }
+
+    /// We do not expose this method because a user should use the values functions (like
+    /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
+    /// could be created.
+    pub(crate) fn from_indefinite_map(indefinite_map: &'a [(Value<'a>, Value<'a>)]) -> Self {
+        Self::with_inner(
+            MajorType::Map(MinorType::Indefinite()),
+            ValueInner::IndefiniteMap(indefinite_map),
+        )
+    }
+
+    /// We do not expose this method because a user should use the values functions (like
+    /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
+    /// could be created.
+    pub(crate) fn from_tag(tag: u64, inner: &'a Value<'a>) -> Self {
+        Self::with_inner(
+            MajorType::Tag(MinorType::size(tag as usize)),
+            ValueInner::Tag(inner),
+        )
+    }
+
+    fn with_inner(major: MajorType, inner: ValueInner<'a>) -> Self {
+        Self { major, inner }
+    }
+
     /// Write the
-    pub fn write<W: Write>(&self, w: &mut W) -> Result<(), WriteError> {
-        self.inner.write(w)
+    pub fn write_to<W: Write>(&self, w: &mut W) -> Result<(), WriteError> {
+        self.major.write_to(w)?;
+        self.inner.write_to(w)
     }
 
     #[cfg(feature = "std")]
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_vec(&self) -> Vec<u8> {
         // This skips the Write trait and just implement its own vector iterator.
         // The Write trait has error handling, and we really don't need that here,
         // so this is simpler.
@@ -72,28 +244,11 @@ impl Value<'_> {
             }
         }
 
-        let mut vector = Vec::with_capacity(self.len());
-        self.inner
-            .write(&mut Writer {
-                vector: &mut vector,
-            })
-            .expect("Unexpected error.");
+        let mut vector = Vec::with_capacity(120);
+        self.write_to(&mut Writer {
+            vector: &mut vector,
+        })
+        .expect("Unexpected error.");
         vector
-    }
-
-    /// The length in bytes of this value.
-    pub fn len(&self) -> usize {
-        self.inner.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        // This is never empty (because MajorType will always have at least 1 byte.
-        false
-    }
-}
-
-impl<'a> From<MajorType<'a>> for Value<'a> {
-    fn from(inner: MajorType<'a>) -> Self {
-        Value { inner }
     }
 }
