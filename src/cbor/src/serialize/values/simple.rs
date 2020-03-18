@@ -1,6 +1,14 @@
 use crate::encoding::major_type::MajorType;
 use crate::serialize::values::Value;
 
+pub fn bool(v: bool) -> Value<'static> {
+    if v {
+        r#true()
+    } else {
+        r#false()
+    }
+}
+
 pub fn r#true() -> Value<'static> {
     Value::simple(MajorType::True())
 }
@@ -23,6 +31,11 @@ pub fn half_float(float: half::f16) -> Value<'static> {
 }
 
 #[cfg(feature = "half")]
+pub fn f16(float: half::f16) -> Value<'static> {
+    Value::simple(MajorType::HalfFloat(float.to_bits()))
+}
+
+#[cfg(feature = "half")]
 pub fn half_float_from_f32(float: f32) -> Value<'static> {
     Value::simple(MajorType::HalfFloat(half::f16::from_f32(float).to_bits()))
 }
@@ -34,7 +47,13 @@ pub fn half_float_from_u16(float: u16) -> Value<'static> {
 pub fn float(f: f32) -> Value<'static> {
     Value::simple(MajorType::SingleFloat(f.to_bits()))
 }
+pub fn f32(f: f32) -> Value<'static> {
+    Value::simple(MajorType::SingleFloat(f.to_bits()))
+}
 
 pub fn double_float(f: f64) -> Value<'static> {
+    Value::simple(MajorType::DoubleFloat(f.to_bits()))
+}
+pub fn f64(f: f64) -> Value<'static> {
     Value::simple(MajorType::DoubleFloat(f.to_bits()))
 }

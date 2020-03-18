@@ -40,6 +40,10 @@ impl MinorType {
         }
     }
 
+    pub fn u64(v: u64) -> Self {
+        Self::size(v as usize)
+    }
+
     /// Returns the minor type of these bytes.
     pub fn minor(&self) -> u8 {
         match self {

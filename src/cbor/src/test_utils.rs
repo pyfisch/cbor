@@ -1,6 +1,6 @@
 use crate::serialize::values::Value;
 
-fn hex_decode<T: AsRef<[u8]>>(hex: T) -> Vec<u8> {
+pub(crate) fn hex_decode<T: AsRef<[u8]>>(hex: T) -> Vec<u8> {
     fn value_of(c: u8) -> u8 {
         match c {
             b'A'...b'F' => (c - b'A' + 10),
@@ -21,6 +21,6 @@ fn hex_decode<T: AsRef<[u8]>>(hex: T) -> Vec<u8> {
         .collect()
 }
 
-pub fn assert_value<T: AsRef<[u8]>>(value: Value, hex: T) {
+pub(crate) fn assert_value<T: AsRef<[u8]>>(value: Value, hex: T) {
     assert_eq!(value.to_vec(), hex_decode(hex), "{:?}", value);
 }
