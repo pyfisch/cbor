@@ -44,6 +44,18 @@ impl MinorType {
         Self::size(v as usize)
     }
 
+    /// The amount of bytes taken by this minor type, or 0 if it is encoded in the MajorType.
+    pub fn len(&self) -> usize {
+        match self {
+            MinorType::SameByte(_) => 0,
+            MinorType::OneByte(_) => 1,
+            MinorType::TwoBytes(_) => 2,
+            MinorType::FourBytes(_) => 4,
+            MinorType::EightBytes(_) => 8,
+            MinorType::Indefinite() => 0,
+        }
+    }
+
     /// Returns the minor type of these bytes.
     pub fn minor(&self) -> u8 {
         match self {

@@ -59,6 +59,33 @@ pub enum MajorType {
 }
 
 impl MajorType {
+    pub fn len(&self) -> usize {
+        match self {
+            MajorType::UnsignedInteger(minor) => 1 + minor.len(),
+            MajorType::NegativeInteger(minor) => 1 + minor.len(),
+            MajorType::ByteString(minor) => 1 + minor.len(),
+            MajorType::Text(minor) => 1 + minor.len(),
+            MajorType::Array(minor) => 1 + minor.len(),
+            MajorType::Map(minor) => 1 + minor.len(),
+            MajorType::Tag(minor) => 1 + minor.len(),
+            MajorType::False() => 1,
+            MajorType::True() => 1,
+            MajorType::Null() => 1,
+            MajorType::Undefined() => 1,
+            MajorType::HalfFloat(_) => 3,
+            MajorType::SingleFloat(_) => 5,
+            MajorType::DoubleFloat(_) => 9,
+            MajorType::UnassignedSimpleData(d) => {
+                if *d >= 32 {
+                    2
+                } else {
+                    1
+                }
+            }
+            MajorType::Break() => 1,
+        }
+    }
+
     pub fn write_to<W: Write>(&self, w: &mut W) -> Result<(), WriteError> {
         match self {
             MajorType::UnsignedInteger(minor) => {

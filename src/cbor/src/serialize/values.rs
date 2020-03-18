@@ -59,6 +59,57 @@ enum ValueInner<'a> {
 }
 
 impl<'a> ValueInner<'a> {
+    fn len(&self) -> usize {
+        match self {
+            ValueInner::NoRef() => 0,
+            ValueInner::ByteString(s) => s.len(),
+            ValueInner::Text(t) => t.len(),
+            ValueInner::Array(a) => {
+                let mut total: usize = 0;
+                for i in 0..a.len() {
+                    total += a[i].len();
+                }
+                total
+            }
+            ValueInner::Map(kv) => {
+                let mut total: usize = 0;
+                for i in 0..kv.len() {
+                    total += kv[i].0.len() + kv[i].1.len();
+                }
+                total
+            }
+            ValueInner::IndefiniteByteString(chunks) => {
+                let mut total: usize = 0;
+                for i in 0..chunks.len() {
+                    total += Value::from_byte_string(chunks[i]).len();
+                }
+                total + MajorType::Break().len()
+            }
+            ValueInner::IndefiniteText(chunks) => {
+                let mut total: usize = 0;
+                for i in 0..chunks.len() {
+                    total += Value::from_text(chunks[i]).len();
+                }
+                total + MajorType::Break().len()
+            }
+            ValueInner::IndefiniteArray(values) => {
+                let mut total: usize = 0;
+                for i in 0..values.len() {
+                    total += values[i].len();
+                }
+                total + MajorType::Break().len()
+            }
+            ValueInner::IndefiniteMap(pairs) => {
+                let mut total: usize = 0;
+                for i in 0..pairs.len() {
+                    total += pairs[i].0.len() + pairs[i].1.len();
+                }
+                total + MajorType::Break().len()
+            }
+            ValueInner::Tag(v) => v.len(),
+        }
+    }
+
     fn write_to<W: Write>(&self, w: &mut W) -> Result<(), WriteError> {
         match self {
             ValueInner::NoRef() => Ok(()),
@@ -223,6 +274,10 @@ impl<'a> Value<'a> {
         Self { major, inner }
     }
 
+    pub fn len(&self) -> usize {
+        self.major.len() + self.inner.len()
+    }
+
     /// Write the
     pub fn write_to<W: Write>(&self, w: &mut W) -> Result<(), WriteError> {
         self.major.write_to(w)?;
@@ -244,7 +299,7 @@ impl<'a> Value<'a> {
             }
         }
 
-        let mut vector = Vec::with_capacity(120);
+        let mut vector = Vec::with_capacity(self.len());
         self.write_to(&mut Writer {
             vector: &mut vector,
         })
