@@ -4,5 +4,4 @@ Cargo.lock
 tokamak.toml
 .idea
 *.iml
-examples/ferris.cbor
 .cargo/config

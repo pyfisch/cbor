@@ -5,7 +5,7 @@
 //! Serde CBOR supports Rust 1.40 and up. Add this to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! serde_cbor = "0.10"
+//! serde_cbor = "0.12"
 //! ```
 //!
 //! Storing and loading Rust types is easy and requires only
@@ -197,7 +197,7 @@
 //! ``` toml
 //! [dependencies]
 //! serde = { version = "1.0", default-features = false }
-//! serde_cbor = { version = "0.10", default-features = false }
+//! serde_cbor = { version = "0.12", default-features = false }
 //! ```
 //!
 //! Without the `std` feature the functions [from_reader], [from_slice], [to_vec], and [to_writer]
