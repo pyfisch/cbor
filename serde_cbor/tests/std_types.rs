@@ -1,4 +1,4 @@
-#[macro_use]
+#[cfg_attr(feature = "std", macro_use)]
 extern crate serde_derive;
 
 #[cfg(feature = "std")]
