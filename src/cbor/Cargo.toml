@@ -7,6 +7,9 @@ edition = "2018"
 [dependencies]
 half = { version = "1.4.1", optional = true }
 
+[dev-dependencies]
+proptest = "0.9.5"
+
 [features]
 default = ["std"]
 half_float = ["half"]
