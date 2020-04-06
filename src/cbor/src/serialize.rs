@@ -4,7 +4,7 @@ mod write;
 use crate::encoding::major_type::MajorType;
 use crate::encoding::minor_type::MinorType;
 use crate::serialize::values::Value;
-pub use write::{Write, WriteError};
+pub use write::{Write, WriteError, WriteTo};
 
 // Define a function to forward a value to the writer.
 macro_rules! writer_method (
@@ -93,7 +93,7 @@ impl<'a, W: Write> Serializer<'a, W> {
     }
 
     pub fn raw_tag(&mut self, tag: u64) -> Result<&mut Self, WriteError> {
-        MajorType::Tag(MinorType::u64(tag)).write_to(self.writer)?;
+        MajorType::Tag(MinorType::size(tag as usize)).write_to(self.writer)?;
         Ok(self)
     }
 

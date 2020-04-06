@@ -1,6 +1,6 @@
 #![allow(clippy::many_single_char_names)]
 use crate::encoding::minor_type::MinorType;
-use crate::serialize::{Write, WriteError};
+use crate::serialize::{Write, WriteError, WriteTo};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MajorType {
@@ -58,8 +58,8 @@ pub enum MajorType {
     Break(),
 }
 
-impl MajorType {
-    pub fn len(&self) -> usize {
+impl WriteTo for MajorType {
+    fn len(&self) -> usize {
         match self {
             MajorType::UnsignedInteger(minor) => 1 + minor.len(),
             MajorType::NegativeInteger(minor) => 1 + minor.len(),
@@ -86,15 +86,13 @@ impl MajorType {
         }
     }
 
-    pub fn write_to<W: Write>(&self, w: &mut W) -> Result<(), WriteError> {
+    fn write_to<W: Write>(&self, w: &mut W) -> Result<usize, WriteError> {
         match self {
             MajorType::UnsignedInteger(minor) => {
-                w.write(&[0 + minor.minor()])?;
-                minor.write_to(w)
+                Ok(w.write(&[0 + minor.minor()])? + minor.write_to(w)?)
             }
             MajorType::NegativeInteger(minor) => {
-                w.write(&[(1 << 5) + minor.minor()])?;
-                minor.write_to(w)
+                Ok(w.write(&[(1 << 5) + minor.minor()])? + minor.write_to(w)?)
             }
             MajorType::ByteString(minor) => {
                 w.write(&[(2 << 5) + minor.minor()])?;
@@ -147,6 +145,77 @@ impl MajorType {
                 }
             }
             MajorType::Break() => w.write(&[(7 << 5) + 31]),
+        }
+    }
+}
+
+impl<B: AsRef<[u8]>> From<B> for MajorType {
+    /// This will not fail (unless the slice is not long enough to decode the value), even if
+    /// the value is not known. In the worse case it will return an UnassignedSimpleData with
+    /// byte value of the data in it.
+    /// If the slice is not long enough this will panic.
+    /// This also does not tell you how many bytes are read. Use [`From<Pipe>`] to keep track
+    /// of bytes read.
+    ///
+    /// There is a chance that a value read using this [From], then serialized using [write_to],
+    /// results in different bytes. It only happens in this very special case;
+    ///
+    ///   A simple value of value smaller than 24 (e.g. 12) is encoded in 2 bytes, decoded
+    ///   then reserialized. The resulting serialization will be 1 byte (valid CBOR).
+    ///
+    ///   ```
+    ///     use cbor::serialize::WriteTo;
+    ///
+    ///     let bytes: [u8; 2] = [(7 << 5) as u8 + 24, 12];
+    ///     let mt = cbor::encoding::MajorType::from(&bytes);
+    ///
+    ///     let mut out = [0u8; 2];
+    ///     mt.write_to(&mut (&mut out as &mut [u8])).unwrap();
+    ///
+    ///     // Been merged to one byte.
+    ///     assert_eq!(out[0], (7 << 5) as u8 + 12);
+    ///     assert_eq!(mt.len(), 1);
+    ///   ```
+    /// This is not (technically) valid CBOR, but we choose not to panic in this case.
+    fn from(bytes: B) -> Self {
+        let bytes = bytes.as_ref();
+        let major = bytes[0];
+
+        match major >> 5 {
+            0 => MajorType::UnsignedInteger(MinorType::from(bytes)),
+            1 => MajorType::NegativeInteger(MinorType::from(bytes)),
+            2 => MajorType::ByteString(MinorType::from(bytes)),
+            3 => MajorType::Text(MinorType::from(bytes)),
+            4 => MajorType::Array(MinorType::from(bytes)),
+            5 => MajorType::Map(MinorType::from(bytes)),
+            6 => MajorType::Tag(MinorType::from(bytes)),
+            7 => match major & 0x1F {
+                20 => MajorType::False(),
+                21 => MajorType::True(),
+                22 => MajorType::Null(),
+                23 => MajorType::Undefined(),
+                24 => MajorType::UnassignedSimpleData(bytes[1]),
+                25 => MajorType::HalfFloat(((bytes[1] as u16) << 8) + bytes[2] as u16),
+                26 => MajorType::SingleFloat(
+                    ((bytes[1] as u32) << 24)
+                        + ((bytes[2] as u32) << 16)
+                        + ((bytes[3] as u32) << 8)
+                        + bytes[4] as u32,
+                ),
+                27 => MajorType::DoubleFloat(
+                    ((bytes[1] as u64) << 56)
+                        + ((bytes[2] as u64) << 48)
+                        + ((bytes[3] as u64) << 40)
+                        + ((bytes[4] as u64) << 32)
+                        + ((bytes[5] as u64) << 24)
+                        + ((bytes[6] as u64) << 16)
+                        + ((bytes[7] as u64) << 8)
+                        + bytes[8] as u64,
+                ),
+                31 => MajorType::Break(),
+                x => MajorType::UnassignedSimpleData(x),
+            },
+            _ => unreachable!(),
         }
     }
 }

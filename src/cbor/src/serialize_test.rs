@@ -11,9 +11,9 @@ struct Writer {
 }
 
 impl Write for Writer {
-    fn write(&mut self, bytes: &[u8]) -> Result<(), WriteError> {
+    fn write(&mut self, bytes: &[u8]) -> Result<usize, WriteError> {
         self.vector.extend_from_slice(bytes);
-        Ok(())
+        Ok(bytes.len())
     }
 }
 

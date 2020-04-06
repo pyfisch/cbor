@@ -1,5 +1,5 @@
 #![allow(clippy::many_single_char_names)]
-use crate::serialize::{Write, WriteError};
+use crate::serialize::{Write, WriteError, WriteTo};
 
 /// A minor type as a value holder, which is the values determining additional information.
 /// For example, for an Array, this would be
@@ -23,6 +23,10 @@ pub enum MinorType {
     /// Indication for certain Major Types that the size is unbounded and
     /// the encoder/decoder should use a "break" token.
     Indefinite(),
+
+    /// A value of 28-30 is reserved and should never be used. Deserializing
+    /// will likely lead to errors, and serializing will fail.
+    Reserved(u8),
 }
 
 impl MinorType {
@@ -40,22 +44,6 @@ impl MinorType {
         }
     }
 
-    pub fn u64(v: u64) -> Self {
-        Self::size(v as usize)
-    }
-
-    /// The amount of bytes taken by this minor type, or 0 if it is encoded in the MajorType.
-    pub fn len(&self) -> usize {
-        match self {
-            MinorType::SameByte(_) => 0,
-            MinorType::OneByte(_) => 1,
-            MinorType::TwoBytes(_) => 2,
-            MinorType::FourBytes(_) => 4,
-            MinorType::EightBytes(_) => 8,
-            MinorType::Indefinite() => 0,
-        }
-    }
-
     /// Returns the minor type of these bytes.
     pub fn minor(&self) -> u8 {
         match self {
@@ -65,12 +53,27 @@ impl MinorType {
             MinorType::FourBytes(_) => 26,
             MinorType::EightBytes(_) => 27,
             MinorType::Indefinite() => 31,
+            MinorType::Reserved(x) => *x,
+        }
+    }
+}
+
+impl WriteTo for MinorType {
+    fn len(&self) -> usize {
+        match self {
+            MinorType::SameByte(_) => 0,
+            MinorType::OneByte(_) => 1,
+            MinorType::TwoBytes(_) => 2,
+            MinorType::FourBytes(_) => 4,
+            MinorType::EightBytes(_) => 8,
+            MinorType::Indefinite() => 0,
+            MinorType::Reserved(_) => 0,
         }
     }
 
-    pub fn write_to<W: Write>(&self, w: &mut W) -> Result<(), WriteError> {
+    fn write_to<W: Write>(&self, w: &mut W) -> Result<usize, WriteError> {
         match self {
-            MinorType::SameByte(_) => Ok(()),
+            MinorType::SameByte(_) => Ok(0),
             MinorType::OneByte(v) => w.write(&[*v]),
             MinorType::TwoBytes(v) => w.write(&[(*v >> 8) as u8, *v as u8]),
             MinorType::FourBytes(v) => w.write(&[
@@ -89,7 +92,42 @@ impl MinorType {
                 (*v >> 8) as u8,
                 *v as u8,
             ]),
-            MinorType::Indefinite() => Ok(()),
+            MinorType::Indefinite() => Ok(0),
+            MinorType::Reserved(_) => Err(WriteError::ReservedCborValue()),
+        }
+    }
+}
+
+impl From<&[u8]> for MinorType {
+    fn from(bytes: &[u8]) -> Self {
+        let minor = bytes[0] & 0x1F;
+        match minor {
+            24 => MinorType::OneByte(bytes[1] as u8),
+            25 => MinorType::TwoBytes(((bytes[1] as u16) << 8) as u16 + (bytes[2] as u16) as u16),
+            26 => MinorType::FourBytes(
+                ((bytes[1] as u32) << 24) as u32
+                    + ((bytes[2] as u32) << 16) as u32
+                    + ((bytes[3] as u32) << 8) as u32
+                    + (bytes[4] as u32) as u32,
+            ),
+            27 => MinorType::EightBytes(
+                ((bytes[1] as u64) << 56)
+                    + ((bytes[2] as u64) << 48) as u64
+                    + ((bytes[3] as u64) << 40) as u64
+                    + ((bytes[4] as u64) << 32) as u64
+                    + ((bytes[5] as u64) << 24) as u64
+                    + ((bytes[6] as u64) << 16) as u64
+                    + ((bytes[7] as u64) << 8) as u64
+                    + (bytes[8] as u64) as u64,
+            ),
+            31 => MinorType::Indefinite(),
+            x => {
+                if x < 24 {
+                    MinorType::SameByte(x)
+                } else {
+                    MinorType::Reserved(x)
+                }
+            }
         }
     }
 }

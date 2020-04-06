@@ -35,6 +35,7 @@ mod tag_test;
 
 mod text;
 use crate::encoding::minor_type::MinorType;
+use crate::serialize::write::WriteTo;
 pub use text::*;
 
 #[cfg(test)]
@@ -58,7 +59,7 @@ enum ValueInner<'a> {
     Tag(&'a Value<'a>),
 }
 
-impl<'a> ValueInner<'a> {
+impl<'a> WriteTo for ValueInner<'a> {
     fn len(&self) -> usize {
         match self {
             ValueInner::NoRef() => 0,
@@ -110,29 +111,33 @@ impl<'a> ValueInner<'a> {
         }
     }
 
-    fn write_to<W: Write>(&self, w: &mut W) -> Result<(), WriteError> {
+    fn write_to<W: Write>(&self, w: &mut W) -> Result<usize, WriteError> {
         match self {
-            ValueInner::NoRef() => Ok(()),
+            ValueInner::NoRef() => Ok(0),
             ValueInner::ByteString(s) => w.write(*s),
             ValueInner::Text(t) => w.write(t.as_bytes()),
             ValueInner::Array(a) => {
+                let mut sz = 0;
                 for i in 0..a.len() {
-                    a[i].write_to(w)?;
+                    sz += a[i].write_to(w)?;
                 }
-                Ok(())
+                Ok(sz)
             }
             ValueInner::Map(kv) => {
+                let mut sz = 0;
                 for i in 0..kv.len() {
-                    kv[i].0.write_to(w)?;
-                    kv[i].1.write_to(w)?;
+                    sz += kv[i].0.write_to(w)?;
+                    sz += kv[i].1.write_to(w)?;
                 }
-                Ok(())
+                Ok(sz)
             }
             ValueInner::IndefiniteByteString(chunks) => {
+                let mut sz = 0;
                 for i in 0..chunks.len() {
-                    Value::from_byte_string(chunks[i]).write_to(w)?;
+                    sz += Value::from_byte_string(chunks[i]).write_to(w)?;
                 }
-                MajorType::Break().write_to(w)
+                sz += MajorType::Break().write_to(w)?;
+                Ok(sz)
             }
             ValueInner::IndefiniteText(chunks) => {
                 for i in 0..chunks.len() {
@@ -274,16 +279,6 @@ impl<'a> Value<'a> {
         Self { major, inner }
     }
 
-    pub fn len(&self) -> usize {
-        self.major.len() + self.inner.len()
-    }
-
-    /// Write the
-    pub fn write_to<W: Write>(&self, w: &mut W) -> Result<(), WriteError> {
-        self.major.write_to(w)?;
-        self.inner.write_to(w)
-    }
-
     #[cfg(feature = "std")]
     pub fn to_vec(&self) -> Vec<u8> {
         // This skips the Write trait and just implement its own vector iterator.
@@ -293,9 +288,9 @@ impl<'a> Value<'a> {
             vector: &'a mut Vec<u8>,
         }
         impl Write for Writer<'_> {
-            fn write(&mut self, bytes: &[u8]) -> Result<(), WriteError> {
+            fn write(&mut self, bytes: &[u8]) -> Result<usize, WriteError> {
                 self.vector.extend_from_slice(bytes);
-                Ok(())
+                Ok(bytes.len())
             }
         }
 
@@ -305,5 +300,19 @@ impl<'a> Value<'a> {
         })
         .expect("Unexpected error.");
         vector
+    }
+
+    pub fn len(&self) -> usize {
+        WriteTo::len(self)
+    }
+}
+
+impl<'a> WriteTo for Value<'a> {
+    fn len(&self) -> usize {
+        self.major.len() + self.inner.len()
+    }
+
+    fn write_to<W: Write>(&self, w: &mut W) -> Result<usize, WriteError> {
+        Ok(self.major.write_to(w)? + self.inner.write_to(w)?)
     }
 }
