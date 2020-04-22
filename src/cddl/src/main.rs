@@ -6,6 +6,7 @@ extern crate pest_derive;
 mod cddl;
 mod formats;
 
+use crate::cddl::Ruleset;
 use clap::Clap;
 use std::fs::read_to_string;
 use std::io::Read;
@@ -61,7 +62,7 @@ fn main() {
         read_to_string(&opt.input).expect("Could not read file.")
     };
 
-    match cddl::parse(&content).and_then(|ruleset| ruleset.validate().map(|_| ruleset)) {
+    match Ruleset::from_str(&content).and_then(|ruleset| ruleset.validate().map(|_| ruleset)) {
         Ok(cddl) => {
             if !opt.check {
                 match opt.format {
@@ -70,7 +71,7 @@ fn main() {
             }
         }
         Err(e) => match e {
-            cddl::Error::ParseError(msg) => eprintln!("Syntax error:\n{}", msg),
+            crate::cddl::error::Error::ParseError(msg) => eprintln!("Syntax error:\n{}", msg),
         },
     }
 }
