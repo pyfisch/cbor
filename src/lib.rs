@@ -2,7 +2,7 @@
 //!
 //! # Usage
 //!
-//! Serde CBOR supports Rust 1.40 and up. Add this to your `Cargo.toml`:
+//! Serde CBOR supports Rust 1.36 and up. Add this to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
 //! serde_cbor = "0.10"
