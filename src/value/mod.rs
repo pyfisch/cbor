@@ -5,6 +5,7 @@ mod ser;
 
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::BTreeMap;
+use std::mem;
 
 #[doc(inline)]
 pub use self::de::from_value;
@@ -320,5 +321,10 @@ impl Value {
             Value::Tag(t, ref mut v) => Some((*t, v.as_mut())),
             _ => None,
         }
+    }
+
+    /// Take the [Value], leaving [Null] in place.
+    pub fn take(&mut self) -> Value {
+        mem::replace(self, Value::Null)
     }
 }
