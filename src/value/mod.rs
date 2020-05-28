@@ -153,4 +153,76 @@ impl Value {
             __Hidden => unreachable!(),
         }
     }
+
+    /// Check whether this [Value] is null.
+    pub fn is_null(&self) -> bool {
+        match *self {
+            Value::Null => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether this [Value] is a bool.
+    pub fn is_bool(&self) -> bool {
+        match *self {
+            Value::Bool(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether this [Value] is an integer.
+    pub fn is_integer(&self) -> bool {
+        match *self {
+            Value::Integer(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether this [Value] is a float.
+    pub fn is_float(&self) -> bool {
+        match *self {
+            Value::Float(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether this [Value] is bytes.
+    pub fn is_bytes(&self) -> bool {
+        match *self {
+            Value::Bytes(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether this [Value] is text.
+    pub fn is_text(&self) -> bool {
+        match *self {
+            Value::Text(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether this [Value] is an array.
+    pub fn is_array(&self) -> bool {
+        match *self {
+            Value::Array(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether this [Value] is a map.
+    pub fn is_map(&self) -> bool {
+        match *self {
+            Value::Map(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether this [Value] is a tag.
+    pub fn is_tag(&self) -> bool {
+        match *self {
+            Value::Tag(_, _) => true,
+            _ => false,
+        }
+    }
 }
