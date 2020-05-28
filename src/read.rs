@@ -153,7 +153,10 @@ where
     /// Creates a new CBOR input source to read from a std::io input stream.
     pub fn new(reader: R) -> IoRead<R> {
         IoRead {
-            reader: OffsetReader { reader, offset: 0 },
+            reader: OffsetReader {
+                reader,
+                offset: 0,
+            },
             scratch: vec![],
             ch: None,
         }
@@ -227,10 +230,7 @@ where
 
         match transfer_result {
             Ok(r) if r == n => Ok(()),
-            Ok(_) => Err(Error::syntax(
-                ErrorCode::EofWhileParsingValue,
-                self.offset(),
-            )),
+            Ok(_) => Err(Error::syntax(ErrorCode::EofWhileParsingValue, self.offset())),
             Err(e) => Err(Error::io(e)),
         }
     }
@@ -318,10 +318,7 @@ impl<'a> SliceRead<'a> {
     fn end(&self, n: usize) -> Result<usize> {
         match self.index.checked_add(n) {
             Some(end) if end <= self.slice.len() => Ok(end),
-            _ => Err(Error::syntax(
-                ErrorCode::EofWhileParsingValue,
-                self.slice.len() as u64,
-            )),
+            _ => Err(Error::syntax(ErrorCode::EofWhileParsingValue, self.slice.len() as u64)),
         }
     }
 }
@@ -334,10 +331,7 @@ impl<'a> Offset for SliceRead<'a> {
     }
 }
 
-#[cfg(all(
-    any(feature = "std", feature = "alloc"),
-    not(feature = "unsealed_read_write")
-))]
+#[cfg(all(any(feature = "std", feature = "alloc"), not(feature = "unsealed_read_write")))]
 impl<'a> private::Sealed for SliceRead<'a> {}
 
 #[cfg(any(feature = "std", feature = "alloc"))]
@@ -431,10 +425,7 @@ impl<'a, 'b> SliceReadFixed<'a, 'b> {
     fn end(&self, n: usize) -> Result<usize> {
         match self.index.checked_add(n) {
             Some(end) if end <= self.slice.len() => Ok(end),
-            _ => Err(Error::syntax(
-                ErrorCode::EofWhileParsingValue,
-                self.slice.len() as u64,
-            )),
+            _ => Err(Error::syntax(ErrorCode::EofWhileParsingValue, self.slice.len() as u64)),
         }
     }
 
@@ -551,10 +542,7 @@ impl<'a> MutSliceRead<'a> {
     fn end(&self, n: usize) -> Result<usize> {
         match self.index.checked_add(n) {
             Some(end) if end <= self.slice.len() => Ok(end),
-            _ => Err(Error::syntax(
-                ErrorCode::EofWhileParsingValue,
-                self.slice.len() as u64,
-            )),
+            _ => Err(Error::syntax(ErrorCode::EofWhileParsingValue, self.slice.len() as u64)),
         }
     }
 }
