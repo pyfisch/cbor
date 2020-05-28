@@ -569,11 +569,11 @@ where
     }
 
     fn parse_f32(&mut self) -> Result<f32> {
-        self.parse_u32().map(|i| f32::from_bits(i))
+        self.parse_u32().map(f32::from_bits)
     }
 
     fn parse_f64(&mut self) -> Result<f64> {
-        self.parse_u64().map(|i| f64::from_bits(i))
+        self.parse_u64().map(f64::from_bits)
     }
 
     // Don't warn about the `unreachable!` in case
