@@ -42,8 +42,7 @@ fn untagged<T>(value: T) -> Tagged<T> {
 
 macro_rules! delegate {
     ($name: ident, $type: ty) => {
-        fn $name<E: serde::de::Error>(self, v: $type) -> Result<Self::Value, E>
-        {
+        fn $name<E: serde::de::Error>(self, v: $type) -> Result<Self::Value, E> {
             T::deserialize(v.into_deserializer()).map(untagged)
         }
     };
