@@ -12,7 +12,10 @@ before_script:
   - rustup component add rustfmt
   - rustup target add thumbv7em-none-eabihf     # Any target that does not have a standard library will do
 script:
-  - cargo fmt --all -- --check
+  - echo "$TRAVIS_RUST_VERSION"
+  # Don't run rustfmt in nightly because it might not be available there.
+  - [[ echo "$TRAVIS_RUST_VERSION" | grep -v "nightly" ]]
+    || cargo fmt --all -- --check
   - (rustup component add clippy && cargo clippy --all -- -D clippy::all) || true
   - cargo build
   - cargo test
