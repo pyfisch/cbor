@@ -26,3 +26,4 @@ script:
     || cargo build --no-default-features --features alloc
   - cargo build --features unsealed_read_write # The crate should still build when the unsealed_read_write feature is enabled.
   - cargo build --no-default-features --features unsealed_read_write # The crate should still build when the unsealed_read_write feature is enabled and std disabled.
+  - cargo build --no-default-features --features serde/std # The crate should still build when serde/std is enabled and std disabled.
