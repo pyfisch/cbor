@@ -4,8 +4,6 @@ use core::result;
 use serde::de;
 use serde::ser;
 #[cfg(feature = "std")]
-use std::error;
-#[cfg(feature = "std")]
 use std::io;
 
 /// This type represents all possible errors that can occur when serializing or deserializing CBOR
@@ -192,10 +190,33 @@ impl Error {
     }
 }
 
-#[cfg(feature = "std")]
-impl error::Error for Error {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+// Note: serde::ser::StdError is a compatibility type introduced here:
+// https://github.com/serde-rs/serde/releases/tag/v1.0.100
+// In case of `serde/std`, this is just `std::error::Error`,
+// in case of `serde/alloc`, this is a trait that looks identical.
+// The purpose of this is to try to make it so that if one, no_std crate in your build
+// relies on `cbor/alloc`, and does not require `cbor/std`, but e.g. a third party crate
+// from crates.io turns on `serde/std` (and there are many like this) the build can still succeed.
+// Normally your build will fail in this case because in `serde/std`, serde enforces
+// a trait bound that your serializer's error type MUST implement the serde::ser::StdError.
+// (formerly it was just std::error::Error).
+// But in a `cbor/alloc` config it is impossible for you to access std::error::Error.
+// This is why dtolnay added the serde::ser::StdError compat shim.
+//
+// Without a shim like this, any `no_std` + alloc crate that wants to use cbor would be required to
+// expose an `std` and `alloc` feature set and "forward" those settings to `cbor`, even if
+// there is no technical reason in that crate to do so. And their downstreams must
+// similarlly expose these features, and diligently forward them to their dependencies.
+// Debugging that stuff in a large project is hard and this causes a lot of pain.
+//
+// This is expected to change to std::error::Error again if the rust lang team manages
+// to move std::error::Error to the alloc crate.
+// https://github.com/rust-lang/rust/issues/62502
+#[cfg(any(feature = "std", feature = "alloc"))]
+impl serde::ser::StdError for Error {
+    fn source(&self) -> Option<&(dyn serde::ser::StdError + 'static)> {
         match self.0.code {
+            #[cfg(feature = "std")]
             ErrorCode::Io(ref err) => Some(err),
             _ => None,
         }
