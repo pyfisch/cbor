@@ -193,9 +193,7 @@ where
                 false
             }
             None => {
-                self.writer
-                    .write_all(&[major << 5 | 31])
-                    .map_err(|e| e.into())?;
+                self.writer.write_all(&[major << 5 | 31]).map_err(|e| e.into())?;
                 true
             }
         };
@@ -224,7 +222,11 @@ where
 
     #[inline]
     fn serialize_bool(self, value: bool) -> Result<()> {
-        let value = if value { 0xf5 } else { 0xf4 };
+        let value = if value {
+            0xf5
+        } else {
+            0xf4
+        };
         self.writer.write_all(&[value]).map_err(|e| e.into())
     }
 
@@ -352,9 +354,7 @@ where
     #[inline]
     fn serialize_str(self, value: &str) -> Result<()> {
         self.write_u64(3, value.len() as u64)?;
-        self.writer
-            .write_all(value.as_bytes())
-            .map_err(|e| e.into())
+        self.writer.write_all(value.as_bytes()).map_err(|e| e.into())
     }
 
     #[inline]
@@ -494,7 +494,10 @@ where
     #[inline]
     fn serialize_struct(self, _name: &'static str, len: usize) -> Result<StructSerializer<'a, W>> {
         self.write_u64(5, len as u64)?;
-        Ok(StructSerializer { ser: self, idx: 0 })
+        Ok(StructSerializer {
+            ser: self,
+            idx: 0,
+        })
     }
 
     #[inline]

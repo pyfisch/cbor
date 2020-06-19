@@ -23,7 +23,10 @@ pub struct Tagged<T> {
 impl<T> Tagged<T> {
     /// Create a new tagged value
     pub fn new(tag: Option<u64>, value: T) -> Self {
-        Self { tag, value }
+        Self {
+            tag,
+            value,
+        }
     }
 }
 

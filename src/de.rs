@@ -266,23 +266,17 @@ where
 
     fn parse_u16(&mut self) -> Result<u16> {
         let mut buf = [0; 2];
-        self.read
-            .read_into(&mut buf)
-            .map(|()| u16::from_be_bytes(buf))
+        self.read.read_into(&mut buf).map(|()| u16::from_be_bytes(buf))
     }
 
     fn parse_u32(&mut self) -> Result<u32> {
         let mut buf = [0; 4];
-        self.read
-            .read_into(&mut buf)
-            .map(|()| u32::from_be_bytes(buf))
+        self.read.read_into(&mut buf).map(|()| u32::from_be_bytes(buf))
     }
 
     fn parse_u64(&mut self) -> Result<u64> {
         let mut buf = [0; 8];
-        self.read
-            .read_into(&mut buf)
-            .map(|()| u64::from_be_bytes(buf))
+        self.read.read_into(&mut buf).map(|()| u64::from_be_bytes(buf))
     }
 
     fn parse_bytes<V>(&mut self, len: usize, visitor: V) -> Result<V::Value>
@@ -355,10 +349,7 @@ where
             }
         } else {
             // An overflow would have occured.
-            Err(Error::syntax(
-                ErrorCode::LengthOutOfRange,
-                self.read.offset(),
-            ))
+            Err(Error::syntax(ErrorCode::LengthOutOfRange, self.read.offset()))
         }
     }
 
@@ -440,7 +431,10 @@ where
         V: de::Visitor<'de>,
     {
         self.recursion_checked(|de| {
-            let value = visitor.visit_seq(SeqAccess { de, len: &mut len })?;
+            let value = visitor.visit_seq(SeqAccess {
+                de,
+                len: &mut len,
+            })?;
 
             if len != 0 {
                 Err(de.error(ErrorCode::TrailingData))
@@ -455,7 +449,9 @@ where
         V: de::Visitor<'de>,
     {
         self.recursion_checked(|de| {
-            let value = visitor.visit_seq(IndefiniteSeqAccess { de })?;
+            let value = visitor.visit_seq(IndefiniteSeqAccess {
+                de,
+            })?;
             match de.next()? {
                 Some(0xff) => Ok(value),
                 Some(_) => Err(de.error(ErrorCode::TrailingData)),
@@ -512,7 +508,10 @@ where
     {
         self.recursion_checked(|de| {
             let value = visitor.visit_enum(VariantAccess {
-                seq: SeqAccess { de, len: &mut len },
+                seq: SeqAccess {
+                    de,
+                    len: &mut len,
+                },
             })?;
 
             if len != 0 {
@@ -554,7 +553,9 @@ where
     {
         self.recursion_checked(|de| {
             let value = visitor.visit_enum(VariantAccess {
-                seq: IndefiniteSeqAccess { de },
+                seq: IndefiniteSeqAccess {
+                    de,
+                },
             })?;
             match de.next()? {
                 Some(0xff) => Ok(value),
@@ -868,7 +869,9 @@ where
                 if !self.accept_standard_enums && !self.accept_legacy_enums {
                     return Err(self.error(ErrorCode::WrongEnumFormat));
                 }
-                visitor.visit_enum(UnitVariantAccess { de: self })
+                visitor.visit_enum(UnitVariantAccess {
+                    de: self,
+                })
             }
         }
     }
@@ -1103,30 +1106,21 @@ where
     where
         T: de::DeserializeSeed<'de>,
     {
-        Err(de::Error::invalid_type(
-            de::Unexpected::UnitVariant,
-            &"newtype variant",
-        ))
+        Err(de::Error::invalid_type(de::Unexpected::UnitVariant, &"newtype variant"))
     }
 
     fn tuple_variant<V>(self, _len: usize, _visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        Err(de::Error::invalid_type(
-            de::Unexpected::UnitVariant,
-            &"tuple variant",
-        ))
+        Err(de::Error::invalid_type(de::Unexpected::UnitVariant, &"tuple variant"))
     }
 
     fn struct_variant<V>(self, _fields: &'static [&'static str], _visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        Err(de::Error::invalid_type(
-            de::Unexpected::UnitVariant,
-            &"struct variant",
-        ))
+        Err(de::Error::invalid_type(de::Unexpected::UnitVariant, &"struct variant"))
     }
 }
 
@@ -1190,7 +1184,9 @@ where
     where
         V: de::Visitor<'de>,
     {
-        let seed = StructVariantSeed { visitor };
+        let seed = StructVariantSeed {
+            visitor,
+        };
         match self.seq.next_element_seed(seed) {
             Ok(Some(variant)) => Ok(variant),
             Ok(None) => Err(self.seq.error(ErrorCode::ArrayTooShort)),
@@ -1346,7 +1342,9 @@ where
     where
         V: de::Visitor<'de>,
     {
-        let seed = StructVariantSeed { visitor };
+        let seed = StructVariantSeed {
+            visitor,
+        };
         self.map.next_value_seed(seed)
     }
 
@@ -1354,7 +1352,9 @@ where
     where
         V: de::Visitor<'de>,
     {
-        let seed = StructVariantSeed { visitor };
+        let seed = StructVariantSeed {
+            visitor,
+        };
         self.map.next_value_seed(seed)
     }
 }

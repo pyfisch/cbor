@@ -35,7 +35,10 @@ impl Error {
     }
 
     pub(crate) fn syntax(code: ErrorCode, offset: u64) -> Error {
-        Error(ErrorImpl { code, offset })
+        Error(ErrorImpl {
+            code,
+            offset,
+        })
     }
 
     #[cfg(feature = "std")]

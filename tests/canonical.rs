@@ -34,10 +34,8 @@ mod std_tests {
 
     #[test]
     fn string_canonical_sort_order() {
-        let expected = ["", "a", "b", "aa"]
-            .iter()
-            .map(|s| Value::Text(s.to_string()))
-            .collect::<Vec<_>>();
+        let expected =
+            ["", "a", "b", "aa"].iter().map(|s| Value::Text(s.to_string())).collect::<Vec<_>>();
 
         let mut sorted = expected.clone();
         sorted.sort();

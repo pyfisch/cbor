@@ -70,10 +70,7 @@ mod std_tests {
             panic!()
         }
 
-        for ((k1, v1), (k2, v2)) in as_object(&value)
-            .iter()
-            .zip(as_object(&data_de_value).iter())
-        {
+        for ((k1, v1), (k2, v2)) in as_object(&value).iter().zip(as_object(&data_de_value).iter()) {
             assert_eq!(k1, k2);
             assert_eq!(v1, v2);
         }
@@ -92,7 +89,10 @@ mod std_tests {
         // Test whether the packed format works.
         // Field names should not be serialized,
         // instead field indizes are serialized.
-        let value = SmallStruct { spam: 17, eggs: 42 };
+        let value = SmallStruct {
+            spam: 17,
+            eggs: 42,
+        };
         let data = serde_cbor::ser::to_vec_packed(&value).unwrap();
         let reference = b"\xa2\x00\x11\x01\x18\x2a";
         assert_eq!(data, reference);

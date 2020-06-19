@@ -52,11 +52,7 @@ mod std_tests {
             fn $name() {
                 let expr: $ty = $expr;
                 let mut serialized = to_binary($s);
-                assert_eq!(
-                    to_vec(&expr).expect("ser1 works"),
-                    serialized,
-                    "serialization differs"
-                );
+                assert_eq!(to_vec(&expr).expect("ser1 works"), serialized, "serialization differs");
                 let parsed: $ty = from_slice(&serialized[..]).expect("de1 works");
                 assert_eq!(parsed, expr, "parsed result differs");
                 let packed = &to_vec_packed(&expr).expect("serializing packed")[..];
@@ -96,12 +92,7 @@ mod std_tests {
     testcase!(test_f64_neg_infinity, f64, -::std::f64::INFINITY, "f9fc00");
     testcase!(test_char_null, char, '\x00', "6100");
     testcase!(test_char_broken_heart, char, '💔', "64f09f9294");
-    testcase!(
-        test_str_pangram_de,
-        String,
-        "aâø↓é".to_owned(),
-        "6a61c3a2c3b8e28693c3a9"
-    );
+    testcase!(test_str_pangram_de, String, "aâø↓é".to_owned(), "6a61c3a2c3b8e28693c3a9");
     testcase!(test_unit, (), (), "f6");
 
     #[derive(Debug, PartialEq, Deserialize, Serialize)]
@@ -110,12 +101,7 @@ mod std_tests {
 
     #[derive(Debug, PartialEq, Deserialize, Serialize)]
     struct NewtypeStruct(bool);
-    testcase!(
-        test_newtype_struct,
-        NewtypeStruct,
-        NewtypeStruct(true),
-        "f5"
-    );
+    testcase!(test_newtype_struct, NewtypeStruct, NewtypeStruct(true), "f5");
 
     testcase!(test_option_none, Option<u8>, None, "f6");
     testcase!(test_option_some, Option<u8>, Some(42), "182a");
@@ -163,12 +149,7 @@ mod std_tests {
     }
 
     testcase!(test_color_enum, Color, Color::Blue, "64426c7565");
-    testcase!(
-        test_color_enum_transparent,
-        Color,
-        Color::Other(42),
-        "a1654f74686572182a"
-    );
+    testcase!(test_color_enum_transparent, Color, Color::Other(42), "a1654f74686572182a");
     testcase!(
         test_color_enum_with_alpha,
         Color,
@@ -176,11 +157,6 @@ mod std_tests {
         "a165416c706861821a00039447183c"
     );
     testcase!(test_i128_a, i128, -1i128, "20");
-    testcase!(
-        test_i128_b,
-        i128,
-        -18446744073709551616i128,
-        "3BFFFFFFFFFFFFFFFF"
-    );
+    testcase!(test_i128_b, i128, -18446744073709551616i128, "3BFFFFFFFFFFFFFFFF");
     testcase!(test_u128, u128, 17, "11");
 }
