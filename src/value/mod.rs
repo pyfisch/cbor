@@ -125,11 +125,32 @@ impl_from!(Value::Integer, u64);
 // u128 omitted because not all numbers fit in CBOR serialization
 impl_from!(Value::Float, f32);
 impl_from!(Value::Float, f64);
-impl_from!(Value::Bytes, Vec<u8>);
 impl_from!(Value::Text, String);
-// TODO: figure out if these impls should be more generic or removed.
-impl_from!(Value::Array, Vec<Value>);
-impl_from!(Value::Map, BTreeMap<Value, Value>);
+
+impl<T> From<Vec<T>> for Value
+where
+    Value: From<T>,
+{
+    fn from(mut value: Vec<T>) -> Self {
+        Value::Array(value.drain(..).map(Value::from).collect())
+    }
+}
+
+impl<T, U> From<BTreeMap<T, U>> for Value
+where
+    Value: From<T>,
+    Value: From<U>,
+{
+    fn from(value: BTreeMap<T, U>) -> Self {
+        let mut map = BTreeMap::new();
+
+        for (key, val) in value {
+            map.insert(Value::from(key), Value::from(val));
+        }
+
+        Value::Map(map)
+    }
+}
 
 impl Value {
     fn major_type(&self) -> u8 {
