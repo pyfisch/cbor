@@ -126,6 +126,16 @@ impl_from!(Value::Integer, u64);
 impl_from!(Value::Float, f32);
 impl_from!(Value::Float, f64);
 impl_from!(Value::Text, String);
+impl_from!(Value::Text, &str);
+
+impl<T: Clone> From<&[T]> for Value
+where
+    Value: From<T>,
+{
+    fn from(value: &[T]) -> Self {
+        Value::Array(value.iter().map(|x| Value::from(x.clone())).collect())
+    }
+}
 
 impl<T> From<Vec<T>> for Value
 where
