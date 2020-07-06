@@ -325,6 +325,9 @@ extern crate std;
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+#[cfg(feature = "std")]
+mod macros;
+
 pub mod de;
 pub mod error;
 mod read;
