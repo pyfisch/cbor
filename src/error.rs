@@ -245,6 +245,26 @@ impl From<io::Error> for Error {
     }
 }
 
+#[cfg(feature = "std")]
+impl From<Error> for io::Error {
+    fn from(e: Error) -> Self {
+        use std::error::Error;
+
+        let kind = match e.classify() {
+            Category::Syntax => io::ErrorKind::InvalidInput,
+            Category::Data => io::ErrorKind::InvalidData,
+            Category::Eof => io::ErrorKind::UnexpectedEof,
+            Category::Io => e
+                .source()
+                .and_then(|e| e.downcast_ref::<std::io::Error>())
+                .map(|e| e.kind())
+                .unwrap_or(io::ErrorKind::Other),
+        };
+
+        Self::new(kind, e)
+    }
+}
+
 #[cfg(not(feature = "std"))]
 impl From<core::fmt::Error> for Error {
     fn from(_: core::fmt::Error) -> Error {
