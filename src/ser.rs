@@ -320,11 +320,11 @@ where
             self.writer.write_all(&[0xf9, 0x7e, 0x00])
         } else if f32::from(f16::from_f32(value)) == value {
             let mut buf = [0xf9, 0, 0];
-            (&mut buf[1..]).copy_from_slice(&f16::from_f32(value).to_bits().to_be_bytes());
+            (&mut buf[1..]).copy_from_slice(&f16::from_f32(value).to_be_bytes());
             self.writer.write_all(&buf)
         } else {
             let mut buf = [0xfa, 0, 0, 0, 0];
-            (&mut buf[1..]).copy_from_slice(&value.to_bits().to_be_bytes());
+            (&mut buf[1..]).copy_from_slice(&value.to_be_bytes());
             self.writer.write_all(&buf)
         }
         .map_err(|e| e.into())
@@ -337,7 +337,7 @@ where
             self.serialize_f32(value as f32)
         } else {
             let mut buf = [0xfb, 0, 0, 0, 0, 0, 0, 0, 0];
-            (&mut buf[1..]).copy_from_slice(&value.to_bits().to_be_bytes());
+            (&mut buf[1..]).copy_from_slice(&value.to_be_bytes());
             self.writer.write_all(&buf).map_err(|e| e.into())
         }
     }
