@@ -123,6 +123,9 @@ pub trait WriteTo {
     /// the amount of bytes that would be returned by write_to().
     fn len(&self) -> usize;
 
+    /// Returns true if length is 0.
+    fn is_empty(&self) -> bool { self.len() == 0 }
+
     /// Write this type to a writer. The writer can be any type that implement the
     /// Write type from this crate.
     fn write_to<W: Write>(&self, _writer: &mut W) -> Result<usize, WriteError>;

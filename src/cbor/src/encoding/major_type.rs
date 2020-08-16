@@ -89,7 +89,7 @@ impl WriteTo for MajorType {
     fn write_to<W: Write>(&self, w: &mut W) -> Result<usize, WriteError> {
         match self {
             MajorType::UnsignedInteger(minor) => {
-                Ok(w.write(&[0 + minor.minor()])? + minor.write_to(w)?)
+                Ok(w.write(&[minor.minor()])? + minor.write_to(w)?)
             }
             MajorType::NegativeInteger(minor) => {
                 Ok(w.write(&[(1 << 5) + minor.minor()])? + minor.write_to(w)?)

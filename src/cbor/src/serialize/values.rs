@@ -298,13 +298,14 @@ impl<'a> Value<'a> {
         self.write_to(&mut Writer {
             vector: &mut vector,
         })
-        .expect("Unexpected error.");
+            .expect("Unexpected error.");
         vector
     }
 
     pub fn len(&self) -> usize {
         WriteTo::len(self)
     }
+    pub fn is_empty(&self) -> bool { self.len() == 0 }
 }
 
 impl<'a> WriteTo for Value<'a> {
