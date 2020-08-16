@@ -1,3 +1,4 @@
+#![cfg(feature = "std")]
 use crate::encoding::major_type::MajorType;
 use crate::serialize::{Write, WriteError};
 
@@ -37,6 +38,7 @@ mod text;
 use crate::encoding::minor_type::MinorType;
 use crate::serialize::write::WriteTo;
 pub use text::*;
+use std::ops::Deref;
 
 #[cfg(test)]
 mod text_test;
@@ -45,85 +47,86 @@ mod text_test;
 /// value. It has no ownership, however.
 /// If there are no references needed (e.g. if the whole data is contained in the Major+
 /// Minor types), use NoRef().
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub(crate) enum ValueInner<'a> {
+/// This type is not copy, because of vectors.
+#[derive(Clone, Debug, PartialEq)]
+enum OwnedValueInner {
     NoRef(),
-    ByteString(&'a [u8]),
-    Text(&'a str),
-    Array(&'a [Value<'a>]),
-    Map(&'a [(Value<'a>, Value<'a>)]),
-    IndefiniteByteString(&'a [&'a [u8]]),
-    IndefiniteText(&'a [&'a str]),
-    IndefiniteArray(&'a [Value<'a>]),
-    IndefiniteMap(&'a [(Value<'a>, Value<'a>)]),
-    Tag(&'a Value<'a>),
+    ByteString(Vec<u8>),
+    Text(String),
+    Array(Vec<OwnedValue>),
+    Map(Vec<(OwnedValue, OwnedValue)>),
+    IndefiniteByteString(Vec<Vec<u8>>),
+    IndefiniteText(Vec<String>),
+    IndefiniteArray(Vec<OwnedValue>),
+    IndefiniteMap(Vec<(OwnedValue, OwnedValue)>),
+    Tag(Box<OwnedValue>),
 }
 
-impl<'a> WriteTo for ValueInner<'a> {
+impl WriteTo for OwnedValueInner {
     fn len(&self) -> usize {
         match self {
-            ValueInner::NoRef() => 0,
-            ValueInner::ByteString(s) => s.len(),
-            ValueInner::Text(t) => t.len(),
-            ValueInner::Array(a) => {
+            OwnedValueInner::NoRef() => 0,
+            OwnedValueInner::ByteString(s) => s.len(),
+            OwnedValueInner::Text(t) => t.len(),
+            OwnedValueInner::Array(a) => {
                 let mut total: usize = 0;
                 for i in 0..a.len() {
                     total += a[i].len();
                 }
                 total
             }
-            ValueInner::Map(kv) => {
+            OwnedValueInner::Map(kv) => {
                 let mut total: usize = 0;
                 for i in 0..kv.len() {
                     total += kv[i].0.len() + kv[i].1.len();
                 }
                 total
             }
-            ValueInner::IndefiniteByteString(chunks) => {
+            OwnedValueInner::IndefiniteByteString(chunks) => {
                 let mut total: usize = 0;
                 for i in 0..chunks.len() {
-                    total += Value::from_byte_string(chunks[i]).len();
+                    total += OwnedValue::from_byte_string(&chunks[i]).len();
                 }
                 total + MajorType::Break().len()
             }
-            ValueInner::IndefiniteText(chunks) => {
+            OwnedValueInner::IndefiniteText(chunks) => {
                 let mut total: usize = 0;
                 for i in 0..chunks.len() {
-                    total += Value::from_text(chunks[i]).len();
+                    total += OwnedValue::from_text(&chunks[i]).len();
                 }
                 total + MajorType::Break().len()
             }
-            ValueInner::IndefiniteArray(values) => {
+            OwnedValueInner::IndefiniteArray(values) => {
                 let mut total: usize = 0;
                 for i in 0..values.len() {
                     total += values[i].len();
                 }
                 total + MajorType::Break().len()
             }
-            ValueInner::IndefiniteMap(pairs) => {
+            OwnedValueInner::IndefiniteMap(pairs) => {
                 let mut total: usize = 0;
                 for i in 0..pairs.len() {
                     total += pairs[i].0.len() + pairs[i].1.len();
                 }
                 total + MajorType::Break().len()
             }
-            ValueInner::Tag(v) => v.len(),
+            OwnedValueInner::Tag(v) => v.len(),
         }
     }
 
     fn write_to<W: Write>(&self, w: &mut W) -> Result<usize, WriteError> {
         match self {
-            ValueInner::NoRef() => Ok(0),
-            ValueInner::ByteString(s) => w.write(*s),
-            ValueInner::Text(t) => w.write(t.as_bytes()),
-            ValueInner::Array(a) => {
+            OwnedValueInner::NoRef() => Ok(0),
+            OwnedValueInner::ByteString(s) => w.write(s.deref()),
+            OwnedValueInner::Text(t) => w.write(t.as_bytes()),
+            OwnedValueInner::Array(a) => {
                 let mut sz = 0;
                 for i in 0..a.len() {
                     sz += a[i].write_to(w)?;
                 }
                 Ok(sz)
             }
-            ValueInner::Map(kv) => {
+            OwnedValueInner::Map(kv) => {
                 let mut sz = 0;
                 for i in 0..kv.len() {
                     sz += kv[i].0.write_to(w)?;
@@ -131,34 +134,34 @@ impl<'a> WriteTo for ValueInner<'a> {
                 }
                 Ok(sz)
             }
-            ValueInner::IndefiniteByteString(chunks) => {
+            OwnedValueInner::IndefiniteByteString(chunks) => {
                 let mut sz = 0;
                 for i in 0..chunks.len() {
-                    sz += Value::from_byte_string(chunks[i]).write_to(w)?;
+                    sz += OwnedValue::from_byte_string(&chunks[i]).write_to(w)?;
                 }
                 sz += MajorType::Break().write_to(w)?;
                 Ok(sz)
             }
-            ValueInner::IndefiniteText(chunks) => {
+            OwnedValueInner::IndefiniteText(chunks) => {
                 for i in 0..chunks.len() {
-                    Value::from_text(chunks[i]).write_to(w)?;
+                    OwnedValue::from_text(&chunks[i]).write_to(w)?;
                 }
                 MajorType::Break().write_to(w)
             }
-            ValueInner::IndefiniteArray(values) => {
+            OwnedValueInner::IndefiniteArray(values) => {
                 for i in 0..values.len() {
                     values[i].write_to(w)?;
                 }
                 MajorType::Break().write_to(w)
             }
-            ValueInner::IndefiniteMap(pairs) => {
+            OwnedValueInner::IndefiniteMap(pairs) => {
                 for i in 0..pairs.len() {
                     pairs[i].0.write_to(w)?;
                     pairs[i].1.write_to(w)?;
                 }
                 MajorType::Break().write_to(w)
             }
-            ValueInner::Tag(v) => v.write_to(w),
+            OwnedValueInner::Tag(v) => v.write_to(w),
         }
     }
 }
@@ -169,117 +172,115 @@ impl<'a> WriteTo for ValueInner<'a> {
 /// sizes; arrays and maps where a break is being used. To serialize those values, use a
 /// serializer directly, don't use this Value type.
 ///
-/// The lifetime is used for bytes and string references. This Value does not own any sliced
-/// data itself. For this, use an [OwnedValue] (which is incompatible with no_std).
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Value<'a> {
-    pub(crate) major: MajorType,
-    pub(crate) inner: ValueInner<'a>,
+/// This Value owns any data referred to it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct OwnedValue {
+    major: MajorType,
+    inner: OwnedValueInner,
 }
 
-impl<'a> Value<'a> {
+impl OwnedValue {
     /// We do not expose this method because a user should use the values functions (like
     /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
     /// could be created.
     pub(crate) fn simple(major: MajorType) -> Self {
-        Self::with_inner(major, ValueInner::NoRef())
+        Self::with_inner(major, OwnedValueInner::NoRef())
     }
 
     /// We do not expose this method because a user should use the values functions (like
     /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
     /// could be created.
-    pub(crate) fn from_byte_string(byte_string: &'a [u8]) -> Self {
+    pub(crate) fn from_byte_string(byte_string: &[u8]) -> Self {
         Self::with_inner(
             MajorType::ByteString(MinorType::size(byte_string.len())),
-            ValueInner::ByteString(byte_string),
+            OwnedValueInner::ByteString(byte_string.to_vec()),
         )
     }
 
     /// We do not expose this method because a user should use the values functions (like
     /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
     /// could be created.
-    pub(crate) fn from_text(text: &'a str) -> Self {
+    pub(crate) fn from_text(text: &str) -> Self {
         Self::with_inner(
             MajorType::Text(MinorType::size(text.len())),
-            ValueInner::Text(text),
+            OwnedValueInner::Text(text.to_owned()),
         )
     }
 
     /// We do not expose this method because a user should use the values functions (like
     /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
     /// could be created.
-    pub(crate) fn from_array(array: &'a [Value<'a>]) -> Self {
+    pub(crate) fn from_array<V: AsRef<[OwnedValue]>>(array: V) -> Self {
         Self::with_inner(
-            MajorType::Array(MinorType::size(array.len())),
-            ValueInner::Array(array),
+            MajorType::Array(MinorType::size(array.as_ref().len())),
+            OwnedValueInner::Array(array.as_ref().to_vec()),
         )
     }
 
     /// We do not expose this method because a user should use the values functions (like
     /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
     /// could be created.
-    pub(crate) fn from_map(map: &'a [(Value<'a>, Value<'a>)]) -> Self {
+    pub(crate) fn from_map<M: AsRef<[(OwnedValue, OwnedValue)]>>(map: M) -> Self {
         Self::with_inner(
-            MajorType::Map(MinorType::size(map.len())),
-            ValueInner::Map(map),
+            MajorType::Map(MinorType::size(map.as_ref().len())),
+            OwnedValueInner::Map(map.as_ref().to_vec()),
         )
     }
 
     /// We do not expose this method because a user should use the values functions (like
     /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
     /// could be created.
-    pub(crate) fn from_indefinite_byte_string(indefinite_byte_string: &'a [&'a [u8]]) -> Self {
+    pub(crate) fn from_indefinite_byte_string<V: AsRef<[u8]>>(indefinite_byte_string: &[V]) -> Self {
         Self::with_inner(
             MajorType::ByteString(MinorType::Indefinite()),
-            ValueInner::IndefiniteByteString(indefinite_byte_string),
+            OwnedValueInner::IndefiniteByteString(indefinite_byte_string.iter().map(|x| x.as_ref().to_vec()).collect()),
         )
     }
 
     /// We do not expose this method because a user should use the values functions (like
     /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
     /// could be created.
-    pub(crate) fn from_indefinite_text(indefinite_text: &'a [&'a str]) -> Self {
+    pub(crate) fn from_indefinite_text<S: ToString>(indefinite_text: &[S]) -> Self {
         Self::with_inner(
             MajorType::Text(MinorType::Indefinite()),
-            ValueInner::IndefiniteText(indefinite_text),
+            OwnedValueInner::IndefiniteText(indefinite_text.iter().map(ToString::to_string).collect()),
         )
     }
 
     /// We do not expose this method because a user should use the values functions (like
     /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
     /// could be created.
-    pub(crate) fn from_indefinite_array(indefinite_array: &'a [Value<'a>]) -> Self {
+    pub(crate) fn from_indefinite_array<A: AsRef<[OwnedValue]>>(indefinite_array: A) -> Self {
         Self::with_inner(
             MajorType::Array(MinorType::Indefinite()),
-            ValueInner::IndefiniteArray(indefinite_array),
+            OwnedValueInner::IndefiniteArray(indefinite_array.as_ref().to_vec()),
         )
     }
 
     /// We do not expose this method because a user should use the values functions (like
     /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
     /// could be created.
-    pub(crate) fn from_indefinite_map(indefinite_map: &'a [(Value<'a>, Value<'a>)]) -> Self {
+    pub(crate) fn from_indefinite_map<M: AsRef<[(OwnedValue, OwnedValue)]>>(indefinite_map: M) -> Self {
         Self::with_inner(
             MajorType::Map(MinorType::Indefinite()),
-            ValueInner::IndefiniteMap(indefinite_map),
+            OwnedValueInner::IndefiniteMap(indefinite_map.as_ref().to_vec()),
         )
     }
 
     /// We do not expose this method because a user should use the values functions (like
     /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
     /// could be created.
-    pub(crate) fn from_tag(tag: u64, inner: &'a Value<'a>) -> Self {
+    pub(crate) fn from_tag(tag: u64, inner: OwnedValue) -> Self {
         Self::with_inner(
             MajorType::Tag(MinorType::size(tag as usize)),
-            ValueInner::Tag(inner),
+            OwnedValueInner::Tag(Box::new(inner)),
         )
     }
 
-    fn with_inner(major: MajorType, inner: ValueInner<'a>) -> Self {
+    fn with_inner(major: MajorType, inner: OwnedValueInner) -> Self {
         Self { major, inner }
     }
 
-    #[cfg(feature = "std")]
     pub fn to_vec(&self) -> Vec<u8> {
         // This skips the Write trait and just implement its own vector iterator.
         // The Write trait has error handling, and we really don't need that here,
@@ -298,7 +299,7 @@ impl<'a> Value<'a> {
         self.write_to(&mut Writer {
             vector: &mut vector,
         })
-        .expect("Unexpected error.");
+            .expect("Unexpected error.");
         vector
     }
 
@@ -308,7 +309,7 @@ impl<'a> Value<'a> {
     pub fn is_empty(&self) -> bool { self.len() == 0 }
 }
 
-impl<'a> WriteTo for Value<'a> {
+impl WriteTo for OwnedValue {
     fn len(&self) -> usize {
         self.major.len() + self.inner.len()
     }

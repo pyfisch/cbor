@@ -1,9 +1,10 @@
+pub mod owned;
 pub mod values;
 
 mod write;
 use crate::encoding::major_type::MajorType;
 use crate::encoding::minor_type::MinorType;
-use crate::serialize::values::Value;
+use values::Value;
 pub use write::{Write, WriteError, WriteTo};
 
 // Define a function to forward a value to the writer.
