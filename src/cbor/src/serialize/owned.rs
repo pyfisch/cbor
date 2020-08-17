@@ -36,9 +36,10 @@ mod tag_test;
 
 mod text;
 use crate::encoding::minor_type::MinorType;
+use crate::serialize::values::{Value, ValueInner};
 use crate::serialize::write::WriteTo;
-pub use text::*;
 use std::ops::Deref;
+pub use text::*;
 
 #[cfg(test)]
 mod text_test;
@@ -68,47 +69,23 @@ impl WriteTo for OwnedValueInner {
             OwnedValueInner::NoRef() => 0,
             OwnedValueInner::ByteString(s) => s.len(),
             OwnedValueInner::Text(t) => t.len(),
-            OwnedValueInner::Array(a) => {
-                let mut total: usize = 0;
-                for i in 0..a.len() {
-                    total += a[i].len();
-                }
-                total
-            }
-            OwnedValueInner::Map(kv) => {
-                let mut total: usize = 0;
-                for i in 0..kv.len() {
-                    total += kv[i].0.len() + kv[i].1.len();
-                }
-                total
-            }
+            OwnedValueInner::Array(a) => a.iter().fold(0, |p, i| p + i.len()),
+            OwnedValueInner::Map(kv) => kv.iter().fold(0, |p, (k, v)| p + k.len() + v.len()),
             OwnedValueInner::IndefiniteByteString(chunks) => {
-                let mut total: usize = 0;
-                for i in 0..chunks.len() {
-                    total += OwnedValue::from_byte_string(&chunks[i]).len();
-                }
-                total + MajorType::Break().len()
+                chunks
+                    .iter()
+                    .fold(0, |p, i| p + Value::from_byte_string(i).len())
+                    + MajorType::Break().len()
             }
             OwnedValueInner::IndefiniteText(chunks) => {
-                let mut total: usize = 0;
-                for i in 0..chunks.len() {
-                    total += OwnedValue::from_text(&chunks[i]).len();
-                }
-                total + MajorType::Break().len()
+                chunks.iter().fold(0, |p, i| p + Value::from_text(i).len())
+                    + MajorType::Break().len()
             }
             OwnedValueInner::IndefiniteArray(values) => {
-                let mut total: usize = 0;
-                for i in 0..values.len() {
-                    total += values[i].len();
-                }
-                total + MajorType::Break().len()
+                values.iter().fold(0, |p, i| p + i.len()) + MajorType::Break().len()
             }
             OwnedValueInner::IndefiniteMap(pairs) => {
-                let mut total: usize = 0;
-                for i in 0..pairs.len() {
-                    total += pairs[i].0.len() + pairs[i].1.len();
-                }
-                total + MajorType::Break().len()
+                pairs.iter().fold(0, |p, (k, v)| p + k.len() + v.len()) + MajorType::Break().len()
             }
             OwnedValueInner::Tag(v) => v.len(),
         }
@@ -121,43 +98,43 @@ impl WriteTo for OwnedValueInner {
             OwnedValueInner::Text(t) => w.write(t.as_bytes()),
             OwnedValueInner::Array(a) => {
                 let mut sz = 0;
-                for i in 0..a.len() {
-                    sz += a[i].write_to(w)?;
+                for i in a {
+                    sz += i.write_to(w)?;
                 }
                 Ok(sz)
             }
             OwnedValueInner::Map(kv) => {
                 let mut sz = 0;
-                for i in 0..kv.len() {
-                    sz += kv[i].0.write_to(w)?;
-                    sz += kv[i].1.write_to(w)?;
+                for (k, v) in kv {
+                    sz += k.write_to(w)?;
+                    sz += v.write_to(w)?;
                 }
                 Ok(sz)
             }
             OwnedValueInner::IndefiniteByteString(chunks) => {
                 let mut sz = 0;
-                for i in 0..chunks.len() {
-                    sz += OwnedValue::from_byte_string(&chunks[i]).write_to(w)?;
+                for i in chunks {
+                    sz += Value::from_byte_string(&i).write_to(w)?;
                 }
                 sz += MajorType::Break().write_to(w)?;
                 Ok(sz)
             }
             OwnedValueInner::IndefiniteText(chunks) => {
-                for i in 0..chunks.len() {
-                    OwnedValue::from_text(&chunks[i]).write_to(w)?;
+                for i in chunks {
+                    Value::from_text(&i).write_to(w)?;
                 }
                 MajorType::Break().write_to(w)
             }
             OwnedValueInner::IndefiniteArray(values) => {
-                for i in 0..values.len() {
-                    values[i].write_to(w)?;
+                for i in values {
+                    i.write_to(w)?;
                 }
                 MajorType::Break().write_to(w)
             }
             OwnedValueInner::IndefiniteMap(pairs) => {
-                for i in 0..pairs.len() {
-                    pairs[i].0.write_to(w)?;
-                    pairs[i].1.write_to(w)?;
+                for (k, v) in pairs {
+                    k.write_to(w)?;
+                    v.write_to(w)?;
                 }
                 MajorType::Break().write_to(w)
             }
@@ -230,10 +207,17 @@ impl OwnedValue {
     /// We do not expose this method because a user should use the values functions (like
     /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
     /// could be created.
-    pub(crate) fn from_indefinite_byte_string<V: AsRef<[u8]>>(indefinite_byte_string: &[V]) -> Self {
+    pub(crate) fn from_indefinite_byte_string<V: AsRef<[u8]>>(
+        indefinite_byte_string: &[V],
+    ) -> Self {
         Self::with_inner(
             MajorType::ByteString(MinorType::Indefinite()),
-            OwnedValueInner::IndefiniteByteString(indefinite_byte_string.iter().map(|x| x.as_ref().to_vec()).collect()),
+            OwnedValueInner::IndefiniteByteString(
+                indefinite_byte_string
+                    .iter()
+                    .map(|x| x.as_ref().to_vec())
+                    .collect(),
+            ),
         )
     }
 
@@ -243,7 +227,9 @@ impl OwnedValue {
     pub(crate) fn from_indefinite_text<S: ToString>(indefinite_text: &[S]) -> Self {
         Self::with_inner(
             MajorType::Text(MinorType::Indefinite()),
-            OwnedValueInner::IndefiniteText(indefinite_text.iter().map(ToString::to_string).collect()),
+            OwnedValueInner::IndefiniteText(
+                indefinite_text.iter().map(ToString::to_string).collect(),
+            ),
         )
     }
 
@@ -260,7 +246,9 @@ impl OwnedValue {
     /// We do not expose this method because a user should use the values functions (like
     /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
     /// could be created.
-    pub(crate) fn from_indefinite_map<M: AsRef<[(OwnedValue, OwnedValue)]>>(indefinite_map: M) -> Self {
+    pub(crate) fn from_indefinite_map<M: AsRef<[(OwnedValue, OwnedValue)]>>(
+        indefinite_map: M,
+    ) -> Self {
         Self::with_inner(
             MajorType::Map(MinorType::Indefinite()),
             OwnedValueInner::IndefiniteMap(indefinite_map.as_ref().to_vec()),
@@ -299,14 +287,16 @@ impl OwnedValue {
         self.write_to(&mut Writer {
             vector: &mut vector,
         })
-            .expect("Unexpected error.");
+        .expect("Unexpected error.");
         vector
     }
 
     pub fn len(&self) -> usize {
         WriteTo::len(self)
     }
-    pub fn is_empty(&self) -> bool { self.len() == 0 }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl WriteTo for OwnedValue {
@@ -316,5 +306,38 @@ impl WriteTo for OwnedValue {
 
     fn write_to<W: Write>(&self, w: &mut W) -> Result<usize, WriteError> {
         Ok(self.major.write_to(w)? + self.inner.write_to(w)?)
+    }
+}
+
+impl From<ValueInner<'_>> for OwnedValueInner {
+    fn from(inner: ValueInner<'_>) -> Self {
+        match inner {
+            ValueInner::NoRef() => OwnedValueInner::NoRef(),
+            ValueInner::ByteString(b) => OwnedValueInner::ByteString(b.to_vec()),
+            ValueInner::Text(s) => OwnedValueInner::Text(s.to_string()),
+            ValueInner::Array(a) => OwnedValueInner::Array(a.iter().map(Into::into).collect()),
+            ValueInner::Map(m) => {
+                OwnedValueInner::Map(m.iter().map(|(k, v)| (k.into(), v.into())).collect())
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl From<Value<'_>> for OwnedValue {
+    fn from(v: Value<'_>) -> Self {
+        Self {
+            major: v.major,
+            inner: v.inner.into(),
+        }
+    }
+}
+
+impl From<&Value<'_>> for OwnedValue {
+    fn from(v: &Value<'_>) -> Self {
+        Self {
+            major: v.major,
+            inner: v.inner.into(),
+        }
     }
 }

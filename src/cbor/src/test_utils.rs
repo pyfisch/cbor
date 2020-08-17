@@ -58,47 +58,10 @@ pub(crate) fn assert_serialize<'a, DT, T: AsRef<[u8]>, ValueFn, PeekFn>(
     assert_eq!(x.unwrap(), data);
 }
 
-pub(crate) fn assert_serialize_owned<'a, DT, T: AsRef<[u8]>, ValueFn, PeekFn>(
-    data: DT,
-    hex: T,
-    value: ValueFn,
-    peek: PeekFn,
-) where
-    DT: std::cmp::PartialEq + std::fmt::Debug + Copy,
-    ValueFn: Fn(DT) -> OwnedValue,
-    PeekFn: Fn(&[u8]) -> Option<DT>,
-{
-    let value = value(data);
-    let vector = value.to_vec();
-    let decode = hex_decode(hex);
-
-    assert_eq!(vector, decode, "serialize missed for {:?}", value);
-
-    // Check deserialization.
-    let x: Option<DT> = peek(vector.as_slice());
-    assert!(x.is_some());
-    assert_eq!(x.unwrap(), data);
-}
-
 pub(crate) fn assert_peek_simple<'a, DT, ValueFn, PeekFn>(data: DT, value: ValueFn, peek: PeekFn)
 where
     DT: std::cmp::PartialEq + std::fmt::Debug + Copy,
     ValueFn: Fn(DT) -> Value<'a>,
-    PeekFn: Fn(&[u8]) -> Option<DT>,
-{
-    let value = value(data);
-    let vector = value.to_vec();
-
-    // Check deserialization.
-    let x: Option<DT> = peek(vector.as_slice());
-    assert!(x.is_some());
-    assert_eq!(x.unwrap(), data);
-}
-
-pub(crate) fn assert_peek_simple_owned<'a, DT, ValueFn, PeekFn>(data: DT, value: ValueFn, peek: PeekFn)
-where
-    DT: std::cmp::PartialEq + std::fmt::Debug + Copy,
-    ValueFn: Fn(DT) -> OwnedValue,
     PeekFn: Fn(&[u8]) -> Option<DT>,
 {
     let value = value(data);
