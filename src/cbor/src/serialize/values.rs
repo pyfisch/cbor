@@ -178,6 +178,11 @@ pub struct Value<'a> {
 }
 
 impl<'a> Value<'a> {
+    /// Return a null value.
+    pub fn null() -> Self {
+        Self::simple(MajorType::Null())
+    }
+
     /// We do not expose this method because a user should use the values functions (like
     /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
     /// could be created.
@@ -305,7 +310,34 @@ impl<'a> Value<'a> {
     pub fn len(&self) -> usize {
         WriteTo::len(self)
     }
-    pub fn is_empty(&self) -> bool { self.len() == 0 }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn is_int(&self) -> bool {
+        match self.major {
+            MajorType::UnsignedInteger(_) | MajorType::NegativeInteger(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_uint(&self) -> bool {
+        match self.major {
+            MajorType::UnsignedInteger(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_uint(&self) -> Option<u64> {
+        match self.major {
+            MajorType::UnsignedInteger(MinorType::SameByte(x)) => Some(x as u64),
+            MajorType::UnsignedInteger(MinorType::OneByte(x)) => Some(x as u64),
+            MajorType::UnsignedInteger(MinorType::TwoBytes(x)) => Some(x as u64),
+            MajorType::UnsignedInteger(MinorType::FourBytes(x)) => Some(x as u64),
+            MajorType::UnsignedInteger(MinorType::EightBytes(x)) => Some(x as u64),
+            _ => None,
+        }
+    }
 }
 
 impl<'a> WriteTo for Value<'a> {

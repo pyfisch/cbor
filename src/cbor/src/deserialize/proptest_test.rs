@@ -92,4 +92,10 @@ proptest::proptest! {
     fn int(u: i64) {
         assert_peek_simple(u, values::int, peek::int);
     }
+
+    #[test]
+    fn text(ref t in "\\PC*") {
+        let s = t.as_str();
+        assert_peek_simple(s, values::text, peek::text);
+    }
 }

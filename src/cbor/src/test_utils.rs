@@ -1,6 +1,6 @@
 #![cfg(feature = "std")]
-use crate::serialize::values::Value;
 use crate::serialize::owned::OwnedValue;
+use crate::serialize::values::Value;
 
 pub(crate) fn hex_decode<T: AsRef<[u8]>>(hex: T) -> Vec<u8> {
     fn value_of(c: u8) -> u8 {
@@ -60,15 +60,14 @@ pub(crate) fn assert_serialize<'a, DT, T: AsRef<[u8]>, ValueFn, PeekFn>(
 
 pub(crate) fn assert_peek_simple<'a, DT, ValueFn, PeekFn>(data: DT, value: ValueFn, peek: PeekFn)
 where
-    DT: std::cmp::PartialEq + std::fmt::Debug + Copy,
+    DT: 'a + std::cmp::PartialEq + std::fmt::Debug + Copy,
     ValueFn: Fn(DT) -> Value<'a>,
-    PeekFn: Fn(&[u8]) -> Option<DT>,
+    PeekFn: Fn(&'a [u8]) -> Option<Value<'a>>,
 {
     let value = value(data);
     let vector = value.to_vec();
 
     // Check deserialization.
-    let x: Option<DT> = peek(vector.as_slice());
-    assert!(x.is_some());
-    assert_eq!(x.unwrap(), data);
+    let x = peek(unsafe { &*(vector.as_ref() as *const [u8]) });
+    assert_eq!(x, Some(value));
 }
