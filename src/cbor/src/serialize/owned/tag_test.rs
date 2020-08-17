@@ -12,6 +12,15 @@ fn tag_simple() {
 }
 
 #[test]
+fn self_describe() {
+    // Tag with date.
+    let v = owned::usmall(0);
+    let value = owned::self_describe(v);
+
+    assert_value_owned(value, "d9d9f700")
+}
+
+#[test]
 fn tag_recursive() {
     // Tag with date.
     let v = owned::usmall(0);
