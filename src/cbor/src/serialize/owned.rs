@@ -337,7 +337,7 @@ impl From<&Value<'_>> for OwnedValue {
     fn from(v: &Value<'_>) -> Self {
         Self {
             major: v.major,
-            inner: v.inner.into(),
+            inner: OwnedValueInner::from(v.inner.clone()),
         }
     }
 }

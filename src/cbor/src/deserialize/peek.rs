@@ -3,9 +3,13 @@ pub use numbers::*;
 #[cfg(test)]
 mod numbers_test;
 
+mod tag;
+pub use tag::*;
+#[cfg(test)]
+mod tag_test;
+
 mod text;
 pub use text::*;
-
 #[cfg(test)]
 mod text_test;
 
@@ -25,4 +29,5 @@ pub fn peek<'a>(bytes: &'a [u8]) -> Option<Value<'a>> {
         .or_else(|| numbers::negative_u32(bytes))
         .or_else(|| numbers::negative_u64(bytes))
         .or_else(|| text::text(bytes))
+        .or_else(|| tag::tag(bytes))
 }

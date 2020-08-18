@@ -55,7 +55,7 @@ impl<'a, W: Write> Serializer<'a, W> {
     writer_method!(i32, i32);
     writer_method!(i64, i64);
 
-    writer_method!(tag, u64, &Value<'a>);
+    writer_method!(tag, u64, Value<'a>);
 
     writer_method!(text, &str);
     writer_method!(bytes, &[u8]);

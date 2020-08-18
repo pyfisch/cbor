@@ -1,9 +1,9 @@
 use crate::serialize::values::Value;
 
-pub fn tag<'a>(tag: u64, value: &'a Value<'a>) -> Value<'a> {
+pub fn tag(tag: u64, value: Value) -> Value {
     Value::from_tag(tag, value)
 }
 
-pub fn self_describe<'a>(value: &'a Value<'a>) -> Value<'a> {
+pub fn self_describe(value: Value) -> Value {
     tag(55799, value)
 }

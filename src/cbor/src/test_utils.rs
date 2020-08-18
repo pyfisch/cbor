@@ -71,3 +71,15 @@ where
     let x = peek(unsafe { &*(vector.as_ref() as *const [u8]) });
     assert_eq!(x, Some(value));
 }
+
+pub(crate) fn assert_peek<T: AsRef<[u8]>, PeekFn>(value: Value, hex: T, peek: PeekFn)
+where
+    PeekFn: Fn(&[u8]) -> Option<Value<'_>>,
+{
+    let vector = value.to_vec();
+    assert_eq!(vector, hex_decode(hex), "{:?}", value);
+
+    // Check deserialization.
+    let x = peek(unsafe { &*(vector.as_ref() as *const [u8]) });
+    assert_eq!(x, Some(value));
+}

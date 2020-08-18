@@ -45,7 +45,7 @@ mod text_test;
 /// value. It has no ownership, however.
 /// If there are no references needed (e.g. if the whole data is contained in the Major+
 /// Minor types), use NoRef().
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum ValueInner<'a> {
     NoRef(),
     ByteString(&'a [u8]),
@@ -56,7 +56,7 @@ pub(crate) enum ValueInner<'a> {
     IndefiniteText(&'a [&'a str]),
     IndefiniteArray(&'a [Value<'a>]),
     IndefiniteMap(&'a [(Value<'a>, Value<'a>)]),
-    Tag(&'a Value<'a>),
+    Tag(Box<Value<'a>>),
 }
 
 impl<'a> WriteTo for ValueInner<'a> {
@@ -171,7 +171,7 @@ impl<'a> WriteTo for ValueInner<'a> {
 ///
 /// The lifetime is used for bytes and string references. This Value does not own any sliced
 /// data itself. For this, use an [OwnedValue] (which is incompatible with no_std).
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Value<'a> {
     pub(crate) major: MajorType,
     pub(crate) inner: ValueInner<'a>,
@@ -273,10 +273,10 @@ impl<'a> Value<'a> {
     /// We do not expose this method because a user should use the values functions (like
     /// [u8] or [map]) to create values, or deserialize. Otherwise, non-CBOR byte streams
     /// could be created.
-    pub(crate) fn from_tag(tag: u64, inner: &'a Value<'a>) -> Self {
+    pub(crate) fn from_tag(tag: u64, inner: Value<'a>) -> Self {
         Self::with_inner(
             MajorType::Tag(MinorType::size(tag as usize)),
-            ValueInner::Tag(inner),
+            ValueInner::Tag(Box::new(inner)),
         )
     }
 
