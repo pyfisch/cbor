@@ -61,8 +61,8 @@ pub(crate) fn assert_serialize<'a, DT, T: AsRef<[u8]>, ValueFn, PeekFn>(
 pub(crate) fn assert_peek_simple<'a, DT, ValueFn, PeekFn>(data: DT, value: ValueFn, peek: PeekFn)
 where
     DT: 'a + std::cmp::PartialEq + std::fmt::Debug + Copy,
-    ValueFn: Fn(DT) -> Value<'a>,
-    PeekFn: Fn(&'a [u8]) -> Option<Value<'a>>,
+    ValueFn: Fn(DT) -> OwnedValue,
+    PeekFn: Fn(&'a [u8]) -> Option<OwnedValue>,
 {
     let value = value(data);
     let vector = value.to_vec();
@@ -72,9 +72,10 @@ where
     assert_eq!(x, Some(value));
 }
 
-pub(crate) fn assert_peek<T: AsRef<[u8]>, PeekFn>(value: Value, hex: T, peek: PeekFn)
+#[cfg(feature = "std")]
+pub(crate) fn assert_peek<T: AsRef<[u8]>, PeekFn>(value: OwnedValue, hex: T, peek: PeekFn)
 where
-    PeekFn: Fn(&[u8]) -> Option<Value<'_>>,
+    PeekFn: Fn(&[u8]) -> Option<OwnedValue>,
 {
     let vector = value.to_vec();
     assert_eq!(vector, hex_decode(hex), "{:?}", value);

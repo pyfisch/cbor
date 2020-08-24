@@ -1,9 +1,9 @@
 use crate::deserialize::peek::peek;
 use crate::encoding::{MajorType, MinorType};
-use crate::serialize::values::Value;
+use crate::serialize::owned::OwnedValue;
 use crate::serialize::WriteTo;
 
-pub fn tag(bytes: &[u8]) -> Option<Value> {
+pub fn tag(bytes: &[u8]) -> Option<OwnedValue> {
     let major = MajorType::from(bytes);
 
     match major {
@@ -18,7 +18,7 @@ pub fn tag(bytes: &[u8]) -> Option<Value> {
             };
             let offset = major.len() as usize;
             let rest = &bytes[offset..];
-            peek(rest).map(|v| Value::from_tag(tag, v))
+            peek(rest).map(|v| OwnedValue::from_tag(tag, v))
         }
         _ => None,
     }

@@ -30,6 +30,7 @@ pub enum MinorType {
 }
 
 impl MinorType {
+    /// Encode the size of a text, array or map.
     pub fn size(v: usize) -> Self {
         if v <= 23 {
             MinorType::SameByte(v as u8)
@@ -74,24 +75,10 @@ impl WriteTo for MinorType {
     fn write_to<W: Write>(&self, w: &mut W) -> Result<usize, WriteError> {
         match self {
             MinorType::SameByte(_) => Ok(0),
-            MinorType::OneByte(v) => w.write(&[*v]),
-            MinorType::TwoBytes(v) => w.write(&[(*v >> 8) as u8, *v as u8]),
-            MinorType::FourBytes(v) => w.write(&[
-                (*v >> 24) as u8,
-                (*v >> 16) as u8,
-                (*v >> 8) as u8,
-                (*v) as u8,
-            ]),
-            MinorType::EightBytes(v) => w.write(&[
-                (*v >> 56) as u8,
-                (*v >> 48) as u8,
-                (*v >> 40) as u8,
-                (*v >> 32) as u8,
-                (*v >> 24) as u8,
-                (*v >> 16) as u8,
-                (*v >> 8) as u8,
-                *v as u8,
-            ]),
+            MinorType::OneByte(v) => w.write(&v.to_be_bytes()),
+            MinorType::TwoBytes(v) => w.write(&v.to_be_bytes()),
+            MinorType::FourBytes(v) => w.write(&v.to_be_bytes()),
+            MinorType::EightBytes(v) => w.write(&v.to_be_bytes()),
             MinorType::Indefinite() => Ok(0),
             MinorType::Reserved(_) => Err(WriteError::ReservedCborValue()),
         }

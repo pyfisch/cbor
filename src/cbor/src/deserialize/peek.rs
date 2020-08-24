@@ -1,3 +1,10 @@
+#![cfg(feature = "std")]
+
+mod array;
+pub use array::*;
+#[cfg(test)]
+mod array_test;
+
 mod numbers;
 pub use numbers::*;
 #[cfg(test)]
@@ -18,9 +25,13 @@ pub use text::*;
 #[cfg(test)]
 mod text_test;
 
-use crate::serialize::values::Value;
+use crate::serialize::owned::OwnedValue;
 
-pub fn peek<'a>(bytes: &'a [u8]) -> Option<Value<'a>> {
+pub fn peek<'a>(bytes: &'a [u8]) -> Option<OwnedValue> {
+    if bytes.len() == 0 {
+        return None;
+    }
+
     // In order to maintain the SAME VALUE serialization as the peek, use every type of numbers
     // with their value counterpart.
     numbers::usmall(bytes)
@@ -35,4 +46,5 @@ pub fn peek<'a>(bytes: &'a [u8]) -> Option<Value<'a>> {
         .or_else(|| numbers::negative_u64(bytes))
         .or_else(|| text::text(bytes))
         .or_else(|| tag::tag(bytes))
+        .or_else(|| array::array(bytes))
 }

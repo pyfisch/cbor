@@ -1,8 +1,8 @@
 use crate::encoding::{MajorType, MinorType};
-use crate::serialize::values::Value;
+use crate::serialize::owned::OwnedValue;
 use crate::serialize::WriteTo;
 
-pub fn text(bytes: &[u8]) -> Option<Value> {
+pub fn text(bytes: &[u8]) -> Option<OwnedValue> {
     let major = MajorType::from(bytes);
 
     match major {
@@ -20,8 +20,8 @@ pub fn text(bytes: &[u8]) -> Option<Value> {
             std::str::from_utf8(&bytes[offset..offset + len])
                 .ok()
                 .map(|s| {
-                    // Safe because we know bytes has the same lifetime as Value.
-                    unsafe { Value::from_text(&*(s as *const str)) }
+                    // Safe because we know bytes has the same lifetime as OwnedValue.
+                    unsafe { OwnedValue::from_text(&*(s as *const str)) }
                 })
         }
         _ => None,
