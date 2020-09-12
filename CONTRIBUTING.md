@@ -1,5 +1,6 @@
 # Contributing to Serde CBOR
 Thanks for your interest!
+
 There are many ways to help:
 
 * write an issue about a problem you encountered
@@ -8,11 +9,16 @@ There are many ways to help:
 
 ## Pull Requests
 
-Code should be easy to understand and documented.
-For new features and fixed bugs please add a test to one of the files in `test/`.
-The tests are run on Travis CI to catch regressions early.
-Format your code with `cargo fmt` before committing.
-Currently Serde CBOR does not contain `unsafe` code and I would like to keep it this way.
+- Code should be easy to understand and documented.
+- For new features and fixed bugs please add a test to one of the files in `test/`.
+- The tests are run on Travis CI to catch regressions early.
+- Format your code with `cargo fmt` before committing.
+- Currently Serde CBOR does not contain `unsafe` code and I would like to keep it this way.
+- We squash all commits and use conventional commits. Start your PR titles with either
+  `feat` for a new feature, `fix` for a bug fix, `test` for new or fixed tests, `docs`
+  for documentation changes, and `chore` for general purpose changes.
+- Always have an issue to work off with for a PR. Design discussions happen in issues, while
+  code itself is reviewed in PR.
 
 ## Making a Release
 

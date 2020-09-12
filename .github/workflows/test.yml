@@ -1,0 +1,60 @@
+name: Tests
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        build: [ linux-stable, macos-stable, windows-stable ]
+        include:
+          - build: linux-stable
+            os: ubuntu-latest
+            rust: 1.45.1
+          - build: macos-stable
+            os: macos-latest
+            rust: 1.45.1
+          - build: windows-stable
+            os: windows-latest
+            rust: 1.45.1
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Cache Cargo
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ matrix.build }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ matrix.build }}-cargo-
+
+      - name: Install Rust
+        run: |
+          rustup update ${{ matrix.rust }} --no-self-update
+          rustup component add clippy
+          rustup default ${{ matrix.rust }}
+
+      - name: Run Tests
+        run: |
+          # Test all features and no features for each package. Skip docs as we
+          # do those separately.
+          for p in $(cargo metadata --no-deps --format-version 1 | jq -r .packages[].manifest_path); do
+            pushd $(dirname $p)
+            cargo test --all-targets --all-features --no-doc
+            cargo test --all-targets --no-default-features --no-doc
+            popd
+          done
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: Doc Tests
+        run: |
+          # Test all features and no features for each package.
+          cargo test --doc --all-features
+        env:
+          RUST_BACKTRACE: 1

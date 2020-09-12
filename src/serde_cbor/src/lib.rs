@@ -332,6 +332,9 @@ pub mod ser;
 pub mod tags;
 mod write;
 
+#[cfg(feature = "std")]
+pub mod value;
+
 // Re-export the [items recommended by serde](https://serde.rs/conventions.html).
 #[doc(inline)]
 pub use crate::de::{Deserializer, StreamDeserializer};
@@ -359,3 +362,8 @@ pub use crate::ser::to_vec;
 #[cfg(feature = "std")]
 #[doc(inline)]
 pub use crate::ser::to_writer;
+
+// Re-export the value type like serde_json
+#[cfg(feature = "std")]
+#[doc(inline)]
+pub use crate::value::Value;

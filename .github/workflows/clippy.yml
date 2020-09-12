@@ -1,0 +1,39 @@
+name: Clippy
+
+on: [pull_request]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        build: [ linux-stable ]
+        include:
+          - build: linux-stable
+            os: ubuntu-latest
+            rust: 1.45.1
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Cache Cargo
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ matrix.build }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ matrix.build }}-cargo-
+
+      - name: Install Rust
+        run: |
+          rustup update ${{ matrix.rust }} --no-self-update
+          rustup component add clippy
+          rustup default ${{ matrix.rust }}
+
+      - name: Linting (cargo clippy)
+        run: cargo clippy --verbose --tests --benches -- -D clippy::all
+        env:
+          RUST_BACKTRACE: 1
