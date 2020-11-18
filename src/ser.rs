@@ -9,11 +9,13 @@ pub use crate::write::{SliceWrite, Write};
 
 use crate::error::{Error, Result};
 use half::f16;
-use serde::ser::{self, Serialize};
+use serde::ser::{self, Impossible, Serialize};
 #[cfg(feature = "std")]
 use std::io;
 
 use crate::tags::{get_tag, CBOR_NEWTYPE_NAME};
+#[cfg(feature = "std")]
+use crate::value::raw::CBOR_RAW_VALUE_NAME;
 
 /// Serializes a value to a vector.
 #[cfg(any(feature = "std", feature = "alloc"))]
@@ -493,8 +495,18 @@ where
 
     #[inline]
     fn serialize_struct(self, _name: &'static str, len: usize) -> Result<StructSerializer<'a, W>> {
-        self.write_u64(5, len as u64)?;
-        Ok(StructSerializer { ser: self, idx: 0 })
+
+        #[cfg(feature = "std")]
+        let raw = _name == CBOR_RAW_VALUE_NAME;
+
+        #[cfg(not(feature = "std"))]
+        let raw = false;
+
+        if !raw {
+            self.write_u64(5, len as u64)?;
+        }
+
+        Ok(StructSerializer { ser: self, idx: 0, raw })
     }
 
     #[inline]
@@ -587,6 +599,7 @@ where
 pub struct StructSerializer<'a, W> {
     ser: &'a mut Serializer<W>,
     idx: u32,
+    raw: bool,
 }
 
 impl<'a, W> StructSerializer<'a, W>
@@ -598,12 +611,24 @@ where
     where
         T: ?Sized + ser::Serialize,
     {
-        if self.ser.packed {
-            self.idx.serialize(&mut *self.ser)?;
-        } else {
-            key.serialize(&mut *self.ser)?;
+        if !self.raw {
+            if self.ser.packed {
+                self.idx.serialize(&mut *self.ser)?;
+            } else {
+                key.serialize(&mut *self.ser)?;
+            }
         }
-        value.serialize(&mut *self.ser)?;
+
+        if self.raw {
+            #[cfg(feature = "std")]
+            value.serialize(RawValueBytesEmitter(&mut *self.ser))?;
+
+            #[cfg(not(feature = "std"))]
+            value.serialize(&mut *self.ser)?;
+        } else {
+            value.serialize(&mut *self.ser)?;
+        }
+
         self.idx += 1;
         Ok(())
     }
@@ -739,5 +764,201 @@ where
     #[inline]
     fn end(self) -> Result<()> {
         self.end_inner()
+    }
+}
+
+#[cfg(feature = "std")]
+struct RawValueBytesEmitter<'a, W: 'a + Write>(&'a mut Serializer<W>);
+
+#[cfg(feature = "std")]
+impl <'a, W: 'a + Write> ser::Serializer for RawValueBytesEmitter<'a, W> {
+    type Ok = ();
+    type Error = Error;
+
+    type SerializeSeq = Impossible<(), Error>;
+    type SerializeTuple = Impossible<(), Error>;
+    type SerializeTupleStruct = Impossible<(), Error>;
+    type SerializeTupleVariant = Impossible<(), Error>;
+    type SerializeMap = Impossible<(), Error>;
+    type SerializeStruct = Impossible<(), Error>;
+    type SerializeStructVariant = Impossible<(), Error>;
+
+    // This is the actual useful one
+    #[inline]
+    fn serialize_bytes(self, v: &[u8]) -> Result<()> {
+        self.0.writer.write_all(v).map_err(|e| e.into().into())
+    }
+
+    // None of these should ever happen
+
+    #[inline]
+    fn serialize_seq(self, _: Option<usize>) -> Result<Self::SerializeSeq> {
+        panic!("expected RawValue (got seq)")
+    }
+
+    #[inline]
+    fn serialize_bool(self, _: bool) -> Result<()> {
+        panic!("expected RawValue (got bool)")
+    }
+
+    #[inline]
+    fn serialize_i8(self, _: i8) -> Result<()> {
+        panic!("expected RawValue (got i8)")
+    }
+
+    #[inline]
+    fn serialize_i16(self, _: i16) -> Result<()> {
+        panic!("expected RawValue (got i16)")
+    }
+
+    #[inline]
+    fn serialize_i32(self, _: i32) -> Result<()> {
+        panic!("expected RawValue (got i32)")
+    }
+
+    #[inline]
+    fn serialize_i64(self, _: i64) -> Result<()> {
+        panic!("expected RawValue (got i64)")
+    }
+
+    #[inline]
+    fn serialize_u8(self, _: u8) -> Result<()> {
+        panic!("expected RawValue (got u8)")
+    }
+
+    #[inline]
+    fn serialize_u16(self, _: u16) -> Result<()> {
+        panic!("expected RawValue (got u16)")
+    }
+
+    #[inline]
+    fn serialize_u32(self, _: u32) -> Result<()> {
+        panic!("expected RawValue (got u32)")
+    }
+
+    #[inline]
+    fn serialize_u64(self, _: u64) -> Result<()> {
+        panic!("expected RawValue (got u64)")
+    }
+
+    #[inline]
+    fn serialize_f32(self, _: f32) -> Result<()> {
+        panic!("expected RawValue (got f32)")
+    }
+
+    #[inline]
+    fn serialize_f64(self, _: f64) -> Result<()> {
+        panic!("expected RawValue (got f64)")
+    }
+
+    #[inline]
+    fn serialize_char(self, _: char) -> Result<()> {
+        panic!("expected RawValue (got char)")
+    }
+
+    #[inline]
+    fn serialize_str(self, _: &str) -> Result<()> {
+        panic!("expected RawValue (got str)")
+    }
+
+    #[inline]
+    fn serialize_none(self) -> Result<()> {
+        panic!("expected RawValue (got none)")
+    }
+
+    #[inline]
+    fn serialize_some<T>(self, _: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        panic!("expected RawValue (got some)")
+    }
+
+    #[inline]
+    fn serialize_unit(self) -> Result<()> {
+        panic!("expected RawValue (got unit)")
+    }
+
+    #[inline]
+    fn serialize_unit_struct(self, _: &'static str) -> Result<()> {
+        panic!("expected RawValue (got unit struct)")
+    }
+
+    #[inline]
+    fn serialize_unit_variant(
+        self,
+        _: &'static str,
+        _: u32,
+        _: &'static str,
+    ) -> Result<()> {
+        panic!("expected RawValue (got unit variant)")
+    }
+
+    #[inline]
+    fn serialize_newtype_struct<T>(self, _: &'static str, _: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        panic!("expected RawValue (got newtype struct)")
+    }
+
+    #[inline]
+    fn serialize_newtype_variant<T>(
+        self,
+        _: &'static str,
+        _: u32,
+        _: &'static str,
+        _: &T,
+    ) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        panic!("expected RawValue (got newtype variant)")
+    }
+
+    #[inline]
+    fn serialize_tuple(self, _: usize) -> Result<Self::SerializeTuple> {
+        panic!("expected RawValue (got tuple)")
+    }
+
+    #[inline]
+    fn serialize_tuple_struct(
+        self,
+        _: &'static str,
+        _: usize,
+    ) -> Result<Self::SerializeTupleStruct> {
+        panic!("expected RawValue (got tuple struct)")
+    }
+
+    #[inline]
+    fn serialize_tuple_variant(
+        self,
+        _: &'static str,
+        _: u32,
+        _: &'static str,
+        _: usize,
+    ) -> Result<Self::SerializeTupleVariant> {
+        panic!("expected RawValue (got tuple variant)")
+    }
+
+    #[inline]
+    fn serialize_map(self, _: Option<usize>) -> Result<Self::SerializeMap> {
+        panic!("expected RawValue (got map)")
+    }
+
+    #[inline]
+    fn serialize_struct(self, _: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
+        panic!("expected RawValue (got struct)")
+    }
+
+    #[inline]
+    fn serialize_struct_variant(
+        self,
+        _: &'static str,
+        _: u32,
+        _: &'static str,
+        _: usize,
+    ) -> Result<Self::SerializeStructVariant> {
+        panic!("expected RawValue (got struct variant)")
     }
 }
