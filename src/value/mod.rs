@@ -2,9 +2,14 @@
 
 mod de;
 mod ser;
+#[cfg(any(feature = "std", feature = "alloc"))]
+pub(crate) mod raw;
 
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::BTreeMap;
+
+#[cfg(any(feature = "std", feature = "alloc"))]
+pub use raw::RawValue;
 
 #[doc(inline)]
 pub use self::de::from_value;
