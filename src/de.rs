@@ -1249,6 +1249,17 @@ pub struct StreamDeserializer<'de, R, T> {
     lifetime: PhantomData<&'de ()>,
 }
 
+impl<'de, R, T> StreamDeserializer<'de, R, T> {
+    /// Changes ouptut type of the stream deserializer
+    pub fn change_output_type<U>(self) -> StreamDeserializer<'de, R, U> {
+        StreamDeserializer {
+            de: self.de,
+            output: PhantomData,
+            lifetime: PhantomData,
+        }
+    }
+}
+
 impl<'de, R, T> StreamDeserializer<'de, R, T>
 where
     R: Read<'de>,
