@@ -70,13 +70,14 @@ where
 /// ```
 #[cfg(any(feature = "std", feature = "alloc"))]
 pub fn from_slice_count<'a, T>(slice: &'a [u8]) -> Result<(T, usize)>
-where T: de::Deserialize<'a>
+where
+    T: de::Deserialize<'a>,
 {
     from_slice::<T>(slice)
         .map(|v| (v, slice.len()))
         .or_else(|e| {
             if matches!(e.code(), ErrorCode::TrailingData) {
-            // if format!("{}", e).starts_with("trailing data") {
+                // if format!("{}", e).starts_with("trailing data") {
                 let end = (e.offset() - 1) as usize;
                 from_slice::<T>(&slice[..end]).map(|v| (v, end))
             } else {
