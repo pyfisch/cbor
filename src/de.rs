@@ -54,7 +54,8 @@ where
     Ok(value)
 }
 
-/// Decodes a value from the first piece of valid CBOR data in a slice.
+/// Decodes a value from the first piece of valid CBOR data in a slice,
+/// returning the number of bytes read to produce the value.
 ///
 /// # Examples
 ///
