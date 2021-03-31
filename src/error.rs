@@ -34,10 +34,6 @@ impl Error {
         self.0.offset
     }
 
-    pub(crate) fn code(&self) -> &ErrorCode {
-        &self.0.code
-    }
-
     pub(crate) fn syntax(code: ErrorCode, offset: u64) -> Error {
         Error(ErrorImpl { code, offset })
     }

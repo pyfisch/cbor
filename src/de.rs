@@ -68,21 +68,25 @@ where
 /// assert_eq!(value, "foobar");
 /// assert_eq!(len, 7);
 /// ```
+///
+/// Deserialize two consecutive `String`s
+///
+/// ```
+/// # use serde_cbor::de;
+/// let v: Vec<u8> = vec![0x63, 0x66, 0x6F, 0x6F, 0x63, 0x62, 0x61, 0x72];
+/// let (value_1, off): (String, _) = de::from_slice_count(&v[..]).unwrap();
+/// let (value_2, _): (String, _) = de::from_slice_count(&v[off..]).unwrap();
+/// assert_eq!(value_1, "foo");
+/// assert_eq!(value_2, "bar");
+/// ```
 #[cfg(any(feature = "std", feature = "alloc"))]
 pub fn from_slice_count<'a, T>(slice: &'a [u8]) -> Result<(T, usize)>
 where
     T: de::Deserialize<'a>,
 {
-    from_slice::<T>(slice)
-        .map(|v| (v, slice.len()))
-        .or_else(|e| {
-            if let ErrorCode::TrailingData = e.code() {
-                let end = (e.offset() - 1) as usize;
-                from_slice::<T>(&slice[..end]).map(|v| (v, end))
-            } else {
-                Err(e)
-            }
-        })
+    let mut deserializer = Deserializer::from_slice(slice);
+    let value = de::Deserialize::deserialize(&mut deserializer)?;
+    Ok((value, deserializer.byte_offset()))
 }
 
 // When the "std" feature is enabled there should be little to no need to ever use this function,
