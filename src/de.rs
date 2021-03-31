@@ -76,8 +76,7 @@ where
     from_slice::<T>(slice)
         .map(|v| (v, slice.len()))
         .or_else(|e| {
-            if matches!(e.code(), ErrorCode::TrailingData) {
-                // if format!("{}", e).starts_with("trailing data") {
+            if let ErrorCode::TrailingData = e.code() {
                 let end = (e.offset() - 1) as usize;
                 from_slice::<T>(&slice[..end]).map(|v| (v, end))
             } else {
