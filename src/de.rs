@@ -54,6 +54,37 @@ where
     Ok(value)
 }
 
+/// Decodes a value from the first piece of valid CBOR data in a slice.
+///
+/// # Examples
+///
+/// Deserialize a `String`
+///
+/// ```
+/// # use serde_cbor::de;
+/// let v: Vec<u8> = vec![0x66, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72,
+///                       0xde, 0xad, 0xbe, 0xef]; // nonsense trailing data
+/// let (value, len): (String, _) = de::from_slice_count(&v[..]).unwrap();
+/// assert_eq!(value, "foobar");
+/// assert_eq!(len, 7);
+/// ```
+#[cfg(any(feature = "std", feature = "alloc"))]
+pub fn from_slice_count<'a, T>(slice: &'a [u8]) -> Result<(T, usize)>
+where T: de::Deserialize<'a>
+{
+    from_slice::<T>(slice)
+        .map(|v| (v, slice.len()))
+        .or_else(|e| {
+            if matches!(e.code(), ErrorCode::TrailingData) {
+            // if format!("{}", e).starts_with("trailing data") {
+                let end = (e.offset() - 1) as usize;
+                from_slice::<T>(&slice[..end]).map(|v| (v, end))
+            } else {
+                Err(e)
+            }
+        })
+}
+
 // When the "std" feature is enabled there should be little to no need to ever use this function,
 // as `from_slice` covers all use cases (at the expense of being less efficient).
 /// Decode a value from CBOR data in a mutable slice.
