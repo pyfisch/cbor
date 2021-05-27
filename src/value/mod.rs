@@ -2,6 +2,7 @@
 
 mod de;
 mod ser;
+mod convert;
 
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::BTreeMap;
@@ -101,35 +102,6 @@ impl Ord for Value {
         }
     }
 }
-
-macro_rules! impl_from {
-    ($variant:path, $for_type:ty) => {
-        impl From<$for_type> for Value {
-            fn from(v: $for_type) -> Value {
-                $variant(v.into())
-            }
-        }
-    };
-}
-
-impl_from!(Value::Bool, bool);
-impl_from!(Value::Integer, i8);
-impl_from!(Value::Integer, i16);
-impl_from!(Value::Integer, i32);
-impl_from!(Value::Integer, i64);
-// i128 omitted because not all numbers fit in CBOR serialization
-impl_from!(Value::Integer, u8);
-impl_from!(Value::Integer, u16);
-impl_from!(Value::Integer, u32);
-impl_from!(Value::Integer, u64);
-// u128 omitted because not all numbers fit in CBOR serialization
-impl_from!(Value::Float, f32);
-impl_from!(Value::Float, f64);
-impl_from!(Value::Bytes, Vec<u8>);
-impl_from!(Value::Text, String);
-// TODO: figure out if these impls should be more generic or removed.
-impl_from!(Value::Array, Vec<Value>);
-impl_from!(Value::Map, BTreeMap<Value, Value>);
 
 impl Value {
     fn major_type(&self) -> u8 {
