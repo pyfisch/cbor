@@ -1,8 +1,8 @@
 //! CBOR values, keys and serialization routines.
 
+mod convert;
 mod de;
 mod ser;
-mod convert;
 
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::BTreeMap;
