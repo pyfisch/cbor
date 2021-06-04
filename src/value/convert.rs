@@ -8,6 +8,7 @@ use std::{
     collections::BTreeMap,
     convert::{TryFrom, TryInto},
     iter::{FromIterator, FusedIterator},
+    mem,
     ops::{Index, IndexMut},
     slice::{Iter as SliceIter, IterMut as SliceIterMut},
     vec::IntoIter as VecIntoIter,
@@ -49,6 +50,11 @@ impl Value {
             Map(ref mut map) => map.get_mut(&idx),
             _ => None,
         }
+    }
+
+    /// Takes the value out of the `Value`, leaving a `Null` in its place.
+    pub fn take(&mut self) -> Value {
+        mem::replace(self, Null)
     }
 
     /// Null check
@@ -607,6 +613,11 @@ mod tests {
         *x = "world".into();
         assert!(v["hello"].is_string());
         assert_eq!(v["hello"].as_str().unwrap(), "world");
+
+        let mut v = Value::from(true);
+        let x = v.take();
+        assert_eq!(v, Null);
+        assert!(x.as_bool().unwrap());
     }
 
     #[test]
