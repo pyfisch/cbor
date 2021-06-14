@@ -31,7 +31,7 @@ fn test_simple_data_enum_roundtrip() {
 mod std_tests {
     use std::collections::BTreeMap;
 
-    use serde_cbor::ser::{IoWrite, Serializer};
+    use serde_cbor::ser::{to_vec_packed, IoWrite, Serializer};
     use serde_cbor::value::Value;
     use serde_cbor::{from_slice, to_vec};
 
@@ -232,5 +232,50 @@ mod std_tests {
         assert_eq!(Bar::Point { x: 5, y: -5 }, point_vec_ds);
         let point_map_ds = from_slice(&point_map_s).unwrap();
         assert_eq!(Bar::Point { x: 5, y: -5 }, point_map_ds);
+    }
+
+    #[test]
+    fn test_packed_variants() {
+        // unit variants serialize as just the <variant number>
+        let empty_s = to_vec_packed(&Bar::Empty).unwrap();
+        let empty_num_s = to_vec_packed(&0).unwrap();
+        assert_eq!(empty_s, empty_num_s);
+
+        // newtype variants serialize like {<variant number>: value}
+        let number_s = to_vec_packed(&Bar::Number(42)).unwrap();
+        let mut number_map = BTreeMap::new();
+        number_map.insert(1, 42);
+        let number_map_s = to_vec_packed(&number_map).unwrap();
+        assert_eq!(number_s, number_map_s);
+
+        // multi-element tuple variants serialize like {<variant number>: [values..]}
+        let flag_s = to_vec_packed(&Bar::Flag("foo".to_string(), true)).unwrap();
+        let mut flag_map = BTreeMap::new();
+        flag_map.insert(2, vec![Value::Text("foo".to_string()), Value::Bool(true)]);
+        let flag_map_s = to_vec_packed(&flag_map).unwrap();
+        assert_eq!(flag_s, flag_map_s);
+
+        // struct-variants serialize like {<variant number>, {struct..}}
+        let point_s = to_vec_packed(&Bar::Point { x: 5, y: -5 }).unwrap();
+        let mut struct_map = BTreeMap::new();
+        struct_map.insert(Value::Integer(0), Value::Integer(5));
+        struct_map.insert(Value::Integer(1), Value::Integer(-5));
+        let mut point_map = BTreeMap::new();
+        point_map.insert(3, Value::Map(struct_map));
+        let point_map_s = to_vec_packed(&point_map).unwrap();
+        assert_eq!(point_s, point_map_s);
+
+        // deserialization of all encodings should just work
+        let empty_ds = from_slice(&empty_s).unwrap();
+        assert_eq!(Bar::Empty, empty_ds);
+
+        let number_ds = from_slice(&number_s).unwrap();
+        assert_eq!(Bar::Number(42), number_ds);
+
+        let flag_ds = from_slice(&flag_s).unwrap();
+        assert_eq!(Bar::Flag("foo".to_string(), true), flag_ds);
+
+        let point_ds = from_slice(&point_s).unwrap();
+        assert_eq!(Bar::Point { x: 5, y: -5 }, point_ds);
     }
 }
