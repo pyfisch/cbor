@@ -573,6 +573,17 @@ mod std_tests {
             value.unwrap_err().classify(),
             serde_cbor::error::Category::Syntax
         );
+
+        // Externally tagged enum with a variable length map
+        let v: Vec<u8> = vec![
+            0xbf, // map
+            0x67, 0x4e, 0x65, 0x77, 0x54, 0x79, 0x70, 0x65, // utf8 string: NewType
+            0x1a, // u32
+            0x00, 0x00, 0x00, 0x0a, // 10 (dec)
+            0xff, // stop
+        ];
+        let (_rest, value): (&[u8], Enum) = from_slice_stream(&v[..]).unwrap();
+        assert_eq!(value, Enum::NewType(10));
     }
 
     #[test]

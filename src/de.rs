@@ -863,6 +863,13 @@ where
                 self.consume();
                 self.parse_enum_map(visitor)
             }
+            Some(0xbf) => {
+                if !self.accept_standard_enums {
+                    return Err(self.error(ErrorCode::WrongEnumFormat));
+                }
+                self.consume();
+                self.parse_indefinite_enum(visitor)
+            }
             None => Err(self.error(ErrorCode::EofWhileParsingValue)),
             _ => {
                 if !self.accept_standard_enums && !self.accept_legacy_enums {
