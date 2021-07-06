@@ -794,7 +794,7 @@ where
         V: de::Visitor<'de>,
     {
         match self.peek()? {
-            Some(0xf6) => {
+            Some(0xf6) | Some(0xf7) => {
                 self.consume();
                 visitor.visit_none()
             }
