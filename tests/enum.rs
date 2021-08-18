@@ -57,7 +57,9 @@ mod std_tests {
 
     #[test]
     fn test_enum() {
-        let enum_struct = EnumStruct { e: Enum::B };
+        let enum_struct = EnumStruct {
+            e: Enum::B,
+        };
         let raw = &to_vec(&enum_struct).unwrap();
         println!("raw enum {:?}", raw);
         let re: EnumStruct = from_slice(raw).unwrap();
@@ -78,7 +80,9 @@ mod std_tests {
 
     #[test]
     fn test_repr_enum() {
-        let repr_enum_struct = ReprEnumStruct { e: ReprEnum::B };
+        let repr_enum_struct = ReprEnumStruct {
+            e: ReprEnum::B,
+        };
         let re: ReprEnumStruct = from_slice(&to_vec(&repr_enum_struct).unwrap()).unwrap();
         assert_eq!(repr_enum_struct, re);
     }
@@ -87,7 +91,10 @@ mod std_tests {
     enum DataEnum {
         A(u32),
         B(bool, u8),
-        C { x: u8, y: String },
+        C {
+            x: u8,
+            y: String,
+        },
     }
 
     #[test]
@@ -111,14 +118,8 @@ mod std_tests {
     fn test_serialize() {
         assert_eq!(to_vec_legacy(&Enum::A).unwrap(), &[97, 65]);
         assert_eq!(to_vec_legacy(&Enum::B).unwrap(), &[97, 66]);
-        assert_eq!(
-            to_vec_legacy(&DataEnum::A(42)).unwrap(),
-            &[130, 97, 65, 24, 42]
-        );
-        assert_eq!(
-            to_vec_legacy(&DataEnum::B(true, 9)).unwrap(),
-            &[131, 97, 66, 245, 9]
-        );
+        assert_eq!(to_vec_legacy(&DataEnum::A(42)).unwrap(), &[130, 97, 65, 24, 42]);
+        assert_eq!(to_vec_legacy(&DataEnum::B(true, 9)).unwrap(), &[131, 97, 66, 245, 9]);
     }
 
     #[test]
@@ -147,7 +148,10 @@ mod std_tests {
         Empty,
         Number(i32),
         Flag(String, bool),
-        Point { x: i32, y: i32 },
+        Point {
+            x: i32,
+            y: i32,
+        },
     }
 
     #[test]
@@ -173,14 +177,15 @@ mod std_tests {
         assert_eq!(flag_s, flag_vec_s);
 
         // struct-variants serialize like ["<variant>", {struct..}]
-        let point_s = to_vec_legacy(&Bar::Point { x: 5, y: -5 }).unwrap();
+        let point_s = to_vec_legacy(&Bar::Point {
+            x: 5,
+            y: -5,
+        })
+        .unwrap();
         let mut struct_map = BTreeMap::new();
         struct_map.insert(Value::Text("x".to_string()), Value::Integer(5));
         struct_map.insert(Value::Text("y".to_string()), Value::Integer(-5));
-        let point_vec = vec![
-            Value::Text("Point".to_string()),
-            Value::Map(struct_map.clone()),
-        ];
+        let point_vec = vec![Value::Text("Point".to_string()), Value::Map(struct_map.clone())];
         let point_vec_s = to_vec_legacy(&point_vec).unwrap();
         assert_eq!(point_s, point_vec_s);
 
@@ -200,15 +205,16 @@ mod std_tests {
         // multi-element tuple variants serialize like {"<variant>": [values..]}
         let flag_s = to_vec(&Bar::Flag("foo".to_string(), true)).unwrap();
         let mut flag_map = BTreeMap::new();
-        flag_map.insert(
-            "Flag",
-            vec![Value::Text("foo".to_string()), Value::Bool(true)],
-        );
+        flag_map.insert("Flag", vec![Value::Text("foo".to_string()), Value::Bool(true)]);
         let flag_map_s = to_vec(&flag_map).unwrap();
         assert_eq!(flag_s, flag_map_s);
 
         // struct-variants serialize like {"<variant>", {struct..}}
-        let point_s = to_vec(&Bar::Point { x: 5, y: -5 }).unwrap();
+        let point_s = to_vec(&Bar::Point {
+            x: 5,
+            y: -5,
+        })
+        .unwrap();
         let mut point_map = BTreeMap::new();
         point_map.insert("Point", Value::Map(struct_map));
         let point_map_s = to_vec(&point_map).unwrap();
@@ -229,8 +235,20 @@ mod std_tests {
         assert_eq!(Bar::Flag("foo".to_string(), true), flag_map_ds);
 
         let point_vec_ds = from_slice(&point_vec_s).unwrap();
-        assert_eq!(Bar::Point { x: 5, y: -5 }, point_vec_ds);
+        assert_eq!(
+            Bar::Point {
+                x: 5,
+                y: -5
+            },
+            point_vec_ds
+        );
         let point_map_ds = from_slice(&point_map_s).unwrap();
-        assert_eq!(Bar::Point { x: 5, y: -5 }, point_map_ds);
+        assert_eq!(
+            Bar::Point {
+                x: 5,
+                y: -5
+            },
+            point_map_ds
+        );
     }
 }

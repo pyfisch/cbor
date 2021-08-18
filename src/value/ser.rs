@@ -392,8 +392,7 @@ impl serde::ser::SerializeStructVariant for SerializeStructVariant {
     where
         T: Serialize,
     {
-        self.map
-            .insert(Value::from(String::from(key)), to_value(&value)?);
+        self.map.insert(Value::from(String::from(key)), to_value(&value)?);
         Ok(())
     }
 

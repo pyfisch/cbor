@@ -102,10 +102,7 @@ impl Write for Vec<u8> {
     }
 }
 
-#[cfg(all(
-    any(feature = "std", feature = "alloc"),
-    not(feature = "unsealed_read_write")
-))]
+#[cfg(all(any(feature = "std", feature = "alloc"), not(feature = "unsealed_read_write")))]
 impl private::Sealed for Vec<u8> {}
 
 #[cfg(not(feature = "std"))]
@@ -142,7 +139,10 @@ pub struct SliceWrite<'a> {
 impl<'a> SliceWrite<'a> {
     /// Wraps a mutable slice so it can be used as a `Write`.
     pub fn new(slice: &'a mut [u8]) -> SliceWrite<'a> {
-        SliceWrite { slice, index: 0 }
+        SliceWrite {
+            slice,
+            index: 0,
+        }
     }
 
     /// Returns the number of bytes written to the underlying slice.

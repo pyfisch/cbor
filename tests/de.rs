@@ -37,7 +37,10 @@ fn test_indefinite_object() {
         a: u64,
         b: [u64; 2],
     }
-    let expected = Foo { a: 1, b: [2, 3] };
+    let expected = Foo {
+        a: 1,
+        b: [2, 3],
+    };
     let actual: Foo =
         de::from_slice_with_scratch(b"\xbfaa\x01ab\x9f\x02\x03\xff\xff", &mut []).unwrap();
     assert_eq!(expected, actual);
@@ -119,11 +122,7 @@ mod std_tests {
         let value: error::Result<Value> = de::from_slice(b"\x83\x01\x02\x03");
         assert_eq!(
             value.unwrap(),
-            Value::Array(vec![
-                Value::Integer(1),
-                Value::Integer(2),
-                Value::Integer(3)
-            ])
+            Value::Array(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)])
         );
     }
 
@@ -134,10 +133,7 @@ mod std_tests {
             value.unwrap(),
             Value::Array(vec![
                 Value::Integer(1),
-                Value::Array(vec![
-                    Value::Integer(2),
-                    Value::Array(vec![Value::Integer(3)])
-                ])
+                Value::Array(vec![Value::Integer(2), Value::Array(vec![Value::Integer(3)])])
             ])
         );
     }
@@ -171,11 +167,7 @@ mod std_tests {
         let value: error::Result<Value> = de::from_slice(b"\x9f\x01\x02\x03\xff");
         assert_eq!(
             value.unwrap(),
-            Value::Array(vec![
-                Value::Integer(1),
-                Value::Integer(2),
-                Value::Integer(3)
-            ])
+            Value::Array(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)])
         );
     }
 
@@ -183,10 +175,7 @@ mod std_tests {
     fn test_indefinite_string() {
         let value: error::Result<Value> =
             de::from_slice(b"\x7f\x65Mary \x64Had \x62a \x67Little \x60\x64Lamb\xff");
-        assert_eq!(
-            value.unwrap(),
-            Value::Text("Mary Had a Little Lamb".to_owned())
-        );
+        assert_eq!(value.unwrap(), Value::Text("Mary Had a Little Lamb".to_owned()));
     }
 
     #[test]
@@ -314,10 +303,7 @@ mod std_tests {
         let slice = b"\xbf\x67\x6d\x65\x73\x73\x61\x67\x65\x64\x70\x6f\x6e\x67\xff";
         let value: Value = de::from_slice(slice).unwrap();
         let mut map = BTreeMap::new();
-        map.insert(
-            Value::Text("message".to_string()),
-            Value::Text("pong".to_string()),
-        );
+        map.insert(Value::Text("message".to_string()), Value::Text("pong".to_string()));
         assert_eq!(value, Value::Map(map))
     }
 
@@ -327,10 +313,7 @@ mod std_tests {
 
         // 0.1% chance of not catching failure
         for _ in 0..10 {
-            assert_eq!(
-                &to_vec(&de::from_slice::<Value>(expected).unwrap()).unwrap(),
-                expected
-            );
+            assert_eq!(&to_vec(&de::from_slice::<Value>(expected).unwrap()).unwrap(), expected);
         }
     }
 
@@ -339,10 +322,7 @@ mod std_tests {
         let slice = b"\x01\x66foobar";
         let mut it = Deserializer::from_slice(slice).into_iter::<Value>();
         assert_eq!(Value::Integer(1), it.next().unwrap().unwrap());
-        assert_eq!(
-            Value::Text("foobar".to_string()),
-            it.next().unwrap().unwrap()
-        );
+        assert_eq!(Value::Text("foobar".to_string()), it.next().unwrap().unwrap());
         assert!(it.next().is_none());
     }
 
@@ -381,10 +361,7 @@ mod std_tests {
     fn crash() {
         let file = include_bytes!("crash.cbor");
         let value_result: error::Result<Value> = de::from_slice(file);
-        assert_eq!(
-            value_result.unwrap_err().classify(),
-            serde_cbor::error::Category::Syntax
-        );
+        assert_eq!(value_result.unwrap_err().classify(), serde_cbor::error::Category::Syntax);
     }
 
     fn from_slice_stream<'a, T>(slice: &'a [u8]) -> error::Result<(&'a [u8], T)>
@@ -501,7 +478,10 @@ mod std_tests {
             Unit,
             NewType(i32),
             Tuple(String, bool),
-            Struct { x: i32, y: i32 },
+            Struct {
+                x: i32,
+                y: i32,
+            },
         }
 
         // This is the format used in serde >= 0.10
@@ -520,16 +500,10 @@ mod std_tests {
         assert_eq!(value, Enum::NewType(10));
         let value: error::Result<(&[u8], Enum)> =
             from_slice_stream_options(&v[..], Options::default().no_standard());
-        assert_eq!(
-            value.unwrap_err().classify(),
-            serde_cbor::error::Category::Syntax
-        );
+        assert_eq!(value.unwrap_err().classify(), serde_cbor::error::Category::Syntax);
         let value: error::Result<(&[u8], Enum)> =
             from_slice_stream_options(&v[..], Options::default().no_standard().no_legacy());
-        assert_eq!(
-            value.unwrap_err().classify(),
-            serde_cbor::error::Category::Syntax
-        );
+        assert_eq!(value.unwrap_err().classify(), serde_cbor::error::Category::Syntax);
         // Serialization of Enum::Unit
         let v: Vec<u8> = vec![
             0x64, 0x55, 0x6e, 0x69, 0x74, // utf8 string: Unit
@@ -544,10 +518,7 @@ mod std_tests {
         assert_eq!(value, Enum::Unit);
         let value: error::Result<(&[u8], Enum)> =
             from_slice_stream_options(&v[..], Options::default().no_legacy().no_standard());
-        assert_eq!(
-            value.unwrap_err().classify(),
-            serde_cbor::error::Category::Syntax
-        );
+        assert_eq!(value.unwrap_err().classify(), serde_cbor::error::Category::Syntax);
 
         // This is the format used in serde <= 0.9
         let v: Vec<u8> = vec![
@@ -560,19 +531,13 @@ mod std_tests {
         assert_eq!(value, Enum::NewType(10));
         let value: error::Result<(&[u8], Enum)> =
             from_slice_stream_options(&v[..], Options::default().no_legacy());
-        assert_eq!(
-            value.unwrap_err().classify(),
-            serde_cbor::error::Category::Syntax
-        );
+        assert_eq!(value.unwrap_err().classify(), serde_cbor::error::Category::Syntax);
         let value: error::Result<(&[u8], Enum)> =
             from_slice_stream_options(&v[..], Options::default().no_standard());
         assert_eq!(value.unwrap().1, Enum::NewType(10));
         let value: error::Result<(&[u8], Enum)> =
             from_slice_stream_options(&v[..], Options::default().no_standard().no_legacy());
-        assert_eq!(
-            value.unwrap_err().classify(),
-            serde_cbor::error::Category::Syntax
-        );
+        assert_eq!(value.unwrap_err().classify(), serde_cbor::error::Category::Syntax);
     }
 
     #[test]
@@ -612,10 +577,7 @@ mod std_tests {
         );
         let value: error::Result<(&[u8], User)> =
             from_slice_stream_options(&v[..], Options::default().no_named());
-        assert_eq!(
-            value.unwrap_err().classify(),
-            serde_cbor::error::Category::Syntax
-        );
+        assert_eq!(value.unwrap_err().classify(), serde_cbor::error::Category::Syntax);
 
         // unpacked - indefinite length
         let v: Vec<u8> = vec![
@@ -647,10 +609,7 @@ mod std_tests {
         );
         let value: error::Result<(&[u8], User)> =
             from_slice_stream_options(&v[..], Options::default().no_named());
-        assert_eq!(
-            value.unwrap_err().classify(),
-            serde_cbor::error::Category::Syntax
-        );
+        assert_eq!(value.unwrap_err().classify(), serde_cbor::error::Category::Syntax);
 
         // packed
         let v: Vec<u8> = vec![
@@ -680,10 +639,7 @@ mod std_tests {
         );
         let value: error::Result<(&[u8], User)> =
             from_slice_stream_options(&v[..], Options::default().no_packed());
-        assert_eq!(
-            value.unwrap_err().classify(),
-            serde_cbor::error::Category::Syntax
-        );
+        assert_eq!(value.unwrap_err().classify(), serde_cbor::error::Category::Syntax);
 
         // packed - indefinite length
         let v: Vec<u8> = vec![
@@ -714,10 +670,7 @@ mod std_tests {
         );
         let value: error::Result<(&[u8], User)> =
             from_slice_stream_options(&v[..], Options::default().no_packed());
-        assert_eq!(
-            value.unwrap_err().classify(),
-            serde_cbor::error::Category::Syntax
-        );
+        assert_eq!(value.unwrap_err().classify(), serde_cbor::error::Category::Syntax);
     }
 
     use serde_cbor::{de::from_slice, ser::to_vec_packed};
