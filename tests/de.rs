@@ -744,4 +744,77 @@ mod std_tests {
         let err = serde_cbor::from_slice::<serde_cbor::Value>(&input).expect_err("recursion limit");
         assert!(err.is_syntax());
     }
+
+    #[test]
+    fn test_int_as_string_map_keys() {
+        use std::collections::HashMap;
+
+        // Given a map with keys that are strings, but happen to be strings of integers
+        // e.g. "4", try to deserialize it into a HashMap<i32, ...>. This should
+        // work to have compatibility with serde_json.
+        let mut input = HashMap::<String, i32>::new();
+        input.insert("1".to_string(), 1);
+        input.insert("12345".to_string(), 2);
+        input.insert("-2".to_string(), 3);
+        let buf = to_vec(&input).unwrap();
+
+        let deserialized = from_slice::<HashMap<i16, i32>>(&buf).unwrap();
+
+        assert_eq!(deserialized.len(), 3);
+        assert_eq!(deserialized.get(&1), Some(&1));
+        assert_eq!(deserialized.get(&12345), Some(&2));
+        assert_eq!(deserialized.get(&-2), Some(&3));
+    }
+
+    #[test]
+    fn test_int_as_string_map_keys_unsigned_err() {
+        use std::collections::HashMap;
+
+        let mut input = HashMap::<String, i32>::new();
+        input.insert("1".to_string(), 1);
+        input.insert("-2".to_string(), 3);
+        let buf = to_vec(&input).unwrap();
+
+        // Should fail because key is negative.
+        from_slice::<HashMap<u16, i32>>(&buf).expect_err("");
+    }
+
+    #[test]
+    fn test_int_as_string_map_keys_out_of_range() {
+        use std::collections::HashMap;
+
+        let mut input = HashMap::<String, i32>::new();
+        input.insert("1".to_string(), 1);
+        input.insert("12345".to_string(), 2);
+        let buf = to_vec(&input).unwrap();
+
+        // Should fail because key is out of range.
+        from_slice::<HashMap<u8, i32>>(&buf).expect_err("");
+    }
+
+    #[test]
+    fn test_int_as_string_map_keys_empty() {
+        use std::collections::HashMap;
+
+        let mut input = HashMap::<String, i32>::new();
+        input.insert("1".to_string(), 1);
+        input.insert("".to_string(), 2);
+        let buf = to_vec(&input).unwrap();
+
+        // Should fail because key is empty
+        from_slice::<HashMap<u8, i32>>(&buf).expect_err("");
+    }
+
+    #[test]
+    fn test_int_as_string_map_keys_invalid() {
+        use std::collections::HashMap;
+
+        let mut input = HashMap::<String, i32>::new();
+        input.insert("1".to_string(), 1);
+        input.insert("12.5".to_string(), 2);
+        let buf = to_vec(&input).unwrap();
+
+        // Should fail because key is not an integer
+        from_slice::<HashMap<u8, i32>>(&buf).expect_err("");
+    }
 }
