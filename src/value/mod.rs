@@ -5,6 +5,7 @@ mod ser;
 
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::BTreeMap;
+use std::mem;
 
 #[doc(inline)]
 pub use self::de::from_value;
@@ -152,5 +153,178 @@ impl Value {
             Map(_) => 5,
             __Hidden => unreachable!(),
         }
+    }
+
+    /// Check whether this [Value] is null.
+    pub fn is_null(&self) -> bool {
+        match *self {
+            Value::Null => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether this [Value] is a bool.
+    pub fn is_bool(&self) -> bool {
+        match *self {
+            Value::Bool(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether this [Value] is an integer.
+    pub fn is_integer(&self) -> bool {
+        match *self {
+            Value::Integer(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether this [Value] is a float.
+    pub fn is_float(&self) -> bool {
+        match *self {
+            Value::Float(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether this [Value] is bytes.
+    pub fn is_bytes(&self) -> bool {
+        match *self {
+            Value::Bytes(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether this [Value] is text.
+    pub fn is_text(&self) -> bool {
+        match *self {
+            Value::Text(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether this [Value] is an array.
+    pub fn is_array(&self) -> bool {
+        match *self {
+            Value::Array(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether this [Value] is a map.
+    pub fn is_map(&self) -> bool {
+        match *self {
+            Value::Map(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether this [Value] is a tag.
+    pub fn is_tag(&self) -> bool {
+        match *self {
+            Value::Tag(_, _) => true,
+            _ => false,
+        }
+    }
+
+    /// If the [Value] is a bool, returns it, [None] otherwise.
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            Value::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    /// If the [Value] is an integer, returns it, [None] otherwise.
+    pub fn as_interger(&self) -> Option<i128> {
+        match self {
+            Value::Integer(i) => Some(*i),
+            _ => None,
+        }
+    }
+
+    /// If the [Value] is a float, returns it, [None] otherwise.
+    pub fn as_float(&self) -> Option<f64> {
+        match self {
+            Value::Float(f) => Some(*f),
+            _ => None,
+        }
+    }
+
+    /// If the [Value] is bytes, returns a reference to it, [None] otherwise.
+    pub fn as_bytes(&self) -> Option<&Vec<u8>> {
+        match self {
+            Value::Bytes(ref b) => Some(b),
+            _ => None,
+        }
+    }
+
+    /// If the [Value] is bytes, returns a mutable reference of it, [None] otherwise.
+    pub fn as_bytes_mut(&mut self) -> Option<&mut Vec<u8>> {
+        match self {
+            Value::Bytes(ref mut b) => Some(b),
+            _ => None,
+        }
+    }
+
+    /// If the [Value] is text, returns a reference to it, [None] otherwise.
+    pub fn as_text(&self) -> Option<&str> {
+        match self {
+            Value::Text(ref t) => Some(t),
+            _ => None,
+        }
+    }
+
+    /// If the [Value] is an array, returns a refernce to it, [None] otherwise.
+    pub fn as_array(&self) -> Option<&Vec<Value>> {
+        match self {
+            Value::Array(ref a) => Some(a),
+            _ => None,
+        }
+    }
+
+    /// If the [Value] is an array, returns a mutable refernce to it, [None] otherwise.
+    pub fn as_array_mut(&mut self) -> Option<&mut Vec<Value>> {
+        match self {
+            Value::Array(ref mut a) => Some(a),
+            _ => None,
+        }
+    }
+
+    /// If the [Value] is a map, returns a reference to it, [None] otherwise.
+    pub fn as_map(&self) -> Option<&BTreeMap<Value, Value>> {
+        match self {
+            Value::Map(ref m) => Some(m),
+            _ => None,
+        }
+    }
+
+    /// If the [Value] is a map, returns a mutable reference to it, [None] otherwise.
+    pub fn as_map_mut(&mut self) -> Option<&mut BTreeMap<Value, Value>> {
+        match self {
+            Value::Map(ref mut m) => Some(m),
+            _ => None,
+        }
+    }
+
+    /// If the [Value] is a tagged value, returns a reference to it, [None] otherwise.
+    pub fn as_tag(&self) -> Option<(u64, &Value)> {
+        match self {
+            Value::Tag(t, ref v) => Some((*t, v.as_ref())),
+            _ => None,
+        }
+    }
+
+    /// If the [Value] is a tagged value, returns a reference to it, [None] otherwise.
+    pub fn as_tag_mut(&mut self) -> Option<(u64, &mut Value)> {
+        match self {
+            Value::Tag(t, ref mut v) => Some((*t, v.as_mut())),
+            _ => None,
+        }
+    }
+
+    /// Take the [Value], leaving [Null] in place.
+    pub fn take(&mut self) -> Value {
+        mem::replace(self, Value::Null)
     }
 }
