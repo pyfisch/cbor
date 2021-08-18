@@ -29,9 +29,13 @@ of the JSON data model that is small and very fast to parse.
 [RFC 7049]: https://tools.ietf.org/html/rfc7049
 [Serde]: https://github.com/serde-rs/serde
 
+### MSRV
+
+Serde CBOR supports Rust 1.36 and up.
+
 ## Usage
 
-Serde CBOR supports Rust 1.40 and up. Add this to your `Cargo.toml`:
+Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
 serde_cbor = "0.11.2"
