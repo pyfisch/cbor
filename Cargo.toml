@@ -19,6 +19,8 @@ maintenance = { status = "as-is" }
 [dependencies]
 half = "1.2.0"
 serde = { version = "1.0.14", default-features = false }
+tokio-util = { version = "0.3", optional = true }
+bytes = { version = "0.5", optional = true }
 
 [dev-dependencies]
 serde_derive = { version = "1.0.14", default-features = false }
@@ -31,3 +33,4 @@ alloc = ["serde/alloc"]
 std = ["serde/std" ]
 unsealed_read_write = []
 tags = []
+codec = ["tokio-util/codec", "bytes"]

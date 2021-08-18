@@ -335,6 +335,9 @@ mod write;
 #[cfg(feature = "std")]
 pub mod value;
 
+#[cfg(feature = "codec")]
+pub mod codec;
+
 // Re-export the [items recommended by serde](https://serde.rs/conventions.html).
 #[doc(inline)]
 pub use crate::de::{Deserializer, StreamDeserializer};
