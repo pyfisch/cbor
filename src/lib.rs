@@ -158,35 +158,6 @@
 //! assert_eq!(cbor.len(), 1);
 //!
 //! let cbor = to_vec_packed(&SecondVariant(0)).unwrap();
-//! assert_eq!(cbor.len(), 16); // Includes 13 bytes of "SecondVariant"
-//! ```
-//!
-//! Serialize using minimal encoding
-//!
-//! ```rust
-//! use serde_derive::{Deserialize, Serialize};
-//! use serde_cbor::{Result, Serializer, ser::{self, IoWrite}};
-//! use WithTwoVariants::*;
-//!
-//! fn to_vec_minimal<T>(value: &T) -> Result<Vec<u8>>
-//! where
-//!     T: serde::Serialize,
-//! {
-//!     let mut vec = Vec::new();
-//!     value.serialize(&mut Serializer::new(&mut IoWrite::new(&mut vec)).packed_format().legacy_enums())?;
-//!     Ok(vec)
-//! }
-//!
-//! #[derive(Debug, Serialize, Deserialize)]
-//! enum WithTwoVariants {
-//!     FirstVariant,
-//!     SecondVariant(u8),
-//! }
-//!
-//! let cbor = to_vec_minimal(&FirstVariant).unwrap();
-//! assert_eq!(cbor.len(), 1);
-//!
-//! let cbor = to_vec_minimal(&SecondVariant(0)).unwrap();
 //! assert_eq!(cbor.len(), 3);
 //! ```
 //!

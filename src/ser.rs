@@ -426,7 +426,11 @@ where
     {
         if self.enum_as_map {
             self.write_u64(5, 1u64)?;
-            variant.serialize(&mut *self)?;
+            if self.packed {
+                variant_index.serialize(&mut *self)?;
+            } else {
+                variant.serialize(&mut *self)?;
+            }
         } else {
             self.writer.write_all(&[4 << 5 | 2]).map_err(|e| e.into())?;
             self.serialize_unit_variant(name, variant_index, variant)?;
@@ -464,7 +468,11 @@ where
     ) -> Result<&'a mut Serializer<W>> {
         if self.enum_as_map {
             self.write_u64(5, 1u64)?;
-            variant.serialize(&mut *self)?;
+            if self.packed {
+                variant_index.serialize(&mut *self)?;
+            } else {
+                variant.serialize(&mut *self)?;
+            }
             self.serialize_tuple(len)
         } else {
             self.write_u64(4, (len + 1) as u64)?;
